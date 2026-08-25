@@ -18,6 +18,16 @@ export function listByParent(db: DB, parentRepo: string, parentIssue: number): I
     .all(parentRepo, parentIssue) as Item[];
 }
 
+/**
+ * idx_items_pr (repo, pr_number) は 1 PR につき 1 item までしか許さない。
+ * 1 つの PR が複数 Issue を close することがあるため（例: "Closes #4, #6"）、
+ * pr_number をセットする前に他の item が既に持っていないか確認する必要がある。
+ */
+export function findByPrNumber(db: DB, repo: string, prNumber: number): Item | null {
+  if (prNumber <= 0) return null;
+  return db.query("SELECT * FROM items WHERE repo=? AND pr_number=?").get(repo, prNumber) as Item | null;
+}
+
 /** Poller だけが呼ぶ。初期状態は spec.md §5 コールドスタート / §9 子 Issue に従う。 */
 export function createItem(
   db: DB,

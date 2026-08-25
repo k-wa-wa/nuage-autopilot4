@@ -5,6 +5,7 @@ import * as jobs from "../src/store/jobs.ts";
 import { forcedSync } from "../src/decide/sync.ts";
 import { botCommentedSince, takeSnapshot } from "../src/github/verify.ts";
 import { buildInvocation } from "../src/execute/adapters.ts";
+import { pollRepo } from "../src/collect/poller.ts";
 
 /**
  * 初回実装で埋め込んだ欠陥の回帰テスト。
@@ -141,6 +142,55 @@ describe("Poller の更新が競合で消えていた", () => {
 
     items.refreshFromGitHub(db, stale, { head_sha: "new" });
     expect(items.getItem(db, "o/r", 1)!.head_sha).toBe("new");
+  });
+});
+
+describe("同じ PR が複数 Issue を close すると poll loop 全体が落ちていた", () => {
+  test("2 つ目の Issue には pr_number を紐付けず、クラッシュせずに両方 item 化する", async () => {
+    const db = memDb();
+    const rate = { cost: 1, remaining: 5000, resetAt: "" };
+    const date = "2026-08-24T00:00:00Z";
+
+    const pollResp = {
+      data: {
+        repository: {
+          issues: {
+            pageInfo: { hasNextPage: false },
+            nodes: [
+              { id: "I_4", number: 4, state: "CLOSED", updatedAt: date },
+              { id: "I_6", number: 6, state: "CLOSED", updatedAt: date },
+            ],
+          },
+          pullRequests: { pageInfo: { hasNextPage: false }, nodes: [] },
+        },
+      },
+      rate, date,
+    };
+    const detailResp = {
+      data: {
+        nodes: [
+          issue({ id: "I_4", number: 4, state: "CLOSED", timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] } }),
+          issue({ id: "I_6", number: 6, state: "CLOSED", timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] } }),
+        ],
+      },
+      rate, date,
+    };
+    const gh = fakeGh({
+      async graphql<T>(q: string) {
+        return (/query PollRepository/.test(q) ? pollResp : detailResp) as { data: T; rate: typeof rate; date: string };
+      },
+    });
+
+    const out = await pollRepo(db, gh, { owner: "o", name: "r" }, "bot-login");
+    expect(out.error).toBeUndefined();
+
+    const i4 = items.getItem(db, "o/r", 4)!;
+    const i6 = items.getItem(db, "o/r", 6)!;
+    expect(i4).not.toBeNull();
+    expect(i6).not.toBeNull();
+    // どちらか一方だけが PR #1 を保持し、もう一方は 0 のまま（unique index を壊さない）。
+    const linked = [i4.pr_number, i6.pr_number].sort();
+    expect(linked).toEqual([0, 1]);
   });
 });
 

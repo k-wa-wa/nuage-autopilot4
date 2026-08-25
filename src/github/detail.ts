@@ -17,10 +17,9 @@ query FetchDetails($ids: [ID!]!, $subs: Int!, $comments: Int!) {
         nodes { number state stateReason repository { nameWithOwner } }
       }
       comments(last: $comments) { nodes { databaseId body createdAt author { login } } }
-      timelineItems(last: 10, itemTypes: [CONNECTED_EVENT, CROSS_REFERENCED_EVENT]) {
+      timelineItems(last: 10, itemTypes: [CONNECTED_EVENT]) {
         nodes {
           ... on ConnectedEvent { subject { ... on PullRequest { number state merged } } }
-          ... on CrossReferencedEvent { source { ... on PullRequest { number state merged } } }
         }
       }
     }
@@ -80,7 +79,7 @@ export interface IssueDetail {
   subIssuesSummary: { total: number; completed: number; percentCompleted: number };
   subIssues: { totalCount: number; pageInfo: { hasNextPage: boolean }; nodes: SubIssue[] };
   comments: { nodes: Comment[] };
-  timelineItems: { nodes: Array<{ subject?: PrRef | null; source?: PrRef | null }> };
+  timelineItems: { nodes: Array<{ subject?: PrRef | null }> };
 }
 
 export interface PrDetail {
@@ -119,11 +118,16 @@ export async function fetchDetails(gh: GitHubClient, ids: string[]): Promise<Det
   return out;
 }
 
-/** timeline から紐づく PR 番号を取る。取れなければ null（次周期で拾う）。 */
+/**
+ * timeline から紐づく PR 番号を取る。取れなければ null（次周期で拾う）。
+ * ConnectedEvent（GitHub 上で明示的に「この PR が close する」とリンクされた関係）だけを見る。
+ * CrossReferencedEvent（本文やコミットメッセージに番号がたまたま書かれただけの言及）は使わない。
+ * 言及は closes の意図を保証せず、1 つの PR が複数 Issue から言及されることもあるため、
+ * それを pr_number（1 PR につき 1 item までの idx_items_pr）に採用すると誤った紐付けや衝突を起こす。
+ */
 export function linkedPrNumber(issue: IssueDetail): number | null {
   for (const n of issue.timelineItems.nodes) {
-    const pr = n.subject ?? n.source;
-    if (pr?.number) return pr.number;
+    if (n.subject?.number) return n.subject.number;
   }
   return null;
 }

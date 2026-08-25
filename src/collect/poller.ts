@@ -127,7 +127,7 @@ function syncIssueItem(db: DB, repo: string, d: IssueDetail, botLogin: string, c
   if (!existing) {
     // bot が起票し parent を持つ Issue は refine 済みの子。再度 refine を走らせない。
     const isBotChild = d.author?.login === botLogin && !!d.parent;
-    const prNumber = linkedPrNumber(d) ?? 0;
+    const prNumber = resolveLinkedPr(db, repo, d.number, d);
     items.createItem(db, {
       repo,
       issue_number: d.number,
@@ -153,8 +153,21 @@ function syncIssueItem(db: DB, repo: string, d: IssueDetail, botLogin: string, c
     parent_issue_number: parentNum,
     sub_issues_total: d.subIssuesSummary.total,
     sub_issues_completed: d.subIssuesSummary.completed,
-    ...(existing.pr_number === 0 ? { pr_number: linkedPrNumber(d) ?? 0 } : {}),
+    ...(existing.pr_number === 0 ? { pr_number: resolveLinkedPr(db, repo, d.number, d) } : {}),
   });
+}
+
+/**
+ * linkedPrNumber() が返す PR は、複数の Issue から close されうる
+ * （例: 親 Issue と子 Issue を同じ PR が close する）。
+ * idx_items_pr は 1 PR につき 1 item までしか許さないため、
+ * 既に他の Issue がその PR 番号を持っているなら、この Issue には紐付けない。
+ */
+function resolveLinkedPr(db: DB, repo: string, issueNumber: number, d: IssueDetail): number {
+  const pr = linkedPrNumber(d);
+  if (!pr) return 0;
+  const owner = items.findByPrNumber(db, repo, pr);
+  return !owner || owner.issue_number === issueNumber ? pr : 0;
 }
 
 function syncPrItem(db: DB, repo: string, d: PrDetail): void {
