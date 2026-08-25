@@ -70,6 +70,11 @@ stdenv.mkDerivation {
 
   dontConfigure = true;
 
+  # bun build --compile で末尾に付加される JavaScript バンドルが
+  # Nix の strip や patchelf (fixupPhase) で切り落とされて素の bun に戻るのを防ぐ
+  dontStrip = true;
+  dontPatchELF = true;
+
   buildPhase = ''
     runHook preBuild
     export HOME=$TMPDIR
