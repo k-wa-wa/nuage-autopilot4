@@ -1,11 +1,11 @@
 import { Database } from "bun:sqlite";
-import { readdirSync, readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), "migrations");
+import init0001 from "./migrations/0001_init.sql" with { type: "text" };
 
 export type DB = Database;
+
+const MIGRATIONS: Array<{ version: number; sql: string }> = [
+  { version: 1, sql: init0001 },
+];
 
 /**
  * 接続し PRAGMA を適用してマイグレーションを昇順に適用する。
@@ -13,7 +13,7 @@ export type DB = Database;
  */
 export function openDb(path: string): DB {
   const db = new Database(path, { create: true });
-  db.exec(`
+  db.run(`
     PRAGMA journal_mode = WAL;
     PRAGMA busy_timeout = 5000;
     PRAGMA synchronous = NORMAL;
@@ -24,14 +24,12 @@ export function openDb(path: string): DB {
 }
 
 function migrate(db: DB): void {
-  const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();
   const current = (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
-  for (const f of files) {
-    const v = Number(f.slice(0, 4));
-    if (!Number.isFinite(v) || v <= current) continue;
+  for (const { version, sql } of MIGRATIONS) {
+    if (version <= current) continue;
     db.transaction(() => {
-      db.exec(readFileSync(join(MIGRATIONS_DIR, f), "utf8"));
-      db.exec(`PRAGMA user_version = ${v}`);
+      db.run(sql);
+      db.run(`PRAGMA user_version = ${version}`);
     })();
   }
 }

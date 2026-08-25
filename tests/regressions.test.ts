@@ -143,3 +143,20 @@ describe("Poller の更新が競合で消えていた", () => {
     expect(items.getItem(db, "o/r", 1)!.head_sha).toBe("new");
   });
 });
+
+describe("コンパイル済みバイナリでマイグレーションが失敗していた", () => {
+  test("openDb がスキーマを適用し user_version を設定する", () => {
+    const db = memDb();
+    const v = (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
+    expect(v).toBeGreaterThanOrEqual(1);
+
+    const tables = db.query("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    const tableNames = tables.map((t) => t.name);
+    expect(tableNames).toContain("items");
+    expect(tableNames).toContain("job_queue");
+    expect(tableNames).toContain("github_cache");
+    expect(tableNames).toContain("runs");
+    expect(tableNames).toContain("cursors");
+  });
+});
+
