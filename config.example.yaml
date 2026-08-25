@@ -1,0 +1,47 @@
+# 監視対象。base_branch を省略すると GitHub の既定ブランチを起動時に解決する。
+repos:
+  - owner: k-wa-wa
+    name: pechka
+  - owner: k-wa-wa
+    name: nuage-cluster
+    base_branch: develop
+
+# パイプラインを駆動できる人間の login。
+# Issue とコメントはそのままエージェントへの指示になるため、ここに無い人の発言は
+# パイプラインを一切動かさない。bot アカウントを含めてはならない（doctor が検証する）。
+allowlist:
+  - k-wa-wa
+
+# ジョブ種別ごとのエージェント CLI とモデル。
+# command のコマンド名（パス指定でも basename）からアダプタを解決する
+# （claude / agy / exec。[agent-contract.md §2-0]）。省略した種別は command: claude になる。
+# model を省略した場合はエージェント CLI の既定モデルが使用される。
+agents:
+  # 判定専用。毎イベント走るので、速くて安いモデルを充てる。
+  triage:
+    command: claude
+    model: haiku
+    timeout_sec: 120
+  refine:
+    command: claude
+    timeout_sec: 900
+  implement:
+    command: claude
+    timeout_sec: 3600
+  # 読むだけのジョブなので、実装とは別のモデルに任せて書き手と読み手を分けてもよい。
+  evaluate:
+    command: claude
+    timeout_sec: 1800
+
+queue:
+  # 全リポジトリ合計の同時実行数。同一リポジトリ内は常に 1 件ずつ。
+  max_parallel: 2
+
+dashboard:
+  # 既定は 127.0.0.1。認証を持たないので、広げるのは信頼できるネットワークに限ること
+  # （書き込み API は無いため、影響は Issue の題名と状態が読まれるまで）。
+  # host: 0.0.0.0
+  port: 8787
+
+# 本システムは GitHub.com（パブリック / プライベート）専用である。
+# 第三者によるプロンプトインジェクションを防ぐため、監視対象はプライベートリポジトリを原則とする（[agent-contract.md §2-2]）。

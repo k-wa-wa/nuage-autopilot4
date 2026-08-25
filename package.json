@@ -1,0 +1,20 @@
+{
+  "name": "autopilot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/main.ts run",
+    "build": "bun build --compile --outfile dist/autopilot src/main.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "yaml": "^2.6.0"
+  }
+}
