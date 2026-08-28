@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run src/main.ts run",
+    "dev:dashboard": "bun --watch src/view/dev.tsx",
     "build": "bun build --compile --outfile dist/autopilot src/main.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

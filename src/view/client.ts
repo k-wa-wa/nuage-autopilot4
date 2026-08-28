@@ -64,6 +64,7 @@ export function initClient(): void {
 
   refresh();
   let t = setInterval(refresh, 4000);
+  window.addEventListener("autopilot:refresh", refresh);
   document.addEventListener("visibilitychange", () => {
     clearInterval(t);
     if (!document.hidden) {
