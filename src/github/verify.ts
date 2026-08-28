@@ -94,14 +94,21 @@ export async function botCommentedSince(
   pr: number,
   botLogin: string,
   snap: Snapshot,
-  target: "issue" | "pr",
+  target: "issue" | "pr" | "any",
   retries: number = DEFAULTS.verifyRetries,
 ): Promise<boolean> {
-  const watermark = target === "issue" ? snap.maxIssueCommentId : snap.maxPrCommentId;
   return retrying(async () => {
     const c = await fetchComments(gh, repo, issue, pr);
-    const nodes = target === "issue" ? c.issue : c.pr;
-    return nodes.some((n) => n.author?.login === botLogin && n.databaseId > watermark);
+    if (target === "issue") {
+      return c.issue.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxIssueCommentId);
+    }
+    if (target === "pr") {
+      return c.pr.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxPrCommentId);
+    }
+    return (
+      c.issue.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxIssueCommentId) ||
+      c.pr.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxPrCommentId)
+    );
   }, retries);
 }
 

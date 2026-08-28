@@ -159,10 +159,10 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
   if (!parsed.ok) return fail(d, job, parsed.reason);
   const r = parsed.value;
 
-  // blocked は設計された出口。ただし選択肢コメントが Issue 側に存在することを検証する。
+  // blocked は設計された出口。ただし選択肢コメントが Issue / PR 側に存在することを検証する。
   if (r.status === "blocked") {
     const ok = await verify.botCommentedSince(
-      d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "issue",
+      d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
     );
     if (!ok) return fail(d, job, "blocked but no option comment was posted");
     finish(d, job, "completed", "BLOCKED", r.summary, r.next_context, (cur) =>
@@ -179,7 +179,7 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
   switch (job.job_type) {
     case "refine": {
       const ok = await verify.botCommentedSince(
-        d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "issue",
+        d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
       );
       if (!ok) return fail(d, job, "refine posted no comment");
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>

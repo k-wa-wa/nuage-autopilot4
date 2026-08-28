@@ -47,6 +47,20 @@ export function hintMatchesState(state: State, hint: string): boolean {
   return false; // Done は hint を持たない
 }
 
+/** display_hint から対応する State を一意に導出する。 */
+export function hintToState(hint: DisplayHint): State {
+  if (hint === "") return "Done";
+  if (hint === "着手待ち") return "Queued";
+  if ((WORKING_HINTS as readonly string[]).includes(hint) || SUB_PROGRESS_RE.test(hint)) {
+    return "Working";
+  }
+  if ((ACTION_REQUIRED_HINTS as readonly string[]).includes(hint)) {
+    return "ActionRequired";
+  }
+  throw new Error(`unknown display_hint: ${hint}`);
+}
+
+
 export const JOB_TYPES = ["refine", "implement", "evaluate"] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 

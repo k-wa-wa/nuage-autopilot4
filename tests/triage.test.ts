@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { TRIAGE_SYSTEM_PROMPT, validate, parseJson } from "../src/decide/triage.ts";
-import { ACTION_REQUIRED_HINTS, WORKING_HINTS, QUEUED_HINTS } from "../src/types.ts";
+import { TRIAGE_SYSTEM_PROMPT, validate, normalizeTriageOutput, parseJson } from "../src/decide/triage.ts";
+import { ACTION_REQUIRED_HINTS, WORKING_HINTS } from "../src/types.ts";
 
 describe("Triage Agent のプロンプトとバリデーション", () => {
   test("SYSTEM プロンプトに定義済みの全 display_hint が含まれていること", () => {
@@ -10,14 +10,10 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     for (const hint of WORKING_HINTS) {
       expect(TRIAGE_SYSTEM_PROMPT).toContain(`"${hint}"`);
     }
-    for (const hint of QUEUED_HINTS) {
-      expect(TRIAGE_SYSTEM_PROMPT).toContain(`"${hint}"`);
-    }
   });
 
   test("validate: 正常な判定 JSON を通す", () => {
     const valid = {
-      state: "ActionRequired",
       display_hint: "仕様確認待ち",
       next_job: "none",
       job_context: "",
@@ -26,7 +22,6 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     expect(validate(valid)).toBeNull();
 
     const queuedWithJob = {
-      state: "Queued",
       display_hint: "着手待ち",
       next_job: "refine",
       job_context: "要件を整理してください",
@@ -35,7 +30,6 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     expect(validate(queuedWithJob)).toBeNull();
 
     const done = {
-      state: "Done",
       display_hint: "",
       next_job: "none",
       job_context: "",
@@ -46,7 +40,6 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
 
   test("validate: 自由形式や英語の display_hint を拒否する", () => {
     const invalidHint = {
-      state: "ActionRequired",
       display_hint: "Scope clarification needed",
       next_job: "none",
       job_context: "",
@@ -55,26 +48,55 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     expect(validate(invalidHint)).toBe("bad display_hint: Scope clarification needed");
   });
 
-  test("validate: state と display_hint の不一致を拒否する", () => {
-    const mismatch = {
-      state: "Working",
-      display_hint: "仕様確認待ち",
-      next_job: "none",
+  test("validate: next_job があるのに job_context が空なら拒否する", () => {
+    const emptyCtx = {
+      next_job: "implement",
       job_context: "",
-      reason: "不一致テスト",
+      reason: "実装指示",
     };
-    expect(validate(mismatch)).toBe("hint does not match state: Working / 仕様確認待ち");
+    expect(validate(emptyCtx)).toBe("empty job_context");
   });
 
-  test("validate: ActionRequired のまま next_job を積むのを拒否する", () => {
-    const invalidJob = {
+  test("normalizeTriageOutput: next_job がある場合は自動的に Queued / 着手待ち に正規化される", () => {
+    // LLM が state: ActionRequired や display_hint: 仕様確認待ち を返してきても安全に補正
+    const raw = {
       state: "ActionRequired",
       display_hint: "仕様確認待ち",
       next_job: "implement",
-      job_context: "実装してください",
-      reason: "不正な組み合わせ",
+      job_context: "flake.nix を修正してください",
+      reason: "レビュー指摘に対応するため",
     };
-    expect(validate(invalidJob)).toBe("next_job set while ActionRequired");
+    const out = normalizeTriageOutput(raw);
+    expect(out.state).toBe("Queued");
+    expect(out.display_hint).toBe("着手待ち");
+    expect(out.next_job).toBe("implement");
+    expect(out.job_context).toBe("flake.nix を修正してください");
+  });
+
+  test("normalizeTriageOutput: next_job が none の場合は display_hint から state が一意に導出される", () => {
+    const mergeWait = normalizeTriageOutput({
+      display_hint: "マージ待ち",
+      next_job: "none",
+      reason: "CI合格",
+    });
+    expect(mergeWait.state).toBe("ActionRequired");
+    expect(mergeWait.display_hint).toBe("マージ待ち");
+
+    const ciWait = normalizeTriageOutput({
+      display_hint: "CI 待ち",
+      next_job: "none",
+      reason: "CI実行中",
+    });
+    expect(ciWait.state).toBe("Working");
+    expect(ciWait.display_hint).toBe("CI 待ち");
+
+    const done = normalizeTriageOutput({
+      display_hint: "",
+      next_job: "none",
+      reason: "完了",
+    });
+    expect(done.state).toBe("Done");
+    expect(done.display_hint).toBe("");
   });
 
   test("parseJson: Markdown や前後のノイズがあっても JSON を抽出できる", () => {
@@ -84,7 +106,6 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
 
 \`\`\`json
 {
-  "state": "ActionRequired",
   "display_hint": "仕様確認待ち",
   "next_job": "none",
   "job_context": "",
@@ -95,7 +116,7 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
 `;
     const parsed = parseJson(output);
     expect(parsed).not.toBeNull();
-    expect(parsed?.state).toBe("ActionRequired");
     expect(parsed?.display_hint).toBe("仕様確認待ち");
   });
 });
+

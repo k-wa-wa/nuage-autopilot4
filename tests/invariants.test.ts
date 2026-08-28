@@ -32,6 +32,17 @@ describe("値域が閉じている", () => {
     expect(hintMatchesState("Done", "")).toBe(true);
   });
 
+  test("hintToState は display_hint から正しく state を導出する", () => {
+    const { hintToState } = require("../src/types.ts");
+    expect(hintToState("マージ待ち")).toBe("ActionRequired");
+    expect(hintToState("仕様確認待ち")).toBe("ActionRequired");
+    expect(hintToState("助言待ち")).toBe("ActionRequired");
+    expect(hintToState("CI 待ち")).toBe("Working");
+    expect(hintToState(subProgress(1, 3))).toBe("Working");
+    expect(hintToState("着手待ち")).toBe("Queued");
+    expect(hintToState("")).toBe("Done");
+  });
+
   test("transitionItem は値域外を拒否する", () => {
     const db = memDb();
     const it = seedItem(db, { repo: "o/r", issue_number: 1 });
