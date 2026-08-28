@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { DB } from "../store/db.ts";
 import { buildState } from "./state.ts";
-import { PAGE } from "./page.ts";
+import { Page } from "./page.tsx";
 
 /**
  * Dashboard（spec.md §10）。
@@ -17,7 +17,7 @@ export function startServer(db: DB, port: number, hostname = "127.0.0.1"): { sto
 
   app.get("/api/state", (c) => c.json(buildState(db)));
   app.get("/api/health", (c) => c.json(buildState(db).health));
-  app.get("/", (c) => c.html(PAGE));
+  app.get("/", (c) => c.html("<!doctype html>" + <Page />));
 
   const server = Bun.serve({ port, hostname, fetch: app.fetch });
   return { stop: () => server.stop(true) };

@@ -11,7 +11,7 @@ import type { DispatchDeps } from "./decide/dispatcher.ts";
 import { tick } from "./decide/tick.ts";
 import { claimJob, runClaimed, recover } from "./execute/worker.ts";
 import type { WorkerDeps } from "./execute/worker.ts";
-import { startServer } from "./view/server.ts";
+import { startServer } from "./view/server.tsx";
 import { buildState, runtime } from "./view/state.ts";
 import { acquireLock } from "./cli/lock.ts";
 import { doctor, printChecks } from "./cli/doctor.ts";
