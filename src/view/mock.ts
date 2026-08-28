@@ -56,6 +56,10 @@ function pastIso(minutesAgo: number): string {
   return new Date(Date.now() - minutesAgo * 60_000).toISOString();
 }
 
+function futureIso(minutesLater: number): string {
+  return new Date(Date.now() + minutesLater * 60_000).toISOString();
+}
+
 /**
  * モック用のインメモリ SQLite データベースを構築して指定シナリオのデータを投入する。
  */
@@ -76,7 +80,11 @@ export function loadScenario(db: DB, scenario: ScenarioName): void {
 
   // runtime リセット
   runtime.graphqlRemaining = 5000;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(45);
   runtime.restRemaining = 5000;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(50);
   runtime.lastPollAt = nowIso();
   runtime.degraded.clear();
 
@@ -137,7 +145,11 @@ function insertItem(db: DB, it: MockItemInput): void {
 
 function seedStandardScenario(db: DB): void {
   runtime.graphqlRemaining = 4820;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(38);
   runtime.restRemaining = 4950;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(42);
   runtime.lastPollAt = pastIso(1);
 
   // 🧑 Action Required
@@ -240,7 +252,11 @@ function seedStandardScenario(db: DB): void {
 
 function seedAlertsScenario(db: DB): void {
   runtime.graphqlRemaining = 120;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(12);
   runtime.restRemaining = 250;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(15);
   runtime.lastPollAt = pastIso(12); // 12分前（ポーリング停止警告発火）
   runtime.degraded.add("レートリミット待機中");
   runtime.degraded.add("監視対象外: org/private-secure-repo");
@@ -293,13 +309,21 @@ function seedAlertsScenario(db: DB): void {
 
 function seedEmptyScenario(_db: DB): void {
   runtime.graphqlRemaining = 5000;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(55);
   runtime.restRemaining = 5000;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(58);
   runtime.lastPollAt = pastIso(0);
 }
 
 function seedDenseScenario(db: DB): void {
   runtime.graphqlRemaining = 3200;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(25);
   runtime.restRemaining = 4100;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(28);
   runtime.lastPollAt = pastIso(1);
 
   const repos = [
@@ -374,7 +398,11 @@ function seedDenseScenario(db: DB): void {
 
 function seedErrorsScenario(db: DB): void {
   runtime.graphqlRemaining = 2400;
+  runtime.graphqlLimit = 5000;
+  runtime.graphqlResetAt = futureIso(19);
   runtime.restRemaining = 3100;
+  runtime.restLimit = 5000;
+  runtime.restResetAt = futureIso(22);
   runtime.lastPollAt = pastIso(1);
 
   insertItem(db, {

@@ -32,6 +32,7 @@ const styles = `
   --line: #e6e3dd;
   --card: #fff;
   --warn: #a8442a;
+  --accent: #3b82f6;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -41,6 +42,7 @@ const styles = `
     --line: #2f2d29;
     --card: #211f1c;
     --warn: #e0a08a;
+    --accent: #60a5fa;
   }
 }
 :root[data-theme="dark"] {
@@ -50,6 +52,7 @@ const styles = `
   --line: #2f2d29;
   --card: #211f1c;
   --warn: #e0a08a;
+  --accent: #60a5fa;
 }
 :root[data-theme="light"] {
   --bg: #fbfbfa;
@@ -58,6 +61,7 @@ const styles = `
   --line: #e6e3dd;
   --card: #fff;
   --warn: #a8442a;
+  --accent: #3b82f6;
 }
 * { box-sizing: border-box; }
 body {
@@ -70,8 +74,8 @@ header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
   display: flex;
-  gap: 12px;
-  align-items: baseline;
+  gap: 10px;
+  align-items: center;
 }
 h1 {
   font-size: 15px;
@@ -82,6 +86,21 @@ h1 {
 .meta {
   color: var(--muted);
   font-size: 12px;
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+.icon-btn:hover {
+  color: var(--fg);
 }
 .banner {
   background: var(--warn);
@@ -140,6 +159,146 @@ details summary {
   user-select: none;
 }
 details summary:hover { color: var(--fg); }
+
+/* Modal Dialog */
+dialog.modal {
+  border: none;
+  padding: 0;
+  background: transparent;
+  max-width: 100vw;
+  max-height: 100vh;
+}
+dialog.modal::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
+}
+.modal-box {
+  background: var(--card);
+  color: var(--fg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 24px;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.modal-header h2 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.close-btn:hover {
+  color: var(--fg);
+  background: var(--bg);
+}
+.modal-section {
+  margin-bottom: 18px;
+}
+.modal-section:last-child {
+  margin-bottom: 0;
+}
+.modal-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--muted);
+  margin: 0 0 10px 0;
+  font-weight: 600;
+}
+.rate-limit-cards {
+  display: grid;
+  gap: 10px;
+}
+.rate-card {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.rate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.rate-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+.rate-val {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--fg);
+}
+.progress-bar-bg {
+  background: var(--line);
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+.progress-bar-fill.warn {
+  background: var(--warn);
+}
+.rate-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+.rate-reset {
+  color: var(--fg);
+  font-weight: 500;
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin: 0;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.status-grid dt {
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.status-grid dd {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-full {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+  margin-top: 2px;
+}
 `;
 
 export const Page: FC = () => {
@@ -155,6 +314,11 @@ export const Page: FC = () => {
         <header>
           <h1>Autopilot</h1>
           <span class="meta" id="meta" />
+          <button id="info-btn" class="icon-btn" aria-label="システム・API情報" title="システム・API情報">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </button>
         </header>
         <div id="banner" />
         <main>
@@ -163,6 +327,68 @@ export const Page: FC = () => {
           <Lane id="queued" title="📦 Queued" open />
           <Lane id="backlog" title="📥 Backlog" />
         </main>
+
+        <dialog id="info-modal" class="modal">
+          <div class="modal-box">
+            <div class="modal-header">
+              <h2>システム・API情報</h2>
+              <button id="modal-close-btn" class="close-btn" aria-label="閉じる">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div class="modal-section">
+                <h3>GitHub API キャパシティ</h3>
+                <div class="rate-limit-cards">
+                  <div class="rate-card">
+                    <div class="rate-header">
+                      <div class="rate-name">GraphQL API</div>
+                      <div class="rate-val" id="graphql-rate-val">-- / --</div>
+                    </div>
+                    <div class="progress-bar-bg">
+                      <div class="progress-bar-fill" id="graphql-progress-bar" style="width: 100%"></div>
+                    </div>
+                    <div class="rate-footer">
+                      <span>リセット時刻</span>
+                      <span class="rate-reset" id="graphql-reset-val">--</span>
+                    </div>
+                  </div>
+
+                  <div class="rate-card">
+                    <div class="rate-header">
+                      <div class="rate-name">REST API (GitHub)</div>
+                      <div class="rate-val" id="rest-rate-val">-- / --</div>
+                    </div>
+                    <div class="progress-bar-bg">
+                      <div class="progress-bar-fill" id="rest-progress-bar" style="width: 100%"></div>
+                    </div>
+                    <div class="rate-footer">
+                      <span>リセット時刻</span>
+                      <span class="rate-reset" id="rest-reset-val">--</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal-section">
+                <h3>システム状態</h3>
+                <dl class="status-grid">
+                  <div>
+                    <dt>実行中ジョブ</dt>
+                    <dd id="modal-running-jobs">--</dd>
+                  </div>
+                  <div>
+                    <dt>最終同期</dt>
+                    <dd id="modal-last-poll">--</dd>
+                  </div>
+                  <div class="status-full">
+                    <dt>システム状態</dt>
+                    <dd id="modal-degraded-status">正常稼働中</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
         <script>{raw(`(${initClient.toString()})();`)}</script>
       </body>
     </html>

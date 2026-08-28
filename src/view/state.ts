@@ -25,7 +25,11 @@ export interface Card {
 
 export interface Health {
   graphql_remaining: number;
+  graphql_limit: number;
+  graphql_reset_at: string | null;
   rest_remaining: number;
+  rest_limit: number;
+  rest_reset_at: string | null;
   running_jobs: number;
   last_poll_at: string | null;
   degraded: string[];
@@ -40,7 +44,11 @@ export interface StateResponse {
 /** プロセス内メモリ。DB に置くと、プロセスが死んでいるのに古い健全値が表示される。 */
 export const runtime = {
   graphqlRemaining: 5000,
+  graphqlLimit: 5000,
+  graphqlResetAt: null as string | null,
   restRemaining: 5000,
+  restLimit: 5000,
+  restResetAt: null as string | null,
   lastPollAt: null as string | null,
   degraded: new Set<string>(),
 };
@@ -82,7 +90,11 @@ export function buildState(db: DB): StateResponse {
     },
     health: {
       graphql_remaining: runtime.graphqlRemaining,
+      graphql_limit: runtime.graphqlLimit,
+      graphql_reset_at: runtime.graphqlResetAt,
       rest_remaining: runtime.restRemaining,
+      rest_limit: runtime.restLimit,
+      rest_reset_at: runtime.restResetAt,
       running_jobs: running.size,
       last_poll_at: runtime.lastPollAt,
       degraded: degraded(db),

@@ -62,6 +62,10 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(htmlText).toContain("dev-scenario-select");
     expect(htmlText).toContain("dev-theme-select");
     expect(htmlText).toContain("Action Required");
+    expect(htmlText).toContain("info-btn");
+    expect(htmlText).toContain("info-modal");
+    expect(htmlText).toContain("GraphQL API");
+    expect(htmlText).toContain("REST API (GitHub)");
 
     // GET /api/state (JSON)
     const resState = await app.request("/api/state");
@@ -70,13 +74,20 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(stateJson.lanes).toBeDefined();
     expect(stateJson.health).toBeDefined();
     expect(stateJson.health.graphql_remaining).toBeGreaterThan(0);
+    expect(stateJson.health.graphql_limit).toBe(5000);
+    expect(stateJson.health.graphql_reset_at).not.toBeNull();
     expect(stateJson.health.rest_remaining).toBeGreaterThan(0);
+    expect(stateJson.health.rest_limit).toBe(5000);
+    expect(stateJson.health.rest_reset_at).not.toBeNull();
 
     // GET /api/health (JSON)
     const resHealth = await app.request("/api/health");
     expect(resHealth.status).toBe(200);
     const healthJson = (await resHealth.json()) as ReturnType<typeof buildState>["health"];
     expect(healthJson.graphql_remaining).toBeGreaterThan(0);
+    expect(healthJson.graphql_limit).toBe(5000);
+    expect(healthJson.rest_remaining).toBeGreaterThan(0);
+    expect(healthJson.rest_limit).toBe(5000);
 
     // GET /api/dev/scenarios
     const resScenarios = await app.request("/api/dev/scenarios");

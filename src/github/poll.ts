@@ -10,7 +10,7 @@ import { DEFAULTS } from "../config.ts";
  */
 export const POLL_QUERY = `
 query PollRepository($owner: String!, $repo: String!, $since: DateTime!, $n: Int!) {
-  rateLimit { cost remaining resetAt }
+  rateLimit { limit cost remaining resetAt }
   repository(owner: $owner, name: $repo) {
     issues(first: $n, orderBy: {field: UPDATED_AT, direction: DESC}, filterBy: {since: $since}) {
       pageInfo { hasNextPage }
@@ -61,7 +61,7 @@ export async function poll(
   owner: string,
   repo: string,
   since: string,
-): Promise<{ result: PollResult; date: string; remaining: number }> {
+): Promise<{ result: PollResult; date: string; remaining: number; limit?: number; resetAt?: string }> {
   const { data, rate, date } = await gh.graphql<{
     repository: {
       issues: { pageInfo: { hasNextPage: boolean }; nodes: PollIssue[] };
@@ -79,6 +79,8 @@ export async function poll(
     },
     date,
     remaining: rate.remaining,
+    limit: rate.limit,
+    resetAt: rate.resetAt,
   };
 }
 

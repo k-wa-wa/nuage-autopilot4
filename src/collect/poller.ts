@@ -45,6 +45,8 @@ export async function pollRepo(
     throw e;
   }
   rateLimitState.graphqlRemaining = p.remaining;
+  if (p.limit) rateLimitState.graphqlLimit = p.limit;
+  if (p.resetAt) rateLimitState.graphqlResetAt = p.resetAt;
 
   // Phase 1: fingerprint を比べ、変化したものだけ Phase 2 の対象にする。
   const targets = new Map<string, { kind: "issue" | "pull_request"; number: number }>();

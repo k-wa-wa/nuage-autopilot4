@@ -174,7 +174,11 @@ async function cmdRun(): Promise<void> {
     }
     runtime.lastPollAt = nowIso();
     runtime.graphqlRemaining = rateLimitState.graphqlRemaining;
+    runtime.graphqlLimit = rateLimitState.graphqlLimit;
+    runtime.graphqlResetAt = rateLimitState.graphqlResetAt;
     runtime.restRemaining = gh.restRemaining();
+    runtime.restLimit = gh.restLimit();
+    runtime.restResetAt = gh.restResetAt();
   }, (e) => log("warn", `poll loop: ${String(e)}`), () => stopping);
 
   // Tick（時間経過だけで動く判定）

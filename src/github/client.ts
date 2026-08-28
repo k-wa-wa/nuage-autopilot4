@@ -1,6 +1,11 @@
 import { DEFAULTS } from "../config.ts";
 
-export interface RateLimit { cost: number; remaining: number; resetAt: string }
+export interface RateLimit {
+  cost: number;
+  limit?: number;
+  remaining: number;
+  resetAt: string;
+}
 
 export class GitHubError extends Error {
   constructor(
@@ -16,11 +21,15 @@ export interface GitHubClient {
   graphql<T>(query: string, variables: Record<string, unknown>): Promise<{ data: T; rate: RateLimit; date: string }>;
   rest(path: string, init?: RequestInit): Promise<Response>;
   restRemaining(): number;
+  restLimit(): number;
+  restResetAt(): string | null;
   viewerLogin(): Promise<string>;
 }
 
 export function createClient(token: string): GitHubClient {
   let restRemaining = 5000;
+  let restLimit = 5000;
+  let restResetAt: string | null = null;
 
   async function graphql<T>(query: string, variables: Record<string, unknown>) {
     const res = await withBackoff(() =>
@@ -60,7 +69,21 @@ export function createClient(token: string): GitHubClient {
     }
     if (!body.data) throw new GitHubError(`data が空: ${text.slice(0, 200)}`, "partial");
 
-    const rate = body.data.rateLimit ?? { cost: 0, remaining: 5000, resetAt: "" };
+    const headerRemaining = res.headers.get("x-ratelimit-remaining");
+    const headerLimit = res.headers.get("x-ratelimit-limit");
+    const headerReset = res.headers.get("x-ratelimit-reset");
+
+    const rate: RateLimit = body.data.rateLimit ?? {
+      cost: 0,
+      limit: headerLimit ? Number(headerLimit) : 5000,
+      remaining: headerRemaining ? Number(headerRemaining) : 5000,
+      resetAt: headerReset ? new Date(Number(headerReset) * 1000).toISOString() : "",
+    };
+
+    if (rate.limit) rateLimitState.graphqlLimit = rate.limit;
+    rateLimitState.graphqlRemaining = rate.remaining;
+    if (rate.resetAt) rateLimitState.graphqlResetAt = rate.resetAt;
+
     return { data: body.data as T, rate, date: new Date(date).toISOString().replace(/\.\d{3}Z$/, "Z") };
   }
 
@@ -72,7 +95,20 @@ export function createClient(token: string): GitHubClient {
       }),
     );
     const r = res.headers.get("x-ratelimit-remaining");
-    if (r) restRemaining = Number(r);
+    if (r) {
+      restRemaining = Number(r);
+      rateLimitState.restRemaining = restRemaining;
+    }
+    const l = res.headers.get("x-ratelimit-limit");
+    if (l) {
+      restLimit = Number(l);
+      rateLimitState.restLimit = restLimit;
+    }
+    const reset = res.headers.get("x-ratelimit-reset");
+    if (reset) {
+      restResetAt = new Date(Number(reset) * 1000).toISOString();
+      rateLimitState.restResetAt = restResetAt;
+    }
     return res;
   }
 
@@ -80,6 +116,8 @@ export function createClient(token: string): GitHubClient {
     graphql,
     rest,
     restRemaining: () => restRemaining,
+    restLimit: () => restLimit,
+    restResetAt: () => restResetAt,
     async viewerLogin() {
       const { data } = await graphql<{ viewer: { login: string } }>("query { viewer { login } }", {});
       return data.viewer.login;
@@ -119,9 +157,12 @@ async function withBackoff(fn: () => Promise<Response>, max = 3): Promise<Respon
 }
 
 export const rateLimitState = {
+  graphqlLimit: 5000,
   graphqlRemaining: 5000,
+  graphqlResetAt: null as string | null,
+  restLimit: 5000,
   restRemaining: 5000,
-  resetAt: "",
+  restResetAt: null as string | null,
   /** remaining < 1000 で 300 秒、< 200 で resetAt まで停止（spec.md §11 未実装だが枠は持つ）。 */
   pollIntervalMs(): number {
     return this.graphqlRemaining < DEFAULTS.rateLimitSlowRemaining
