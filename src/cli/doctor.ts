@@ -1,6 +1,6 @@
 import type { Config } from "../config.ts";
 import { loadConfig, repoSlug } from "../config.ts";
-import { resolveAdapter } from "../execute/adapters.ts";
+import { resolveAdapter } from "../execute/adapters/index.ts";
 import type { GitHubClient } from "../github/client.ts";
 import { createClient } from "../github/client.ts";
 import { c } from "./utils/color.ts";

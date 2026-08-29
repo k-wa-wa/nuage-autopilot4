@@ -2,7 +2,7 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { AgentConfig } from "../config.ts";
 import { DEFAULTS } from "../config.ts";
-import { buildInvocation } from "./adapters.ts";
+import { buildInvocation } from "./adapters/index.ts";
 
 /**
  * エージェント CLI の起動（spec.md §8）。

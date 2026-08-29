@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { pollRepo } from "../src/collect/poller.ts";
 import { forcedSync } from "../src/decide/sync.ts";
-import { buildInvocation } from "../src/execute/adapters.ts";
+import { buildInvocation } from "../src/execute/adapters/index.ts";
 import { botCommentedSince, takeSnapshot } from "../src/github/verify.ts";
 import * as items from "../src/store/items.ts";
 import * as jobs from "../src/store/jobs.ts";
