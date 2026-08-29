@@ -1,8 +1,15 @@
 import type { Config } from "../config.ts";
-import { repoSlug } from "../config.ts";
+import { repoSlug, loadConfig } from "../config.ts";
 import type { GitHubClient } from "../github/client.ts";
+import { createClient } from "../github/client.ts";
 import { resolveAdapter } from "../execute/adapters.ts";
-import { c } from "./color.ts";
+import { c } from "./utils/color.ts";
+
+export async function cmdDoctor(configPath?: string): Promise<void> {
+  const cfg = loadConfig(configPath);
+  const ok = printChecks(await doctor(cfg, createClient(cfg.token)));
+  process.exit(ok ? 0 : 1);
+}
 
 /**
  * 起動時検証（spec.md）。

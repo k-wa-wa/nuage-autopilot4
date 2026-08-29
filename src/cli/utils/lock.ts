@@ -11,8 +11,6 @@ import { dirname } from "node:path";
  * 残骸で永久に起動できなくならないよう PID の生存確認で奪えるようにする。
  */
 
-const O_EXCL_CREATE = 0o200 | 0o100 | 0o1; // O_EXCL | O_CREAT | O_WRONLY
-
 export interface Lock {
   release: () => void;
 }
@@ -21,7 +19,7 @@ export function acquireLock(path: string, bootId: string): Lock | { heldBy: numb
   mkdirSync(dirname(path), { recursive: true });
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const fd = openSync(path, O_EXCL_CREATE, 0o644);
+      const fd = openSync(path, "wx", 0o644);
       writeSync(fd, `${process.pid}\n${bootId}\n`);
       closeSync(fd);
       return {
