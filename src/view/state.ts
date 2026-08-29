@@ -1,3 +1,4 @@
+import { getVersionInfo } from "../cli/version.ts";
 import type { AgentUsage } from "../execute/adapters/index.ts";
 import type { DB } from "../store/db.ts";
 import * as jobs from "../store/jobs.ts";
@@ -27,6 +28,7 @@ export interface Card {
 }
 
 export interface Health {
+  version: string;
   graphql_remaining: number;
   graphql_limit: number;
   graphql_reset_at: string | null;
@@ -104,6 +106,7 @@ export function buildState(db: DB): StateResponse {
         .sort((a, b) => (a.queue_position ?? 1e9) - (b.queue_position ?? 1e9)),
     },
     health: {
+      version: `${getVersionInfo().version} (${getVersionInfo().commit})`,
       graphql_remaining: runtime.graphqlRemaining,
       graphql_limit: runtime.graphqlLimit,
       graphql_reset_at: runtime.graphqlResetAt,

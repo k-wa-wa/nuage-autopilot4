@@ -161,6 +161,9 @@ export function initClient(): void {
       }
     }
 
+    const versionEl = document.getElementById("modal-version");
+    if (versionEl && health.version) versionEl.textContent = health.version;
+
     const jobsEl = document.getElementById("modal-running-jobs");
     if (jobsEl) jobsEl.textContent = `${health.running_jobs} 件`;
 

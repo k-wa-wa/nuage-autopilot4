@@ -2,6 +2,7 @@ import { cmdCancel } from "./cli/cancel.ts";
 import { cmdDoctor } from "./cli/doctor.ts";
 import { cmdRun } from "./cli/run.ts";
 import { cmdStatus } from "./cli/status.ts";
+import { cmdVersion } from "./cli/version.ts";
 import { log } from "./log.ts";
 
 const [, , cmd, ...rest] = process.argv;
@@ -30,6 +31,11 @@ try {
     case "status":
       await cmdStatus(configPath);
       break;
+    case "version":
+    case "-v":
+    case "--version":
+      cmdVersion();
+      break;
     default:
       usage();
   }
@@ -48,6 +54,7 @@ function usage(): never {
   status                   ターミナルで手番・自走中・キューを表示
   cancel <repo>#<issue>    該当アイテムのジョブを中止する
   doctor                   設定と接続性を起動前に検証する
+  version                  バージョンとコミットハッシュを表示
 
   -c, --config <path>      設定ファイル（既定: $AUTOPILOT_CONFIG または $AUTOPILOT_HOME/config.yaml）
 

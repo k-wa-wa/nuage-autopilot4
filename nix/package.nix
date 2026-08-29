@@ -7,6 +7,7 @@
   git,
   gh,
   version ? "0.1.0",
+  rev ? null,
 }:
 
 let
@@ -110,7 +111,8 @@ stdenv.mkDerivation {
           git
           gh
         ]
-      }
+      } \
+      ${lib.optionalString (rev != null) "--set AUTOPILOT_COMMIT_HASH ${rev}"}
     runHook postInstall
   '';
 

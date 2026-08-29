@@ -7,6 +7,7 @@ import { doctor } from "../src/cli/doctor.ts";
 import { formatStatus, type StateData } from "../src/cli/status.ts";
 import { c } from "../src/cli/utils/color.ts";
 import { acquireLock } from "../src/cli/utils/lock.ts";
+import { getVersionInfo } from "../src/cli/version.ts";
 import type { Config } from "../src/config.ts";
 import type { GitHubClient } from "../src/github/client.ts";
 
@@ -97,6 +98,16 @@ describe("CLI cancel parser", () => {
   });
 });
 
+describe("CLI version command", () => {
+  test("バージョンとコミットハッシュの取得", () => {
+    const { version, commit } = getVersionInfo();
+    expect(version).toBeString();
+    expect(version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(commit).toBeString();
+    expect(commit.length).toBeGreaterThan(0);
+  });
+});
+
 describe("CLI status formatter", () => {
   test("各レーンのカードを正しくフォーマットする", () => {
     const mockState: StateData = {
@@ -138,6 +149,7 @@ describe("CLI status formatter", () => {
         queued: [],
       },
       health: {
+        version: "0.1.0 (e2e5592)",
         graphql_remaining: 5000,
         graphql_limit: 5000,
         graphql_reset_at: null,

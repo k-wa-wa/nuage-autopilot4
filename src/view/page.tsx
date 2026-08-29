@@ -455,6 +455,10 @@ export const Page: FC = () => {
                 <h3>システム状態</h3>
                 <dl class="status-grid">
                   <div>
+                    <dt>バージョン</dt>
+                    <dd id="modal-version">--</dd>
+                  </div>
+                  <div>
                     <dt>実行中ジョブ</dt>
                     <dd id="modal-running-jobs">--</dd>
                   </div>

@@ -20,7 +20,9 @@
         pkgs = import nixpkgs { inherit system; };
       in
       {
-        packages.autopilot = pkgs.callPackage ./nix/package.nix { };
+        packages.autopilot = pkgs.callPackage ./nix/package.nix {
+          rev = self.shortRev or self.dirtyShortRev or null;
+        };
         packages.default = self.packages.${system}.autopilot;
 
         apps.default = {
