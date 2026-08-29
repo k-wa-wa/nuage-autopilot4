@@ -3,9 +3,7 @@ import init0001 from "./migrations/0001_init.sql" with { type: "text" };
 
 export type DB = Database;
 
-const MIGRATIONS: Array<{ version: number; sql: string }> = [
-  { version: 1, sql: init0001 },
-];
+const MIGRATIONS: Array<{ version: number; sql: string }> = [{ version: 1, sql: init0001 }];
 
 /**
  * 接続し PRAGMA を適用してマイグレーションを昇順に適用する。

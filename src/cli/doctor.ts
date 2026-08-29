@@ -1,8 +1,8 @@
 import type { Config } from "../config.ts";
-import { repoSlug, loadConfig } from "../config.ts";
+import { loadConfig, repoSlug } from "../config.ts";
+import { resolveAdapter } from "../execute/adapters.ts";
 import type { GitHubClient } from "../github/client.ts";
 import { createClient } from "../github/client.ts";
-import { resolveAdapter } from "../execute/adapters.ts";
 import { c } from "./utils/color.ts";
 
 export async function cmdDoctor(configPath?: string): Promise<void> {
@@ -64,7 +64,12 @@ export async function doctor(cfg: Config, gh: GitHubClient): Promise<Check[]> {
         : { category: catAuth, name: "bot account", level: "ok", detail: `@${bot}` },
     );
   } catch (e) {
-    checks.push({ category: catAuth, name: "bot account", level: "fatal", detail: `viewer の取得に失敗: ${String(e)}` });
+    checks.push({
+      category: catAuth,
+      name: "bot account",
+      level: "fatal",
+      detail: `viewer の取得に失敗: ${String(e)}`,
+    });
     return checks;
   }
 
@@ -151,7 +156,12 @@ export async function doctor(cfg: Config, gh: GitHubClient): Promise<Check[]> {
       });
       const repo = data.repository;
       if (!repo) {
-        checks.push({ category: catRepo, name: slug, level: "fatal", detail: "リポジトリが見つからない" });
+        checks.push({
+          category: catRepo,
+          name: slug,
+          level: "fatal",
+          detail: "リポジトリが見つからない",
+        });
         continue;
       }
       const canWrite = ["WRITE", "MAINTAIN", "ADMIN"].includes(repo.viewerPermission ?? "");
@@ -159,13 +169,17 @@ export async function doctor(cfg: Config, gh: GitHubClient): Promise<Check[]> {
         category: catRepo,
         name: "write permission",
         level: canWrite ? "ok" : "fatal",
-        detail: canWrite ? `${repo.viewerPermission}` : `bot が Collaborator でない (${repo.viewerPermission ?? "NONE"})`,
+        detail: canWrite
+          ? `${repo.viewerPermission}`
+          : `bot が Collaborator でない (${repo.viewerPermission ?? "NONE"})`,
       });
       checks.push({
         category: catRepo,
         name: "visibility",
         level: repo.isPrivate ? "ok" : "warn",
-        detail: repo.isPrivate ? "private" : "public（第三者の Issue 本文がエージェントのプロンプトに混入する）",
+        detail: repo.isPrivate
+          ? "private"
+          : "public（第三者の Issue 本文がエージェントのプロンプトに混入する）",
       });
       checks.push({
         category: catRepo,
@@ -177,13 +191,17 @@ export async function doctor(cfg: Config, gh: GitHubClient): Promise<Check[]> {
         category: catRepo,
         name: "quality gate",
         level: repo.gate ? "ok" : "warn",
-        detail: repo.gate ? ".agents/autopilot-gate.md あり" : "無し（evaluate は一般的なコード品質のみで判定）",
+        detail: repo.gate
+          ? ".agents/autopilot-gate.md あり"
+          : "無し（evaluate は一般的なコード品質のみで判定）",
       });
       checks.push({
         category: catRepo,
         name: "workflows",
         level: repo.workflows ? "ok" : "warn",
-        detail: repo.workflows ? ".github/workflows あり" : "無し（CI は Grace Period 経過後に毎回素通りする）",
+        detail: repo.workflows
+          ? ".github/workflows あり"
+          : "無し（CI は Grace Period 経過後に毎回素通りする）",
       });
     } catch (e) {
       checks.push({ category: catRepo, name: slug, level: "fatal", detail: String(e) });
@@ -196,7 +214,12 @@ export async function doctor(cfg: Config, gh: GitHubClient): Promise<Check[]> {
     await gh.graphql(SUBISSUE_QUERY, { owner: first.owner, repo: first.name });
     checks.push({ category: catFeatures, name: "sub-issues api", level: "ok", detail: "利用可能" });
   } catch (e) {
-    checks.push({ category: catFeatures, name: "sub-issues api", level: "warn", detail: `利用不可: ${String(e)}` });
+    checks.push({
+      category: catFeatures,
+      name: "sub-issues api",
+      level: "warn",
+      detail: `利用不可: ${String(e)}`,
+    });
   }
 
   return checks;

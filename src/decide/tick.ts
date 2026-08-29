@@ -1,9 +1,9 @@
-import * as items from "../store/items.ts";
+import type { PrDetail } from "../github/detail.ts";
 import * as cache from "../store/cache.ts";
+import * as items from "../store/items.ts";
+import { decideCiAction } from "./ci.ts";
 import type { DispatchDeps } from "./dispatcher.ts";
 import { dispatch } from "./dispatcher.ts";
-import { decideCiAction } from "./ci.ts";
-import type { PrDetail } from "../github/detail.ts";
 
 /**
  * Tick（spec.md §5）。
@@ -21,7 +21,8 @@ export async function tick(d: DispatchDeps): Promise<{ rechecked: number; ciMove
 
   // 保留していた Triage を最優先で再評価する。
   for (const it of items.needRecheck(d.db)) {
-    d.db.query("UPDATE items SET recheck_needed = 0 WHERE repo=? AND issue_number=?")
+    d.db
+      .query("UPDATE items SET recheck_needed = 0 WHERE repo=? AND issue_number=?")
       .run(it.repo, it.issue_number);
     await dispatch(d, it.repo, it.issue_number);
     rechecked++;

@@ -15,9 +15,7 @@ export interface AgentResult {
   next_context: string;
 }
 
-export type ReadResult =
-  | { ok: true; value: AgentResult }
-  | { ok: false; reason: string };
+export type ReadResult = { ok: true; value: AgentResult } | { ok: false; reason: string };
 
 export function resultPath(runDir: string, jobId: number): string {
   return `${runDir}/${jobId}.result.json`;
@@ -37,11 +35,13 @@ export function readResult(path: string, requireVerdict: boolean): ReadResult {
   } catch (e) {
     return { ok: false, reason: `result file is not valid JSON: ${String(e)}` };
   }
-  if (typeof raw !== "object" || raw === null) return { ok: false, reason: "result is not an object" };
+  if (typeof raw !== "object" || raw === null)
+    return { ok: false, reason: "result is not an object" };
 
   const o = raw as Record<string, unknown>;
   const status = o.status;
-  if (status !== "ok" && status !== "blocked") return { ok: false, reason: `bad status: ${String(status)}` };
+  if (status !== "ok" && status !== "blocked")
+    return { ok: false, reason: `bad status: ${String(status)}` };
 
   const summary = typeof o.summary === "string" ? o.summary : "";
   if (summary.trim() === "") return { ok: false, reason: "summary is required" };
@@ -71,6 +71,10 @@ export function readResult(path: string, requireVerdict: boolean): ReadResult {
 
 export function cleanup(...paths: string[]): void {
   for (const p of paths) {
-    try { rmSync(p, { force: true }); } catch { /* noop */ }
+    try {
+      rmSync(p, { force: true });
+    } catch {
+      /* noop */
+    }
   }
 }

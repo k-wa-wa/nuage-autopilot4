@@ -1,14 +1,14 @@
-import type { DB } from "../store/db.ts";
-import * as cache from "../store/cache.ts";
-import * as items from "../store/items.ts";
-import * as cursors from "../store/cursors.ts";
 import type { RepoConfig } from "../config.ts";
 import { DEFAULTS, repoSlug } from "../config.ts";
 import type { GitHubClient } from "../github/client.ts";
 import { GitHubError, rateLimitState } from "../github/client.ts";
-import { poll, issueFingerprint, prFingerprint } from "../github/poll.ts";
-import { fetchDetails, linkedPrNumber, headOid } from "../github/detail.ts";
 import type { Detail, IssueDetail, PrDetail } from "../github/detail.ts";
+import { fetchDetails, headOid, linkedPrNumber } from "../github/detail.ts";
+import { issueFingerprint, poll, prFingerprint } from "../github/poll.ts";
+import * as cache from "../store/cache.ts";
+import * as cursors from "../store/cursors.ts";
+import type { DB } from "../store/db.ts";
+import * as items from "../store/items.ts";
 
 /**
  * ① 収集（spec.md §5）。
@@ -121,7 +121,13 @@ export async function pollRepo(
  * items 行の作成と、Poller が持つ列の更新（方針9: 列ごとに書き手は 1 つ）。
  * state / display_hint は既存行では触らない。
  */
-function syncIssueItem(db: DB, repo: string, d: IssueDetail, botLogin: string, coldStart: boolean): void {
+function syncIssueItem(
+  db: DB,
+  repo: string,
+  d: IssueDetail,
+  botLogin: string,
+  coldStart: boolean,
+): void {
   const existing = items.getItem(db, repo, d.number);
   const parentRepo = d.parent?.repository.nameWithOwner ?? "";
   const parentNum = d.parent?.number ?? 0;
@@ -195,10 +201,11 @@ function dedupe(xs: Array<{ issueNumber: number }>): Array<{ issueNumber: number
 
 /** クロックドリフト対策。サーバ時刻から 5 分引く。重複は fingerprint / payload_hash で無害化される。 */
 function overlap(serverDate: string): string {
-  return new Date(Date.parse(serverDate) - DEFAULTS.cursorOverlapMs).toISOString().replace(/\.\d{3}Z$/, "Z");
+  return new Date(Date.parse(serverDate) - DEFAULTS.cursorOverlapMs)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
 }
 
 function isoDaysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
-

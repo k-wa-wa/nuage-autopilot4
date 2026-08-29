@@ -1,9 +1,9 @@
+import type { IssueDetail, SubIssue } from "../github/detail.ts";
 import type { DB } from "../store/db.ts";
 import * as items from "../store/items.ts";
 import * as jobs from "../store/jobs.ts";
-import { subProgress } from "../types.ts";
 import type { Item } from "../types.ts";
-import type { IssueDetail, SubIssue } from "../github/detail.ts";
+import { subProgress } from "../types.ts";
 
 /**
  * 親子 Issue（spec.md §9）。
@@ -101,8 +101,10 @@ export function aggregate(item: Item, d: IssueDetail): AggregateResult {
 /** 完了報告では却下を区別する。人間が「本当に終わったのか」を判断できるようにする。 */
 export function completionComment(r: Extract<AggregateResult, { kind: "complete" }>): string {
   const lines = ["すべての子タスクがクローズされました。"];
-  if (r.completed.length) lines.push(`- 完了 (COMPLETED): ${r.completed.map((n) => `#${n}`).join(", ")}`);
-  if (r.rejected.length) lines.push(`- 却下 (NOT_PLANNED): ${r.rejected.map((n) => `#${n}`).join(", ")}`);
+  if (r.completed.length)
+    lines.push(`- 完了 (COMPLETED): ${r.completed.map((n) => `#${n}`).join(", ")}`);
+  if (r.rejected.length)
+    lines.push(`- 却下 (NOT_PLANNED): ${r.rejected.map((n) => `#${n}`).join(", ")}`);
   lines.push("", "親 Issue をクローズしてよければ OK と返信してください。");
   return lines.join("\n");
 }

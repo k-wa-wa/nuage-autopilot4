@@ -1,6 +1,6 @@
-import { cmdRun } from "./cli/run.ts";
-import { cmdDoctor } from "./cli/doctor.ts";
 import { cmdCancel } from "./cli/cancel.ts";
+import { cmdDoctor } from "./cli/doctor.ts";
+import { cmdRun } from "./cli/run.ts";
 import { cmdStatus } from "./cli/status.ts";
 import { log } from "./log.ts";
 
@@ -18,11 +18,20 @@ for (let i = 0; i < rest.length; i++) {
 
 try {
   switch (cmd) {
-    case "run": await cmdRun(configPath); break;
-    case "doctor": await cmdDoctor(configPath); break;
-    case "cancel": await cmdCancel(args[0], configPath); break;
-    case "status": await cmdStatus(configPath); break;
-    default: usage();
+    case "run":
+      await cmdRun(configPath);
+      break;
+    case "doctor":
+      await cmdDoctor(configPath);
+      break;
+    case "cancel":
+      await cmdCancel(args[0], configPath);
+      break;
+    case "status":
+      await cmdStatus(configPath);
+      break;
+    default:
+      usage();
   }
 } catch (e) {
   const msg = e instanceof Error ? e.message : String(e);

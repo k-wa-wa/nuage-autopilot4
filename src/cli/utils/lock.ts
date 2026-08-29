@@ -1,4 +1,12 @@
-import { openSync, closeSync, writeSync, readFileSync, existsSync, unlinkSync, mkdirSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  unlinkSync,
+  writeSync,
+} from "node:fs";
 import { dirname } from "node:path";
 
 /**
@@ -24,7 +32,11 @@ export function acquireLock(path: string, bootId: string): Lock | { heldBy: numb
       closeSync(fd);
       return {
         release: () => {
-          try { unlinkSync(path); } catch { /* noop */ }
+          try {
+            unlinkSync(path);
+          } catch {
+            /* noop */
+          }
         },
       };
     } catch {
@@ -32,7 +44,11 @@ export function acquireLock(path: string, bootId: string): Lock | { heldBy: numb
       const pid = Number(readFileSync(path, "utf8").split("\n")[0]);
       if (Number.isFinite(pid) && alive(pid)) return { heldBy: pid };
       // 残骸。前回プロセスは死んでいるので奪う。
-      try { unlinkSync(path); } catch { /* noop */ }
+      try {
+        unlinkSync(path);
+      } catch {
+        /* noop */
+      }
     }
   }
   return { heldBy: -1 };

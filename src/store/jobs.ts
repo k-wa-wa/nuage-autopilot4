@@ -1,6 +1,6 @@
-import type { DB } from "./db.ts";
-import { nowIso } from "../types.ts";
 import type { Job, JobType } from "../types.ts";
+import { nowIso } from "../types.ts";
+import type { DB } from "./db.ts";
 
 /**
  * job_queue の唯一の入口（ARCHITECTURE 方針9）。
@@ -16,32 +16,46 @@ import type { Job, JobType } from "../types.ts";
  */
 export function enqueueJob(
   db: DB,
-  v: { repo: string; issue_number: number; job_type: JobType; job_context: string; trigger_key: string },
+  v: {
+    repo: string;
+    issue_number: number;
+    job_type: JobType;
+    job_context: string;
+    trigger_key: string;
+  },
 ): number | null {
-  const done = db.query(`
+  const done = db
+    .query(`
     SELECT 1 FROM job_queue
     WHERE repo=? AND issue_number=? AND trigger_key=? AND status IN ('completed','failed','canceled') LIMIT 1
-  `).get(v.repo, v.issue_number, v.trigger_key);
+  `)
+    .get(v.repo, v.issue_number, v.trigger_key);
   if (done) return null;
 
   const ctx = clampContext(v.job_context);
   try {
-    const r = db.query(`
+    const r = db
+      .query(`
       INSERT INTO job_queue (repo, issue_number, job_type, job_context, trigger_key, status, created_at)
       VALUES (?,?,?,?,?, 'pending', ?)
       RETURNING id
-    `).get(v.repo, v.issue_number, v.job_type, ctx, v.trigger_key, nowIso()) as { id: number };
+    `)
+      .get(v.repo, v.issue_number, v.job_type, ctx, v.trigger_key, nowIso()) as { id: number };
     return r.id;
   } catch (e) {
     // idx_job_dedupe 違反 = 同種の未完了ジョブが既にある。文脈をマージして正常終了。
     if (!String(e).includes("UNIQUE")) throw e;
-    const cur = db.query(`
+    const cur = db
+      .query(`
       SELECT id, job_context FROM job_queue
       WHERE repo=? AND issue_number=? AND job_type=? AND status IN ('pending','running')
-    `).get(v.repo, v.issue_number, v.job_type) as { id: number; job_context: string } | null;
+    `)
+      .get(v.repo, v.issue_number, v.job_type) as { id: number; job_context: string } | null;
     if (cur) {
-      db.query("UPDATE job_queue SET job_context=? WHERE id=?")
-        .run(clampContext(cur.job_context + "\n\n---\n\n" + ctx), cur.id);
+      db.query("UPDATE job_queue SET job_context=? WHERE id=?").run(
+        clampContext(cur.job_context + "\n\n---\n\n" + ctx),
+        cur.id,
+      );
     }
     return null;
   }
@@ -58,7 +72,8 @@ export function clampContext(s: string): string {
  * 同一リポジトリの直列化と max_parallel を 1 文で同時に満たす。
  */
 export function fetchNextJob(db: DB, maxParallel: number, pid: number, bootId: string): Job | null {
-  return db.query(`
+  return db
+    .query(`
     UPDATE job_queue
     SET status='running', lease_until=?, started_at=?, worker_pid=?, worker_boot_id=?
     WHERE id = (
@@ -69,15 +84,20 @@ export function fetchNextJob(db: DB, maxParallel: number, pid: number, bootId: s
       ORDER BY q.id ASC LIMIT 1
     )
     RETURNING *
-  `).get(nowIso(5 * 60_000), nowIso(), pid, bootId, maxParallel) as Job | null;
+  `)
+    .get(nowIso(5 * 60_000), nowIso(), pid, bootId, maxParallel) as Job | null;
 }
 
 /** 生存信号。実行タイムアウトとは別物。60 秒ごとに +5 分。 */
 export function heartbeat(db: DB, id: number, pid: number, bootId: string): boolean {
-  return db.query(`
+  return (
+    db
+      .query(`
     UPDATE job_queue SET lease_until = ?
     WHERE id = ? AND status = 'running' AND worker_pid = ? AND worker_boot_id = ?
-  `).run(nowIso(5 * 60_000), id, pid, bootId).changes > 0;
+  `)
+      .run(nowIso(5 * 60_000), id, pid, bootId).changes > 0
+  );
 }
 
 export function getJob(db: DB, id: number): Job | null {
@@ -85,21 +105,30 @@ export function getJob(db: DB, id: number): Job | null {
 }
 
 export function hasActiveJob(db: DB, repo: string, issue: number): boolean {
-  return !!db.query(`
+  return !!db
+    .query(`
     SELECT 1 FROM job_queue WHERE repo=? AND issue_number=? AND status IN ('pending','running') LIMIT 1
-  `).get(repo, issue);
+  `)
+    .get(repo, issue);
 }
 
 export function finishJob(db: DB, id: number, status: "completed" | "failed" | "canceled"): void {
-  db.query("UPDATE job_queue SET status=?, completed_at=?, lease_until=NULL WHERE id=?")
-    .run(status, nowIso(), id);
+  db.query("UPDATE job_queue SET status=?, completed_at=?, lease_until=NULL WHERE id=?").run(
+    status,
+    nowIso(),
+    id,
+  );
 }
 
 /** 強制同期が Done を確定したとき等、当該アイテムの未完了ジョブを止める（spec.md §3）。 */
 export function cancelJobsFor(db: DB, repo: string, issue: number, jobType?: JobType): number {
   const q = jobType
-    ? db.query("UPDATE job_queue SET status='canceled', completed_at=? WHERE repo=? AND issue_number=? AND job_type=? AND status IN ('pending','running')")
-    : db.query("UPDATE job_queue SET status='canceled', completed_at=? WHERE repo=? AND issue_number=? AND status IN ('pending','running')");
+    ? db.query(
+        "UPDATE job_queue SET status='canceled', completed_at=? WHERE repo=? AND issue_number=? AND job_type=? AND status IN ('pending','running')",
+      )
+    : db.query(
+        "UPDATE job_queue SET status='canceled', completed_at=? WHERE repo=? AND issue_number=? AND status IN ('pending','running')",
+      );
   return jobType
     ? q.run(nowIso(), repo, issue, jobType).changes
     : q.run(nowIso(), repo, issue).changes;
@@ -126,7 +155,8 @@ export function recoverOrphans(db: DB, opts: { onStartup: boolean }): Job[] {
 }
 
 export function queuedItems(db: DB): Array<{ repo: string; issue_number: number; id: number }> {
-  return db.query("SELECT repo, issue_number, id FROM job_queue WHERE status='pending' ORDER BY id ASC")
+  return db
+    .query("SELECT repo, issue_number, id FROM job_queue WHERE status='pending' ORDER BY id ASC")
     .all() as Array<{ repo: string; issue_number: number; id: number }>;
 }
 
@@ -135,6 +165,9 @@ export function runningJobs(db: DB): Job[] {
 }
 
 export function recentFailures(db: DB, sinceIso: string): number {
-  return (db.query("SELECT COUNT(*) n FROM job_queue WHERE status='failed' AND completed_at >= ?")
-    .get(sinceIso) as { n: number }).n;
+  return (
+    db
+      .query("SELECT COUNT(*) n FROM job_queue WHERE status='failed' AND completed_at >= ?")
+      .get(sinceIso) as { n: number }
+  ).n;
 }

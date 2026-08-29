@@ -1,6 +1,6 @@
-import { openDb, type DB } from "../store/db.ts";
+import { type DB, openDb } from "../store/db.ts";
+import { type DisplayHint, type JobType, nowIso, type State } from "../types.ts";
 import { runtime } from "./state.ts";
-import { nowIso, type DisplayHint, type JobType, type State } from "../types.ts";
 
 export type ScenarioName = "standard" | "alerts" | "empty" | "dense" | "errors";
 
@@ -63,7 +63,10 @@ function futureIso(minutesLater: number): string {
 /**
  * モック用のインメモリ SQLite データベースを構築して指定シナリオのデータを投入する。
  */
-export function createMockDb(scenario: ScenarioName = "standard"): { db: DB; currentScenario: ScenarioName } {
+export function createMockDb(scenario: ScenarioName = "standard"): {
+  db: DB;
+  currentScenario: ScenarioName;
+} {
   const db = openDb(":memory:");
   loadScenario(db, scenario);
   return { db, currentScenario: scenario };
@@ -364,7 +367,8 @@ function seedDenseScenario(db: DB): void {
       issue_number: 300 + i,
       title: `Workingアイテム ${i + 1}: 自走エージェントによる自動処理中（プロンプト生成とコード編集）`,
       state: "Working",
-      display_hint: i === 0 ? "精緻化中" : i === 1 ? "実装中" : i === 2 ? "評価中" : "子タスク進行中 (3/8)",
+      display_hint:
+        i === 0 ? "精緻化中" : i === 1 ? "実装中" : i === 2 ? "評価中" : "子タスク進行中 (3/8)",
       pr_number: 600 + i,
       job_type: i === 0 ? "refine" : i === 1 ? "implement" : "evaluate",
       started_at: pastIso(i * 4 + 1),

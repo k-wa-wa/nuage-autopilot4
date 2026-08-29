@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { DB } from "../store/db.ts";
-import { buildState } from "./state.ts";
 import { Page } from "./page.tsx";
+import { buildState } from "./state.ts";
 
 /**
  * Dashboard（spec.md §10）。

@@ -10,9 +10,10 @@ import type { JobType } from "../types.ts";
  * （Git ワークツリーの単一性制約）。
  */
 
-export interface GitRunner {
-  (args: string[], cwd: string): Promise<{ code: number; stdout: string; stderr: string }>;
-}
+export type GitRunner = (
+  args: string[],
+  cwd: string,
+) => Promise<{ code: number; stdout: string; stderr: string }>;
 
 export const realGit: GitRunner = async (args, cwd) => {
   const p = Bun.spawn(["git", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
@@ -29,15 +30,19 @@ export const realGit: GitRunner = async (args, cwd) => {
  * remote URL にトークンを埋め込むと .git/config に平文で残るため、
  * URL には一切載せずヘルパー経由にする。
  */
-const CREDENTIAL_HELPER =
-  '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f';
+const CREDENTIAL_HELPER = '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f';
 
 /** 既存クローン（旧バージョンが作ったものを含む）にも毎回張り直す。 */
 async function configureCredentials(dir: string, git: GitRunner): Promise<void> {
   await git(["config", "--local", "credential.helper", CREDENTIAL_HELPER], dir);
 }
 
-export function targetBranch(jobType: JobType, isNewPr: boolean, itemBranch: string, base: string): string {
+export function targetBranch(
+  jobType: JobType,
+  isNewPr: boolean,
+  itemBranch: string,
+  base: string,
+): string {
   if (jobType === "evaluate") return itemBranch || base;
   if (jobType === "implement" && !isNewPr && itemBranch) return itemBranch;
   return base; // refine と implement（新規）は既定ブランチから始める
@@ -55,7 +60,10 @@ export async function ensureClone(
   }
   mkdirSync(dirname(dir), { recursive: true });
   const url = `https://github.com/${repo}.git`;
-  const r = await git(["-c", `credential.helper=${CREDENTIAL_HELPER}`, "clone", url, dir], dirname(dir));
+  const r = await git(
+    ["-c", `credential.helper=${CREDENTIAL_HELPER}`, "clone", url, dir],
+    dirname(dir),
+  );
   if (r.code !== 0) throw new Error(`clone failed: ${r.stderr}`);
   await configureCredentials(dir, git);
   return dir;
@@ -69,7 +77,11 @@ export async function ensureClone(
  * もう片方が実行されない。
  * clean に -x は付けない。node_modules 等の ignore 対象を残して再インストールを避ける。
  */
-export async function prepare(dir: string, branch: string, git: GitRunner = realGit): Promise<void> {
+export async function prepare(
+  dir: string,
+  branch: string,
+  git: GitRunner = realGit,
+): Promise<void> {
   const must = async (args: string[]) => {
     const r = await git(args, dir);
     if (r.code !== 0) throw new Error(`git ${args.join(" ")}: ${r.stderr}`);
@@ -98,7 +110,11 @@ export async function headSha(dir: string, git: GitRunner = realGit): Promise<st
  * 品質ゲートは常に既定ブランチから読む。
  * 作業ブランチから読むと implement が基準そのものを緩められる。
  */
-export async function readGate(dir: string, base: string, git: GitRunner = realGit): Promise<string | null> {
+export async function readGate(
+  dir: string,
+  base: string,
+  git: GitRunner = realGit,
+): Promise<string | null> {
   const r = await git(["show", `origin/${base}:.agents/autopilot-gate.md`], dir);
   return r.code === 0 ? r.stdout : null;
 }

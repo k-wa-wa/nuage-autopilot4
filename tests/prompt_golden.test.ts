@@ -4,13 +4,13 @@
 // 意図しない差分が出ていないかを見る。更新は UPDATE_GOLDEN=1 で行う。
 
 import { describe, expect, test } from "bun:test";
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildPrompt as buildWorkerPrompt, type PromptInput } from "../src/execute/prompt.ts";
 import { buildPrompt as buildTriagePrompt, type TriageInput } from "../src/decide/triage.ts";
-import type { Item } from "../src/types.ts";
+import { buildPrompt as buildWorkerPrompt, type PromptInput } from "../src/execute/prompt.ts";
 import type { IssueDetail, PrDetail } from "../src/github/detail.ts";
+import type { Item } from "../src/types.ts";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "testdata");
 
@@ -104,7 +104,16 @@ function basePr(patch: Partial<PrDetail> = {}): PrDetail {
     headRefOid: "8934470b7bb5ee5a5cb4080751d6f321a1361c23",
     baseRefName: "master",
     author: { login: "bot-wa-wa" },
-    commits: { nodes: [{ commit: { oid: "8934470b7bb5ee5a5cb4080751d6f321a1361c23", statusCheckRollup: { state: "SUCCESS" } } }] },
+    commits: {
+      nodes: [
+        {
+          commit: {
+            oid: "8934470b7bb5ee5a5cb4080751d6f321a1361c23",
+            statusCheckRollup: { state: "SUCCESS" },
+          },
+        },
+      ],
+    },
     comments: { nodes: [] },
     reviews: { nodes: [] },
     reviewThreads: { nodes: [] },
@@ -137,7 +146,8 @@ describe("Worker Agent プロンプトの Golden テスト", () => {
         workerInput({
           jobType: "implement",
           prNumber: 43,
-          jobContext: "PR #43 の nix/flake.nix:121 行でのレビュー指摘「hostNameは不要では」に対応してください。",
+          jobContext:
+            "PR #43 の nix/flake.nix:121 行でのレビュー指摘「hostNameは不要では」に対応してください。",
         }),
       ),
     );
@@ -193,7 +203,13 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
       pr: basePr({
         reviews: {
           nodes: [
-            { databaseId: 201, state: "COMMENTED", body: "全体的に良いですが一部修正をお願いします。", submittedAt: "2026-08-28T16:45:00Z", author: { login: "reviewer" } },
+            {
+              databaseId: 201,
+              state: "COMMENTED",
+              body: "全体的に良いですが一部修正をお願いします。",
+              submittedAt: "2026-08-28T16:45:00Z",
+              author: { login: "reviewer" },
+            },
           ],
         },
         reviewThreads: {
@@ -202,7 +218,14 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
               isResolved: false,
               comments: {
                 nodes: [
-                  { databaseId: 301, body: "ここでは hostName は不要では？", path: "nix/flake.nix", line: 121, createdAt: "2026-08-28T16:48:00Z", author: { login: "reviewer" } },
+                  {
+                    databaseId: 301,
+                    body: "ここでは hostName は不要では？",
+                    path: "nix/flake.nix",
+                    line: 121,
+                    createdAt: "2026-08-28T16:48:00Z",
+                    author: { login: "reviewer" },
+                  },
                 ],
               },
             },
@@ -210,7 +233,12 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
         },
       }),
       newEvents: [
-        { kind: "review_comment", author: "reviewer", body: "[nix/flake.nix:121] 修正して。", at: "2026-08-28T17:00:00Z" },
+        {
+          kind: "review_comment",
+          author: "reviewer",
+          body: "[nix/flake.nix:121] 修正して。",
+          at: "2026-08-28T17:00:00Z",
+        },
       ],
       lastRun: {
         id: 1,
@@ -249,7 +277,12 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
       }),
       pr: null,
       newEvents: [
-        { kind: "comment", author: "k-wa-wa", body: "1 でお願いします", at: "2026-08-28T16:15:00Z" },
+        {
+          kind: "comment",
+          author: "k-wa-wa",
+          body: "1 でお願いします",
+          at: "2026-08-28T16:15:00Z",
+        },
       ],
       lastRun: {
         id: 2,

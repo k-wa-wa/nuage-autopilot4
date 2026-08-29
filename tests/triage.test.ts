@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { TRIAGE_SYSTEM_PROMPT, validate, normalizeTriageOutput, parseJson } from "../src/decide/triage.ts";
+import {
+  normalizeTriageOutput,
+  parseJson,
+  TRIAGE_SYSTEM_PROMPT,
+  validate,
+} from "../src/decide/triage.ts";
 import { ACTION_REQUIRED_HINTS, WORKING_HINTS } from "../src/types.ts";
 
 describe("Triage Agent のプロンプトとバリデーション", () => {
@@ -142,20 +147,43 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
         body: "PR Body",
         state: "OPEN",
         comments: { nodes: [] },
-        reviews: { nodes: [{ databaseId: 1, body: "全体のレビューコメント", submittedAt: "2026-08-24T00:50:00Z", author: { login: "reviewer" } }] },
-        reviewThreads: {
-          nodes: [{
-            isResolved: false,
-            comments: {
-              nodes: [
-                { databaseId: 10, body: "hostName は不要では？", path: "nix/flake.nix", line: 121, createdAt: "2026-08-24T01:00:00Z", author: { login: "reviewer" } },
-              ],
+        reviews: {
+          nodes: [
+            {
+              databaseId: 1,
+              body: "全体のレビューコメント",
+              submittedAt: "2026-08-24T00:50:00Z",
+              author: { login: "reviewer" },
             },
-          }],
+          ],
+        },
+        reviewThreads: {
+          nodes: [
+            {
+              isResolved: false,
+              comments: {
+                nodes: [
+                  {
+                    databaseId: 10,
+                    body: "hostName は不要では？",
+                    path: "nix/flake.nix",
+                    line: 121,
+                    createdAt: "2026-08-24T01:00:00Z",
+                    author: { login: "reviewer" },
+                  },
+                ],
+              },
+            },
+          ],
         },
       },
       newEvents: [
-        { kind: "review_comment", author: "reviewer", body: "[nix/flake.nix:121] 修正して。", at: "2026-08-24T01:05:00Z" },
+        {
+          kind: "review_comment",
+          author: "reviewer",
+          body: "[nix/flake.nix:121] 修正して。",
+          at: "2026-08-24T01:05:00Z",
+        },
       ],
       lastRun: null,
     });
@@ -166,4 +194,3 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     expect(prompt).toContain("[nix/flake.nix:121] 修正して。");
   });
 });
-

@@ -1,5 +1,5 @@
-import type { GitHubClient } from "./client.ts";
 import { DEFAULTS } from "../config.ts";
+import type { GitHubClient } from "./client.ts";
 
 /** Phase 2: 詳細取得。ids は 100 件ごとに分割。変更 0 件なら発行しない。 */
 export const DETAIL_QUERY = `
@@ -98,7 +98,9 @@ export interface PrDetail {
   headRefOid: string;
   baseRefName: string;
   author: { login: string } | null;
-  commits: { nodes: Array<{ commit: { oid: string; statusCheckRollup: { state: string } | null } }> };
+  commits: {
+    nodes: Array<{ commit: { oid: string; statusCheckRollup: { state: string } | null } }>;
+  };
   comments: { nodes: Comment[] };
   reviews: { nodes: Review[] };
   reviewThreads: { nodes: Array<{ isResolved: boolean; comments: { nodes: Comment[] } }> };

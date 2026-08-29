@@ -86,10 +86,18 @@ export function buildState(db: DB): StateResponse {
     generated_at: nowIso(),
     lanes: {
       // 未着手（未 Triage / allowlist 外の起票）は通常の判断待ちを埋没させるので分ける。
-      action_required: ar.filter((i) => i.display_hint !== "未着手").map(card).sort(byStateSince),
-      backlog: ar.filter((i) => i.display_hint === "未着手").map(card).sort(byStateSince),
+      action_required: ar
+        .filter((i) => i.display_hint !== "未着手")
+        .map(card)
+        .sort(byStateSince),
+      backlog: ar
+        .filter((i) => i.display_hint === "未着手")
+        .map(card)
+        .sort(byStateSince),
       working: all.filter((i) => i.state === "Working").map(card),
-      queued: all.filter((i) => i.state === "Queued").map(card)
+      queued: all
+        .filter((i) => i.state === "Queued")
+        .map(card)
         .sort((a, b) => (a.queue_position ?? 1e9) - (b.queue_position ?? 1e9)),
     },
     health: {
@@ -114,7 +122,8 @@ function degraded(db: DB): string[] {
   const out = [...runtime.degraded];
   if (runtime.lastPollAt) {
     const behind = Date.now() - Date.parse(runtime.lastPollAt);
-    if (behind > 3 * 60_000) out.push(`ポーリング停止（${Math.floor(behind / 60_000)} 分更新なし）`);
+    if (behind > 3 * 60_000)
+      out.push(`ポーリング停止（${Math.floor(behind / 60_000)} 分更新なし）`);
   }
   const failed = jobs.recentFailures(db, nowIso(-60 * 60_000));
   if (failed > 0) out.push(`ジョブ滞留（${failed} 件 failed）`);

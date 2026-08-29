@@ -10,7 +10,13 @@ export interface RateLimit {
 export class GitHubError extends Error {
   constructor(
     message: string,
-    readonly kind: "unauthorized" | "rate_limited" | "not_found" | "forbidden" | "partial" | "network",
+    readonly kind:
+      | "unauthorized"
+      | "rate_limited"
+      | "not_found"
+      | "forbidden"
+      | "partial"
+      | "network",
   ) {
     super(message);
     this.name = "GitHubError";
@@ -18,7 +24,10 @@ export class GitHubError extends Error {
 }
 
 export interface GitHubClient {
-  graphql<T>(query: string, variables: Record<string, unknown>): Promise<{ data: T; rate: RateLimit; date: string }>;
+  graphql<T>(
+    query: string,
+    variables: Record<string, unknown>,
+  ): Promise<{ data: T; rate: RateLimit; date: string }>;
   rest(path: string, init?: RequestInit): Promise<Response>;
   restRemaining(): number;
   restLimit(): number;
@@ -46,13 +55,17 @@ export function createClient(token: string): GitHubClient {
     // ここを見ないと、認証失敗（最も多い設定ミス）が「empty data」になって原因が分からない。
     if (!res.ok) {
       const msg = safeMessage(text) ?? text.slice(0, 200);
-      if (res.status === 401) throw new GitHubError(`認証に失敗しました（GH_TOKEN を確認）: ${msg}`, "unauthorized");
+      if (res.status === 401)
+        throw new GitHubError(`認証に失敗しました（GH_TOKEN を確認）: ${msg}`, "unauthorized");
       if (res.status === 403) throw new GitHubError(msg, "forbidden");
       if (res.status === 404) throw new GitHubError(msg, "not_found");
       throw new GitHubError(`HTTP ${res.status}: ${msg}`, "network");
     }
 
-    let body: { data?: T & { rateLimit?: RateLimit }; errors?: Array<{ type?: string; message: string }> };
+    let body: {
+      data?: T & { rateLimit?: RateLimit };
+      errors?: Array<{ type?: string; message: string }>;
+    };
     try {
       body = JSON.parse(text);
     } catch {
@@ -84,14 +97,22 @@ export function createClient(token: string): GitHubClient {
     rateLimitState.graphqlRemaining = rate.remaining;
     if (rate.resetAt) rateLimitState.graphqlResetAt = rate.resetAt;
 
-    return { data: body.data as T, rate, date: new Date(date).toISOString().replace(/\.\d{3}Z$/, "Z") };
+    return {
+      data: body.data as T,
+      rate,
+      date: new Date(date).toISOString().replace(/\.\d{3}Z$/, "Z"),
+    };
   }
 
   async function rest(path: string, init: RequestInit = {}) {
     const res = await withBackoff(() =>
       fetch(`https://api.github.com${path}`, {
         ...init,
-        headers: { authorization: `bearer ${token}`, accept: "application/vnd.github+json", ...(init.headers ?? {}) },
+        headers: {
+          authorization: `bearer ${token}`,
+          accept: "application/vnd.github+json",
+          ...(init.headers ?? {}),
+        },
       }),
     );
     const r = res.headers.get("x-ratelimit-remaining");
@@ -119,7 +140,10 @@ export function createClient(token: string): GitHubClient {
     restLimit: () => restLimit,
     restResetAt: () => restResetAt,
     async viewerLogin() {
-      const { data } = await graphql<{ viewer: { login: string } }>("query { viewer { login } }", {});
+      const { data } = await graphql<{ viewer: { login: string } }>(
+        "query { viewer { login } }",
+        {},
+      );
       return data.viewer.login;
     },
   };

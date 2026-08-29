@@ -1,5 +1,5 @@
-import type { GitHubClient } from "./client.ts";
 import { DEFAULTS } from "../config.ts";
+import type { GitHubClient } from "./client.ts";
 
 /**
  * 成果物検証（ARCHITECTURE 方針8「エージェントの exit 0 を信用しない」）。
@@ -50,11 +50,18 @@ interface SnapshotResponse {
 }
 
 async function fetchComments(
-  gh: GitHubClient, repo: string, issue: number, pr: number,
+  gh: GitHubClient,
+  repo: string,
+  issue: number,
+  pr: number,
 ): Promise<{ issue: CommentNode[]; pr: CommentNode[]; headSha: string }> {
   const [owner, name] = repo.split("/") as [string, string];
   const { data } = await gh.graphql<SnapshotResponse>(SNAPSHOT_QUERY, {
-    owner, repo: name, issue, pr: pr || 1, withPr: pr > 0,
+    owner,
+    repo: name,
+    issue,
+    pr: pr || 1,
+    withPr: pr > 0,
   });
   return {
     issue: data.repository.issue?.comments.nodes ?? [],
@@ -100,7 +107,9 @@ export async function botCommentedSince(
   return retrying(async () => {
     const c = await fetchComments(gh, repo, issue, pr);
     if (target === "issue") {
-      return c.issue.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxIssueCommentId);
+      return c.issue.some(
+        (n) => n.author?.login === botLogin && n.databaseId > snap.maxIssueCommentId,
+      );
     }
     if (target === "pr") {
       return c.pr.some((n) => n.author?.login === botLogin && n.databaseId > snap.maxPrCommentId);
@@ -197,7 +206,10 @@ export async function appendCloses(
 }
 
 /** 反映遅延を吸収するためのリトライ。回数はテストからのみ差し替える。 */
-async function retrying(fn: () => Promise<boolean>, retries: number = DEFAULTS.verifyRetries): Promise<boolean> {
+async function retrying(
+  fn: () => Promise<boolean>,
+  retries: number = DEFAULTS.verifyRetries,
+): Promise<boolean> {
   for (let i = 0; i < retries; i++) {
     if (await fn()) return true;
     if (i < retries - 1) await Bun.sleep(DEFAULTS.verifyIntervalMs);

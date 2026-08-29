@@ -10,7 +10,13 @@ export function initClient(): void {
   const ago = (t: string | null): string => {
     if (!t) return "";
     const m = Math.floor((Date.now() - Date.parse(t)) / 60000);
-    return m < 1 ? "たった今" : m < 60 ? `${m}分前` : m < 1440 ? `${Math.floor(m / 60)}時間前` : `${Math.floor(m / 1440)}日前`;
+    return m < 1
+      ? "たった今"
+      : m < 60
+        ? `${m}分前`
+        : m < 1440
+          ? `${Math.floor(m / 60)}時間前`
+          : `${Math.floor(m / 1440)}日前`;
   };
 
   const formatReset = (iso: string | null): string => {
@@ -36,7 +42,10 @@ export function initClient(): void {
   };
 
   const esc = (s: unknown): string =>
-    String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] || c));
+    String(s).replace(
+      /[&<>"]/g,
+      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] || c,
+    );
 
   function render(lane: string, cards: Card[]): void {
     const el = document.getElementById(lane);
@@ -55,7 +64,8 @@ export function initClient(): void {
         else bits.push(ago(c.state_since));
 
         const issueUrl = c.issue_url || `https://github.com/${c.repo}/issues/${c.issue_number}`;
-        const prUrl = c.pr_url || (c.pr_number > 0 ? `https://github.com/${c.repo}/pull/${c.pr_number}` : null);
+        const prUrl =
+          c.pr_url || (c.pr_number > 0 ? `https://github.com/${c.repo}/pull/${c.pr_number}` : null);
 
         let subHtml = "";
         if (c.pr_number > 0 && prUrl) {
@@ -99,7 +109,8 @@ export function initClient(): void {
     const restLimit = health.rest_limit || 5000;
     const restPct = Math.max(0, Math.min(100, Math.round((restRem / restLimit) * 100)));
     const restVal = document.getElementById("rest-rate-val");
-    if (restVal) restVal.textContent = `${restRem.toLocaleString()} / ${restLimit.toLocaleString()}`;
+    if (restVal)
+      restVal.textContent = `${restRem.toLocaleString()} / ${restLimit.toLocaleString()}`;
     const restBar = document.getElementById("rest-progress-bar");
     if (restBar) {
       restBar.style.width = `${restPct}%`;

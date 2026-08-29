@@ -1,5 +1,5 @@
-import { nowIso } from "./types.ts";
 import type { Logger } from "./types.ts";
+import { nowIso } from "./types.ts";
 
 /**
  * 標準ログ（docs/logging.md）。

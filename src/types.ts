@@ -5,14 +5,22 @@ export const STATES = ["ActionRequired", "Working", "Queued", "Done"] as const;
 export type State = (typeof STATES)[number];
 
 export const ACTION_REQUIRED_HINTS = [
-  "仕様確認待ち", "マージ待ち", "助言待ち", "エラー対応待ち",
-  "CI 停滞", "CI 失敗（要判断）", "Issue クローズ確認待ち", "取り下げ確認待ち",
-  "完了確認待ち", "親 Issue の承認待ち", "未着手", "Triage 失敗（要判断）", "中止済み",
+  "仕様確認待ち",
+  "マージ待ち",
+  "助言待ち",
+  "エラー対応待ち",
+  "CI 停滞",
+  "CI 失敗（要判断）",
+  "Issue クローズ確認待ち",
+  "取り下げ確認待ち",
+  "完了確認待ち",
+  "親 Issue の承認待ち",
+  "未着手",
+  "Triage 失敗（要判断）",
+  "中止済み",
 ] as const;
 
-export const WORKING_HINTS = [
-  "精緻化中", "実装中", "評価中", "CI 待ち", "CI 未反映",
-] as const;
+export const WORKING_HINTS = ["精緻化中", "実装中", "評価中", "CI 待ち", "CI 未反映"] as const;
 
 export const QUEUED_HINTS = ["着手待ち"] as const;
 
@@ -29,7 +37,9 @@ export type DisplayHint =
   | "";
 
 const HINT_SET: ReadonlySet<string> = new Set<string>([
-  ...ACTION_REQUIRED_HINTS, ...WORKING_HINTS, ...QUEUED_HINTS,
+  ...ACTION_REQUIRED_HINTS,
+  ...WORKING_HINTS,
+  ...QUEUED_HINTS,
 ]);
 
 export function isDisplayHint(v: string): v is DisplayHint {
@@ -39,7 +49,8 @@ export function isDisplayHint(v: string): v is DisplayHint {
 /** state と hint の組み合わせが spec.md §2 の表に一致するか。 */
 export function hintMatchesState(state: State, hint: string): boolean {
   if (hint === "") return state === "Done";
-  if (state === "ActionRequired") return (ACTION_REQUIRED_HINTS as readonly string[]).includes(hint);
+  if (state === "ActionRequired")
+    return (ACTION_REQUIRED_HINTS as readonly string[]).includes(hint);
   if (state === "Working") {
     return (WORKING_HINTS as readonly string[]).includes(hint) || SUB_PROGRESS_RE.test(hint);
   }
@@ -60,7 +71,6 @@ export function hintToState(hint: DisplayHint): State {
   throw new Error(`unknown display_hint: ${hint}`);
 }
 
-
 export const JOB_TYPES = ["refine", "implement", "evaluate"] as const;
 export type JobType = (typeof JOB_TYPES)[number];
 
@@ -69,7 +79,14 @@ export type JobStatus = (typeof JOB_STATUSES)[number];
 /** 終端状態。trigger_key の再投入抑止（spec.md §6）と runs の終端化に使う。 */
 export const TERMINAL_STATUSES = ["completed", "failed", "canceled"] as const;
 
-export const RUN_RESULTS = ["RUNNING", "SUCCESS", "FAIL", "BLOCKED", "TIMEOUT", "CANCELED"] as const;
+export const RUN_RESULTS = [
+  "RUNNING",
+  "SUCCESS",
+  "FAIL",
+  "BLOCKED",
+  "TIMEOUT",
+  "CANCELED",
+] as const;
 export type RunResult = (typeof RUN_RESULTS)[number];
 
 export type Verdict = "merge_ready" | "needs_work";

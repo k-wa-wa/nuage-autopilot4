@@ -1,5 +1,5 @@
-import type { FC } from "hono/jsx";
 import { raw } from "hono/html";
+import type { FC } from "hono/jsx";
 import { initClient } from "./client.ts";
 
 /**
@@ -358,9 +358,18 @@ export const Page: FC = () => {
         <header>
           <h1>Autopilot</h1>
           <span class="meta" id="meta" />
-          <button id="info-btn" class="icon-btn" aria-label="システム・API情報" title="システム・API情報">
+          <button
+            id="info-btn"
+            class="icon-btn"
+            aria-label="システム・API情報"
+            title="システム・API情報"
+          >
             <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+                clip-rule="evenodd"
+              />
             </svg>
           </button>
         </header>
@@ -376,7 +385,9 @@ export const Page: FC = () => {
           <div class="modal-box">
             <div class="modal-header">
               <h2>システム・API情報</h2>
-              <button id="modal-close-btn" class="close-btn" aria-label="閉じる">&times;</button>
+              <button id="modal-close-btn" class="close-btn" aria-label="閉じる">
+                &times;
+              </button>
             </div>
             <div class="modal-body">
               <div class="modal-section">
@@ -385,28 +396,44 @@ export const Page: FC = () => {
                   <div class="rate-card">
                     <div class="rate-header">
                       <div class="rate-name">GraphQL API</div>
-                      <div class="rate-val" id="graphql-rate-val">-- / --</div>
+                      <div class="rate-val" id="graphql-rate-val">
+                        -- / --
+                      </div>
                     </div>
                     <div class="progress-bar-bg">
-                      <div class="progress-bar-fill" id="graphql-progress-bar" style="width: 100%"></div>
+                      <div
+                        class="progress-bar-fill"
+                        id="graphql-progress-bar"
+                        style="width: 100%"
+                      ></div>
                     </div>
                     <div class="rate-footer">
                       <span>リセット時刻</span>
-                      <span class="rate-reset" id="graphql-reset-val">--</span>
+                      <span class="rate-reset" id="graphql-reset-val">
+                        --
+                      </span>
                     </div>
                   </div>
 
                   <div class="rate-card">
                     <div class="rate-header">
                       <div class="rate-name">REST API (GitHub)</div>
-                      <div class="rate-val" id="rest-rate-val">-- / --</div>
+                      <div class="rate-val" id="rest-rate-val">
+                        -- / --
+                      </div>
                     </div>
                     <div class="progress-bar-bg">
-                      <div class="progress-bar-fill" id="rest-progress-bar" style="width: 100%"></div>
+                      <div
+                        class="progress-bar-fill"
+                        id="rest-progress-bar"
+                        style="width: 100%"
+                      ></div>
                     </div>
                     <div class="rate-footer">
                       <span>リセット時刻</span>
-                      <span class="rate-reset" id="rest-reset-val">--</span>
+                      <span class="rate-reset" id="rest-reset-val">
+                        --
+                      </span>
                     </div>
                   </div>
                 </div>

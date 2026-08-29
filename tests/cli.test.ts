@@ -1,12 +1,12 @@
-import { describe, test, expect, afterEach } from "bun:test";
-import { acquireLock } from "../src/cli/utils/lock.ts";
-import { c } from "../src/cli/utils/color.ts";
-import { doctor } from "../src/cli/doctor.ts";
-import { parseCancelTarget } from "../src/cli/cancel.ts";
-import { formatStatus, type StateData } from "../src/cli/status.ts";
+import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { parseCancelTarget } from "../src/cli/cancel.ts";
+import { doctor } from "../src/cli/doctor.ts";
+import { formatStatus, type StateData } from "../src/cli/status.ts";
+import { c } from "../src/cli/utils/color.ts";
+import { acquireLock } from "../src/cli/utils/lock.ts";
 import type { Config } from "../src/config.ts";
 
 describe("CLI lock utilities", () => {
@@ -20,7 +20,11 @@ describe("CLI lock utilities", () => {
 
   afterEach(() => {
     for (const d of tempDirs) {
-      try { rmSync(d, { recursive: true, force: true }); } catch { /* noop */ }
+      try {
+        rmSync(d, { recursive: true, force: true });
+      } catch {
+        /* noop */
+      }
     }
     tempDirs.length = 0;
   });

@@ -1,21 +1,21 @@
-import { mkdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
-import { loadConfig, dbPath, lockPath, runDir, logDir, repoSlug, DEFAULTS } from "../config.ts";
-import type { Config } from "../config.ts";
-import { openDb } from "../store/db.ts";
-import { createClient, rateLimitState } from "../github/client.ts";
+import { mkdirSync } from "node:fs";
 import { pollRepo } from "../collect/poller.ts";
-import { dispatch } from "../decide/dispatcher.ts";
+import type { Config } from "../config.ts";
+import { DEFAULTS, dbPath, loadConfig, lockPath, logDir, repoSlug, runDir } from "../config.ts";
 import type { DispatchDeps } from "../decide/dispatcher.ts";
+import { dispatch } from "../decide/dispatcher.ts";
 import { tick } from "../decide/tick.ts";
-import { claimJob, runClaimed, recover } from "../execute/worker.ts";
 import type { WorkerDeps } from "../execute/worker.ts";
+import { claimJob, recover, runClaimed } from "../execute/worker.ts";
+import { createClient, rateLimitState } from "../github/client.ts";
+import { log } from "../log.ts";
+import { openDb } from "../store/db.ts";
+import { nowIso } from "../types.ts";
 import { startServer } from "../view/server.tsx";
 import { runtime } from "../view/state.ts";
-import { acquireLock } from "./utils/lock.ts";
 import { doctor, printChecks } from "./doctor.ts";
-import { nowIso } from "../types.ts";
-import { log } from "../log.ts";
+import { acquireLock } from "./utils/lock.ts";
 
 export async function cmdRun(configPath?: string): Promise<void> {
   const cfg = loadConfig(configPath);
@@ -41,12 +41,19 @@ export async function cmdRun(configPath?: string): Promise<void> {
   const baseBranches = await resolveBaseBranches(cfg, gh);
 
   const dd: DispatchDeps = {
-    db, cfg, gh, botLogin,
+    db,
+    cfg,
+    gh,
+    botLogin,
     monitored: new Set(cfg.repos.map(repoSlug)),
     log,
   };
   const wd: WorkerDeps = {
-    db, cfg, gh, botLogin, bootId,
+    db,
+    cfg,
+    gh,
+    botLogin,
+    bootId,
     baseBranchOf: (repo) => baseBranches.get(repo) ?? "main",
     log,
   };
@@ -71,67 +78,89 @@ export async function cmdRun(configPath?: string): Promise<void> {
   process.on("SIGTERM", shutdown);
 
   // ① 収集 → ② 判定
-  void loop(() => rateLimitState.pollIntervalMs(), async () => {
-    if (rateLimitState.stopped()) {
-      runtime.degraded.add("レートリミット待機中");
-      return;
-    }
-    runtime.degraded.delete("レートリミット待機中");
-    for (const r of cfg.repos) {
-      const out = await pollRepo(db, gh, r, botLogin);
-      if (out.error) {
-        log("warn", `${out.repo}: poll failed (${out.error})`);
-        if (out.error === "not_found" || out.error === "forbidden") {
-          runtime.degraded.add(`監視対象外: ${out.repo}`);
-        }
-        continue;
+  void loop(
+    () => rateLimitState.pollIntervalMs(),
+    async () => {
+      if (rateLimitState.stopped()) {
+        runtime.degraded.add("レートリミット待機中");
+        return;
       }
-      runtime.degraded.delete(`監視対象外: ${out.repo}`);
-      if (out.coldStart) log("info", `${out.repo}: cold start seeded`);
-      // Triage Agent の呼び出しは直列（LLM プロバイダの RPM / TPM 制約）。
-      for (const c of out.changed) await dispatch(dd, out.repo, c.issueNumber);
-    }
-    runtime.lastPollAt = nowIso();
-    runtime.graphqlRemaining = rateLimitState.graphqlRemaining;
-    runtime.graphqlLimit = rateLimitState.graphqlLimit;
-    runtime.graphqlResetAt = rateLimitState.graphqlResetAt;
-    runtime.restRemaining = gh.restRemaining();
-    runtime.restLimit = gh.restLimit();
-    runtime.restResetAt = gh.restResetAt();
-  }, (e) => log("warn", `poll loop: ${String(e)}`), () => stopping);
+      runtime.degraded.delete("レートリミット待機中");
+      for (const r of cfg.repos) {
+        const out = await pollRepo(db, gh, r, botLogin);
+        if (out.error) {
+          log("warn", `${out.repo}: poll failed (${out.error})`);
+          if (out.error === "not_found" || out.error === "forbidden") {
+            runtime.degraded.add(`監視対象外: ${out.repo}`);
+          }
+          continue;
+        }
+        runtime.degraded.delete(`監視対象外: ${out.repo}`);
+        if (out.coldStart) log("info", `${out.repo}: cold start seeded`);
+        // Triage Agent の呼び出しは直列（LLM プロバイダの RPM / TPM 制約）。
+        for (const c of out.changed) await dispatch(dd, out.repo, c.issueNumber);
+      }
+      runtime.lastPollAt = nowIso();
+      runtime.graphqlRemaining = rateLimitState.graphqlRemaining;
+      runtime.graphqlLimit = rateLimitState.graphqlLimit;
+      runtime.graphqlResetAt = rateLimitState.graphqlResetAt;
+      runtime.restRemaining = gh.restRemaining();
+      runtime.restLimit = gh.restLimit();
+      runtime.restResetAt = gh.restResetAt();
+    },
+    (e) => log("warn", `poll loop: ${String(e)}`),
+    () => stopping,
+  );
 
   // Tick（時間経過だけで動く判定）
-  void loop(() => DEFAULTS.tickIntervalMs, async () => {
-    recover(wd, false);
-    await tick(dd);
-  }, (e) => log("warn", `tick loop: ${String(e)}`), () => stopping);
+  void loop(
+    () => DEFAULTS.tickIntervalMs,
+    async () => {
+      recover(wd, false);
+      await tick(dd);
+    },
+    (e) => log("warn", `tick loop: ${String(e)}`),
+    () => stopping,
+  );
 
   // ③ 実行。同時実行の上限は fetchNextJob の SQL が担保するので、
   //    ここでは確保できる限り起動して並行に走らせる（await 直列にすると常に 1 件になる）。
   const inflight = new Set<Promise<void>>();
-  void loop(() => 1000, async () => {
-    for (;;) {
-      const c = claimJob(wd);
-      if (!c) break;
-      const p = runClaimed(wd, c)
-        .catch((e) => log("warn", `job ${c.job.id}: unexpected error: ${String(e)}`))
-        .finally(() => inflight.delete(p));
-      inflight.add(p);
-    }
-  }, (e) => log("warn", `worker loop: ${String(e)}`), () => stopping);
+  void loop(
+    () => 1000,
+    async () => {
+      for (;;) {
+        const c = claimJob(wd);
+        if (!c) break;
+        const p = runClaimed(wd, c)
+          .catch((e) => log("warn", `job ${c.job.id}: unexpected error: ${String(e)}`))
+          .finally(() => inflight.delete(p));
+        inflight.add(p);
+      }
+    },
+    (e) => log("warn", `worker loop: ${String(e)}`),
+    () => stopping,
+  );
 
-  await new Promise(() => { /* 常駐 */ });
+  await new Promise(() => {
+    /* 常駐 */
+  });
 }
 
 /** repos[].base_branch が無いリポジトリの既定ブランチを GraphQL で解決する。 */
-export async function resolveBaseBranches(cfg: Config, gh: ReturnType<typeof createClient>): Promise<Map<string, string>> {
+export async function resolveBaseBranches(
+  cfg: Config,
+  gh: ReturnType<typeof createClient>,
+): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   for (const r of cfg.repos) {
     if (r.base_branch) {
       out.set(repoSlug(r), r.base_branch);
       continue;
     }
-    const { data } = await gh.graphql<{ repository: { defaultBranchRef: { name: string } | null } | null }>(
+    const { data } = await gh.graphql<{
+      repository: { defaultBranchRef: { name: string } | null } | null;
+    }>(
       `query Base($owner: String!, $repo: String!) {
          rateLimit { cost remaining resetAt }
          repository(owner: $owner, name: $repo) { defaultBranchRef { name } }
@@ -152,7 +181,11 @@ export async function loop(
   stopped: () => boolean,
 ): Promise<void> {
   while (!stopped()) {
-    try { await body(); } catch (e) { onError(e); }
+    try {
+      await body();
+    } catch (e) {
+      onError(e);
+    }
     await Bun.sleep(intervalMs());
   }
 }

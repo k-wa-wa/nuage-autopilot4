@@ -1,7 +1,7 @@
+import type { DisplayHint, Item, JobType, State } from "../types.ts";
+import { hintMatchesState, nowIso } from "../types.ts";
 import type { DB } from "./db.ts";
 import { VersionConflict } from "./db.ts";
-import { nowIso, hintMatchesState } from "../types.ts";
-import type { DisplayHint, Item, JobType, State } from "../types.ts";
 
 /**
  * items の唯一の書き手（ARCHITECTURE 方針9）。
@@ -10,11 +10,14 @@ import type { DisplayHint, Item, JobType, State } from "../types.ts";
  */
 
 export function getItem(db: DB, repo: string, issue: number): Item | null {
-  return db.query("SELECT * FROM items WHERE repo=? AND issue_number=?").get(repo, issue) as Item | null;
+  return db
+    .query("SELECT * FROM items WHERE repo=? AND issue_number=?")
+    .get(repo, issue) as Item | null;
 }
 
 export function listByParent(db: DB, parentRepo: string, parentIssue: number): Item[] {
-  return db.query("SELECT * FROM items WHERE parent_repo=? AND parent_issue_number=?")
+  return db
+    .query("SELECT * FROM items WHERE parent_repo=? AND parent_issue_number=?")
     .all(parentRepo, parentIssue) as Item[];
 }
 
@@ -25,16 +28,30 @@ export function listByParent(db: DB, parentRepo: string, parentIssue: number): I
  */
 export function findByPrNumber(db: DB, repo: string, prNumber: number): Item | null {
   if (prNumber <= 0) return null;
-  return db.query("SELECT * FROM items WHERE repo=? AND pr_number=?").get(repo, prNumber) as Item | null;
+  return db
+    .query("SELECT * FROM items WHERE repo=? AND pr_number=?")
+    .get(repo, prNumber) as Item | null;
 }
 
 /** Poller だけが呼ぶ。初期状態は spec.md §5 コールドスタート / §9 子 Issue に従う。 */
 export function createItem(
   db: DB,
-  v: { repo: string; issue_number: number; title: string; state: State; display_hint: DisplayHint;
-       triaged: number; last_event_at?: string; last_event_id?: number;
-       pr_number?: number; branch?: string; head_sha?: string; ci_since?: string | null;
-       parent_repo?: string; parent_issue_number?: number },
+  v: {
+    repo: string;
+    issue_number: number;
+    title: string;
+    state: State;
+    display_hint: DisplayHint;
+    triaged: number;
+    last_event_at?: string;
+    last_event_id?: number;
+    pr_number?: number;
+    branch?: string;
+    head_sha?: string;
+    ci_since?: string | null;
+    parent_repo?: string;
+    parent_issue_number?: number;
+  },
 ): void {
   assertHint(v.state, v.display_hint);
   const t = nowIso();
@@ -44,9 +61,24 @@ export function createItem(
                        parent_repo, parent_issue_number, version, updated_at)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,0,?)
     ON CONFLICT(repo, issue_number) DO NOTHING
-  `).run(v.repo, v.issue_number, v.title, v.state, v.display_hint, t, v.triaged,
-         v.last_event_at ?? "", v.last_event_id ?? 0, v.pr_number ?? 0, v.branch ?? "",
-         v.head_sha ?? "", v.ci_since ?? null, v.parent_repo ?? "", v.parent_issue_number ?? 0, t);
+  `).run(
+    v.repo,
+    v.issue_number,
+    v.title,
+    v.state,
+    v.display_hint,
+    t,
+    v.triaged,
+    v.last_event_at ?? "",
+    v.last_event_id ?? 0,
+    v.pr_number ?? 0,
+    v.branch ?? "",
+    v.head_sha ?? "",
+    v.ci_since ?? null,
+    v.parent_repo ?? "",
+    v.parent_issue_number ?? 0,
+    t,
+  );
 }
 
 /**
@@ -57,27 +89,46 @@ export function createItem(
 export function refreshFromGitHub(
   db: DB,
   it0: Item,
-  v: { title?: string; pr_number?: number; branch?: string; head_sha?: string;
-       parent_repo?: string; parent_issue_number?: number;
-       sub_issues_total?: number; sub_issues_completed?: number },
+  v: {
+    title?: string;
+    pr_number?: number;
+    branch?: string;
+    head_sha?: string;
+    parent_repo?: string;
+    parent_issue_number?: number;
+    sub_issues_total?: number;
+    sub_issues_completed?: number;
+  },
 ): void {
   // 競合で黙って捨てると head_sha が古いまま残り、CI の HEAD 一致が永久に成立しない。
   const it = getItem(db, it0.repo, it0.issue_number) ?? it0;
   const headChanged = v.head_sha !== undefined && v.head_sha !== "" && v.head_sha !== it.head_sha;
   const resetCi = headChanged && it.ci_since !== null;
-  const changed = db.query(`
+  const changed = db
+    .query(`
     UPDATE items SET
       title = ?, pr_number = ?, branch = ?, head_sha = ?,
       parent_repo = ?, parent_issue_number = ?, sub_issues_total = ?, sub_issues_completed = ?,
       ci_since = CASE WHEN ? THEN ? ELSE ci_since END,
       version = version + 1, updated_at = ?
     WHERE repo = ? AND issue_number = ? AND version = ?
-  `).run(
-    v.title ?? it.title, v.pr_number ?? it.pr_number, v.branch ?? it.branch, v.head_sha ?? it.head_sha,
-    v.parent_repo ?? it.parent_repo, v.parent_issue_number ?? it.parent_issue_number,
-    v.sub_issues_total ?? it.sub_issues_total, v.sub_issues_completed ?? it.sub_issues_completed,
-    resetCi ? 1 : 0, nowIso(), nowIso(), it.repo, it.issue_number, it.version,
-  ).changes;
+  `)
+    .run(
+      v.title ?? it.title,
+      v.pr_number ?? it.pr_number,
+      v.branch ?? it.branch,
+      v.head_sha ?? it.head_sha,
+      v.parent_repo ?? it.parent_repo,
+      v.parent_issue_number ?? it.parent_issue_number,
+      v.sub_issues_total ?? it.sub_issues_total,
+      v.sub_issues_completed ?? it.sub_issues_completed,
+      resetCi ? 1 : 0,
+      nowIso(),
+      nowIso(),
+      it.repo,
+      it.issue_number,
+      it.version,
+    ).changes;
   if (changed === 0) {
     const fresh = getItem(db, it0.repo, it0.issue_number);
     if (fresh && fresh.version !== it.version) refreshFromGitHub(db, fresh, v);
@@ -121,11 +172,10 @@ export function transitionItem(db: DB, it: Item, t: Transition): Item {
 
   const stateChanged = it.state !== t.state;
   const blockedFrom =
-    t.blockedFrom !== undefined ? t.blockedFrom
-    : t.hint === "助言待ち" ? it.blocked_from
-    : "";
+    t.blockedFrom !== undefined ? t.blockedFrom : t.hint === "助言待ち" ? it.blocked_from : "";
 
-  const changed = db.query(`
+  const changed = db
+    .query(`
     UPDATE items SET
       state = ?, display_hint = ?,
       state_since = CASE WHEN ? THEN ? ELSE state_since END,
@@ -137,17 +187,28 @@ export function transitionItem(db: DB, it: Item, t: Transition): Item {
       ci_since = CASE WHEN ? THEN NULL WHEN ? THEN ? ELSE ci_since END,
       version = version + 1, updated_at = ?
     WHERE repo = ? AND issue_number = ? AND version = ?
-  `).run(
-    t.state, t.hint,
-    stateChanged ? 1 : 0, nowIso(),
-    blockedFrom,
-    t.retryCount ?? it.retry_count, t.triageFailCount ?? it.triage_fail_count,
-    t.recheckNeeded === undefined ? it.recheck_needed : t.recheckNeeded ? 1 : 0,
-    t.triaged === undefined ? it.triaged : t.triaged ? 1 : 0,
-    t.clearPr ? 1 : 0, t.clearPr ? 1 : 0, t.clearPr ? 1 : 0,
-    (t.clearPr || t.clearCiSince) ? 1 : 0, t.setCiSince ? 1 : 0, t.setCiSince ?? null,
-    nowIso(), it.repo, it.issue_number, it.version,
-  ).changes;
+  `)
+    .run(
+      t.state,
+      t.hint,
+      stateChanged ? 1 : 0,
+      nowIso(),
+      blockedFrom,
+      t.retryCount ?? it.retry_count,
+      t.triageFailCount ?? it.triage_fail_count,
+      t.recheckNeeded === undefined ? it.recheck_needed : t.recheckNeeded ? 1 : 0,
+      t.triaged === undefined ? it.triaged : t.triaged ? 1 : 0,
+      t.clearPr ? 1 : 0,
+      t.clearPr ? 1 : 0,
+      t.clearPr ? 1 : 0,
+      t.clearPr || t.clearCiSince ? 1 : 0,
+      t.setCiSince ? 1 : 0,
+      t.setCiSince ?? null,
+      nowIso(),
+      it.repo,
+      it.issue_number,
+      it.version,
+    ).changes;
 
   if (changed === 0) throw new VersionConflict(it.repo, it.issue_number);
   return getItem(db, it.repo, it.issue_number)!;
@@ -158,14 +219,19 @@ export function withRetry<T>(db: DB, repo: string, issue: number, fn: (it: Item)
   for (let i = 0; i < 3; i++) {
     const it = getItem(db, repo, issue);
     if (!it) return null;
-    try { return fn(it); } catch (e) { if (!(e instanceof VersionConflict)) throw e; }
+    try {
+      return fn(it);
+    } catch (e) {
+      if (!(e instanceof VersionConflict)) throw e;
+    }
   }
   return null;
 }
 
 export function markRecheck(db: DB, repo: string, issue: number): void {
-  db.query("UPDATE items SET recheck_needed = 1, version = version + 1, updated_at = ? WHERE repo=? AND issue_number=?")
-    .run(nowIso(), repo, issue);
+  db.query(
+    "UPDATE items SET recheck_needed = 1, version = version + 1, updated_at = ? WHERE repo=? AND issue_number=?",
+  ).run(nowIso(), repo, issue);
 }
 
 export function needRecheck(db: DB): Item[] {
@@ -174,12 +240,15 @@ export function needRecheck(db: DB): Item[] {
 
 /** CI 判定の候補。ci_since IS NOT NULL のものだけ（spec.md §4 の適用範囲）。 */
 export function ciCandidates(db: DB): Item[] {
-  return db.query("SELECT * FROM items WHERE ci_since IS NOT NULL AND state != 'Done' AND pr_number > 0")
+  return db
+    .query("SELECT * FROM items WHERE ci_since IS NOT NULL AND state != 'Done' AND pr_number > 0")
     .all() as Item[];
 }
 
 export function trackedPrs(db: DB, repo: string): Item[] {
-  return db.query("SELECT * FROM items WHERE repo=? AND pr_number > 0 AND state != 'Done'").all(repo) as Item[];
+  return db
+    .query("SELECT * FROM items WHERE repo=? AND pr_number > 0 AND state != 'Done'")
+    .all(repo) as Item[];
 }
 
 function assertHint(state: State, hint: string): void {

@@ -1,5 +1,5 @@
-import type { GitHubClient } from "./client.ts";
 import { DEFAULTS } from "../config.ts";
+import type { GitHubClient } from "./client.ts";
 
 /**
  * Phase 1: 変更検知ポーリング。実測 1 pt/リポジトリ。
@@ -46,7 +46,9 @@ export interface PollPr {
   comments: { totalCount: number };
   reviews: { totalCount: number };
   reviewThreads: { totalCount: number };
-  commits: { nodes: Array<{ commit: { oid: string; statusCheckRollup: { state: string } | null } }> };
+  commits: {
+    nodes: Array<{ commit: { oid: string; statusCheckRollup: { state: string } | null } }>;
+  };
 }
 
 export interface PollResult {
@@ -61,7 +63,13 @@ export async function poll(
   owner: string,
   repo: string,
   since: string,
-): Promise<{ result: PollResult; date: string; remaining: number; limit?: number; resetAt?: string }> {
+): Promise<{
+  result: PollResult;
+  date: string;
+  remaining: number;
+  limit?: number;
+  resetAt?: string;
+}> {
   const { data, rate, date } = await gh.graphql<{
     repository: {
       issues: { pageInfo: { hasNextPage: boolean }; nodes: PollIssue[] };

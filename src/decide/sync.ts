@@ -1,9 +1,9 @@
+import type { IssueDetail, PrDetail } from "../github/detail.ts";
+import * as cache from "../store/cache.ts";
 import type { DB } from "../store/db.ts";
 import * as items from "../store/items.ts";
 import * as jobs from "../store/jobs.ts";
-import * as cache from "../store/cache.ts";
 import type { Item, JobType } from "../types.ts";
-import type { IssueDetail, PrDetail } from "../github/detail.ts";
 
 /**
  * GitHub 実態からの強制同期（spec.md §3）。
@@ -182,7 +182,7 @@ function reopenContext(issue: IssueDetail): string {
     "",
     "<untrusted_content>",
     issue.body ?? "",
-    (issue.comments.nodes.at(-1)?.body ?? ""),
+    issue.comments.nodes.at(-1)?.body ?? "",
     "</untrusted_content>",
   ].join("\n");
 }

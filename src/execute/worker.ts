@@ -1,20 +1,20 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { Config } from "../config.ts";
+import { DEFAULTS, logDir, runDir } from "../config.ts";
+import { shaFromTriggerKey } from "../decide/ci.ts";
+import type { GitHubClient } from "../github/client.ts";
+import * as verify from "../github/verify.ts";
 import type { DB } from "../store/db.ts";
 import * as items from "../store/items.ts";
 import * as jobs from "../store/jobs.ts";
 import * as runsStore from "../store/runs.ts";
-import type { Config } from "../config.ts";
-import { DEFAULTS, logDir, runDir } from "../config.ts";
-import type { GitHubClient } from "../github/client.ts";
-import * as verify from "../github/verify.ts";
-import { nowIso } from "../types.ts";
 import type { Item, Job, JobType, Logger, RunResult } from "../types.ts";
-import { buildPrompt } from "./prompt.ts";
-import { readResult, resultPath, promptPath, cleanup } from "./result.ts";
+import { nowIso } from "../types.ts";
 import { runAgent } from "./agent.ts";
-import { ensureClone, prepare, targetBranch, headSha, readGate } from "./workspace.ts";
-import { shaFromTriggerKey } from "../decide/ci.ts";
+import { buildPrompt } from "./prompt.ts";
+import { cleanup, promptPath, readResult, resultPath } from "./result.ts";
+import { ensureClone, headSha, prepare, readGate, targetBranch } from "./workspace.ts";
 
 /**
  * AgentWorker（spec.md §7, §8）。
@@ -103,12 +103,17 @@ export async function runOnce(d: WorkerDeps): Promise<boolean> {
 }
 
 async function execute(
-  d: WorkerDeps, job: Job, logPath: string, signal: AbortSignal, startMs: number,
+  d: WorkerDeps,
+  job: Job,
+  logPath: string,
+  signal: AbortSignal,
+  startMs: number,
 ): Promise<void> {
   const elapsedSec = () => Math.round((Date.now() - startMs) / 1000);
   const tag = `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type})`;
   /** 終端ログは finish() のトランザクションが commit した後にだけ出す。 */
-  const finished = (outcome: string) => d.log("info", `${tag} finished in ${elapsedSec()}s: ${outcome}`);
+  const finished = (outcome: string) =>
+    d.log("info", `${tag} finished in ${elapsedSec()}s: ${outcome}`);
   d.log("info", `${tag} started`);
 
   const it = items.getItem(d.db, job.repo, job.issue_number);
@@ -172,7 +177,13 @@ async function execute(
   // blocked は設計された出口。ただし選択肢コメントが Issue / PR 側に存在することを検証する。
   if (r.status === "blocked") {
     const ok = await verify.botCommentedSince(
-      d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
+      d.gh,
+      job.repo,
+      job.issue_number,
+      it.pr_number,
+      d.botLogin,
+      snap,
+      "any",
     );
     if (!ok) return fail(d, job, "blocked but no option comment was posted", "FAIL", elapsedSec());
     finish(d, job, "completed", "BLOCKED", r.summary, r.next_context, (cur) =>
@@ -190,12 +201,21 @@ async function execute(
   switch (job.job_type) {
     case "refine": {
       const ok = await verify.botCommentedSince(
-        d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
+        d.gh,
+        job.repo,
+        job.issue_number,
+        it.pr_number,
+        d.botLogin,
+        snap,
+        "any",
       );
       if (!ok) return fail(d, job, "refine posted no comment", "FAIL", elapsedSec());
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
         items.transitionItem(d.db, cur, {
-          state: "ActionRequired", hint: "仕様確認待ち", blockedFrom: job.job_type, recheckNeeded: true,
+          state: "ActionRequired",
+          hint: "仕様確認待ち",
+          blockedFrom: job.job_type,
+          recheckNeeded: true,
         }),
       );
       finished("SUCCESS (posted spec comment)");
@@ -208,21 +228,35 @@ async function execute(
         if (!pr) return fail(d, job, "no PR with Closes #n was created", "FAIL", elapsedSec());
         finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) => {
           items.refreshFromGitHub(d.db, cur, {
-            pr_number: pr.number, branch: pr.branch, head_sha: pr.headSha,
+            pr_number: pr.number,
+            branch: pr.branch,
+            head_sha: pr.headSha,
           });
           const fresh = items.getItem(d.db, cur.repo, cur.issue_number)!;
           return items.transitionItem(d.db, fresh, {
-            state: "Working", hint: "CI 待ち", setCiSince: nowIso(), recheckNeeded: true,
+            state: "Working",
+            hint: "CI 待ち",
+            setCiSince: nowIso(),
+            recheckNeeded: true,
           });
         });
         finished(`SUCCESS (created PR #${pr.number})`);
         return;
       }
-      const pushed = await verify.headChangedSince(d.gh, job.repo, job.issue_number, it.pr_number, snap);
+      const pushed = await verify.headChangedSince(
+        d.gh,
+        job.repo,
+        job.issue_number,
+        it.pr_number,
+        snap,
+      );
       if (!pushed) return fail(d, job, "head_sha did not change", "FAIL", elapsedSec());
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
         items.transitionItem(d.db, cur, {
-          state: "Working", hint: "CI 待ち", setCiSince: nowIso(), recheckNeeded: true,
+          state: "Working",
+          hint: "CI 待ち",
+          setCiSince: nowIso(),
+          recheckNeeded: true,
         }),
       );
       finished("SUCCESS (pushed updates)");
@@ -232,13 +266,22 @@ async function execute(
     case "evaluate": {
       if (r.verdict === "merge_ready") {
         const ok = await verify.botCommentedSince(
-          d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "pr",
+          d.gh,
+          job.repo,
+          job.issue_number,
+          it.pr_number,
+          d.botLogin,
+          snap,
+          "pr",
         );
         if (!ok) return fail(d, job, "merge_ready but no PR comment", "FAIL", elapsedSec());
         finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
           items.transitionItem(d.db, cur, {
-            state: "ActionRequired", hint: "マージ待ち", blockedFrom: job.job_type,
-            retryCount: 0, recheckNeeded: true,
+            state: "ActionRequired",
+            hint: "マージ待ち",
+            blockedFrom: job.job_type,
+            retryCount: 0,
+            recheckNeeded: true,
           }),
         );
         finished("SUCCESS (merge_ready)");
@@ -248,8 +291,11 @@ async function execute(
       let requeued = false;
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) => {
         const id = jobs.enqueueJob(d.db, {
-          repo: job.repo, issue_number: job.issue_number, job_type: "implement",
-          job_context: r.next_context, trigger_key: `verdict:${job.id}`,
+          repo: job.repo,
+          issue_number: job.issue_number,
+          job_type: "implement",
+          job_context: r.next_context,
+          trigger_key: `verdict:${job.id}`,
         });
         requeued = id !== null;
         return items.transitionItem(d.db, cur, {
@@ -270,8 +316,12 @@ async function execute(
 
 /** 終端遷移。runs の終端化と items の遷移を同一トランザクションで行う。 */
 function finish(
-  d: WorkerDeps, job: Job, status: "completed" | "canceled",
-  result: RunResult, summary: string, next: string,
+  d: WorkerDeps,
+  job: Job,
+  status: "completed" | "canceled",
+  result: RunResult,
+  summary: string,
+  next: string,
   transition: (it: Item) => unknown,
 ): void {
   d.db.transaction(() => {
@@ -282,19 +332,29 @@ function finish(
 }
 
 function fail(
-  d: WorkerDeps, job: Job, reason: string, result: RunResult = "FAIL", elapsedSec?: number,
+  d: WorkerDeps,
+  job: Job,
+  reason: string,
+  result: RunResult = "FAIL",
+  elapsedSec?: number,
 ): void {
   d.db.transaction(() => {
     jobs.finishJob(d.db, job.id, "failed");
     runsStore.endRun(d.db, job.id, result, { summary: reason });
     items.withRetry(d.db, job.repo, job.issue_number, (it) =>
       items.transitionItem(d.db, it, {
-        state: "ActionRequired", hint: "エラー対応待ち", blockedFrom: job.job_type, recheckNeeded: true,
+        state: "ActionRequired",
+        hint: "エラー対応待ち",
+        blockedFrom: job.job_type,
+        recheckNeeded: true,
       }),
     );
   })();
   const timeStr = elapsedSec !== undefined ? ` in ${elapsedSec}s` : "";
-  d.log("warn", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) failed${timeStr}: ${reason}`);
+  d.log(
+    "warn",
+    `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) failed${timeStr}: ${reason}`,
+  );
 }
 
 function canceled(d: WorkerDeps, job: Job): void {
@@ -302,10 +362,17 @@ function canceled(d: WorkerDeps, job: Job): void {
     jobs.finishJob(d.db, job.id, "canceled");
     runsStore.endRun(d.db, job.id, "CANCELED", { summary: "canceled by human" });
     items.withRetry(d.db, job.repo, job.issue_number, (it) =>
-      items.transitionItem(d.db, it, { state: "ActionRequired", hint: "中止済み", recheckNeeded: true }),
+      items.transitionItem(d.db, it, {
+        state: "ActionRequired",
+        hint: "中止済み",
+        recheckNeeded: true,
+      }),
     );
   })();
-  d.log("info", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled by human`);
+  d.log(
+    "info",
+    `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled by human`,
+  );
 }
 
 /**
@@ -318,7 +385,10 @@ function stale(d: WorkerDeps, job: Job, reason: string): void {
     runsStore.endRun(d.db, job.id, "CANCELED", { summary: reason });
     items.markRecheck(d.db, job.repo, job.issue_number);
   })();
-  d.log("info", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled: ${reason}`);
+  d.log(
+    "info",
+    `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled: ${reason}`,
+  );
 }
 
 /** 起動時・稼働中の孤児回収。runs も終端化して RUNNING を残さない。 */
@@ -330,11 +400,12 @@ export function recover(d: WorkerDeps, onStartup: boolean): number {
     if (j?.status === "failed") {
       items.withRetry(d.db, o.repo, o.issue_number, (it) =>
         items.transitionItem(d.db, it, {
-          state: "ActionRequired", hint: "エラー対応待ち", recheckNeeded: true,
+          state: "ActionRequired",
+          hint: "エラー対応待ち",
+          recheckNeeded: true,
         }),
       );
     }
   }
   return orphans.length;
 }
-

@@ -1,15 +1,15 @@
 import type { Config } from "../config.ts";
 import { runAgent } from "../execute/agent.ts";
-import {
-  ACTION_REQUIRED_HINTS,
-  WORKING_HINTS,
-  isDisplayHint,
-  hintToState,
-  JOB_TYPES,
-} from "../types.ts";
-import type { DisplayHint, Item, JobType, State } from "../types.ts";
 import type { IssueDetail, PrDetail } from "../github/detail.ts";
 import type { Run } from "../store/runs.ts";
+import type { DisplayHint, Item, JobType, State } from "../types.ts";
+import {
+  ACTION_REQUIRED_HINTS,
+  hintToState,
+  isDisplayHint,
+  JOB_TYPES,
+  WORKING_HINTS,
+} from "../types.ts";
 
 /**
  * Triage Agent（spec.md §6）。
@@ -46,7 +46,7 @@ GitHub のスナップショットを読み、「今このタスクは誰のボ�
 出力は JSON オブジェクト 1 つだけ。前後に説明を書かない。
 {
   "next_job": "refine" | "implement" | "evaluate" | "none",
-  "display_hint": "<next_job が none の場合、状態を表す閉じた値域の文字列 / next_job がある場合は \"着手待ち\">",
+  "display_hint": "<next_job が none の場合、状態を表す閉じた値域の文字列 / next_job がある場合は "着手待ち">",
   "job_context": "<エージェントに引き渡す指示・文脈>",
   "reason": "<判定理由>"
 }
@@ -94,7 +94,10 @@ export async function runTriage(cfg: Config, input: TriageInput): Promise<Triage
 /** 出力検証。不正なら invalid を返し、呼び出し側が判断する。 */
 export function validate(o: Record<string, unknown>): string | null {
   const job = o.next_job;
-  if (typeof job !== "string" || (job !== "none" && !(JOB_TYPES as readonly string[]).includes(job))) {
+  if (
+    typeof job !== "string" ||
+    (job !== "none" && !(JOB_TYPES as readonly string[]).includes(job))
+  ) {
     return `bad next_job: ${String(job)}`;
   }
 
@@ -140,7 +143,6 @@ export function normalizeTriageOutput(o: Record<string, unknown>): TriageOutput 
   };
 }
 
-
 export function parseJson(s: string): Record<string, unknown> | null {
   const m = /\{[\s\S]*\}/.exec(s);
   if (!m) return null;
@@ -176,19 +178,37 @@ export function buildSnapshot(i: TriageInput): string {
     lines.push("", "## 直前のジョブ");
     lines.push(`${i.lastRun.job_type} → ${i.lastRun.result ?? "?"}`);
     if (i.lastRun.summary) lines.push(`summary: ${clip(i.lastRun.summary, HISTORY_CHARS)}`);
-    if (i.lastRun.next_context) lines.push(`next_context: ${clip(i.lastRun.next_context, HISTORY_CHARS)}`);
+    if (i.lastRun.next_context)
+      lines.push(`next_context: ${clip(i.lastRun.next_context, HISTORY_CHARS)}`);
   }
 
-  lines.push("", "## Issue 本文", "<untrusted_content>", clip(i.issue.body ?? "", BODY_CHARS), "</untrusted_content>");
+  lines.push(
+    "",
+    "## Issue 本文",
+    "<untrusted_content>",
+    clip(i.issue.body ?? "", BODY_CHARS),
+    "</untrusted_content>",
+  );
 
   if (i.pr) {
-    lines.push("", "## PR 本文", "<untrusted_content>", clip(i.pr.body ?? "", BODY_CHARS), "</untrusted_content>");
+    lines.push(
+      "",
+      "## PR 本文",
+      "<untrusted_content>",
+      clip(i.pr.body ?? "", BODY_CHARS),
+      "</untrusted_content>",
+    );
   }
 
   if (i.newEvents.length > 0) {
     lines.push("", "## 新規イベント（前回処理以降・これが判定の主対象）");
     for (const e of i.newEvents) {
-      lines.push(`- [${e.kind}] ${e.author} @ ${e.at}`, "<untrusted_content>", e.body, "</untrusted_content>");
+      lines.push(
+        `- [${e.kind}] ${e.author} @ ${e.at}`,
+        "<untrusted_content>",
+        e.body,
+        "</untrusted_content>",
+      );
     }
   }
 
@@ -196,7 +216,12 @@ export function buildSnapshot(i: TriageInput): string {
   if (past.length > 0) {
     lines.push("", "## 過去の履歴（参考・直近履歴）");
     for (const c of past) {
-      lines.push(`- ${c.author} @ ${c.at}`, "<untrusted_content>", clip(c.body, HISTORY_CHARS), "</untrusted_content>");
+      lines.push(
+        `- ${c.author} @ ${c.at}`,
+        "<untrusted_content>",
+        clip(c.body, HISTORY_CHARS),
+        "</untrusted_content>",
+      );
     }
   }
 
@@ -219,7 +244,11 @@ function pastComments(i: TriageInput): Array<{ author: string; body: string; at:
   for (const t of i.pr?.reviewThreads.nodes ?? []) {
     for (const c of t.comments.nodes) {
       const loc = c.path ? `[${c.path}${c.line ? `:${c.line}` : ""}] ` : "";
-      out.push({ author: c.author?.login ?? "?", body: `${loc}${c.body ?? ""}`.trim(), at: c.createdAt });
+      out.push({
+        author: c.author?.login ?? "?",
+        body: `${loc}${c.body ?? ""}`.trim(),
+        at: c.createdAt,
+      });
     }
   }
   out.sort((a, b) => a.at.localeCompare(b.at));

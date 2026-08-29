@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { memDb, seedItem, issue, fakeGh } from "./helpers.ts";
+import { pollRepo } from "../src/collect/poller.ts";
+import { forcedSync } from "../src/decide/sync.ts";
+import { buildInvocation } from "../src/execute/adapters.ts";
+import { botCommentedSince, takeSnapshot } from "../src/github/verify.ts";
 import * as items from "../src/store/items.ts";
 import * as jobs from "../src/store/jobs.ts";
-import { forcedSync } from "../src/decide/sync.ts";
-import { botCommentedSince, takeSnapshot } from "../src/github/verify.ts";
-import { buildInvocation } from "../src/execute/adapters.ts";
-import { pollRepo } from "../src/collect/poller.ts";
+import { fakeGh, issue, memDb, seedItem } from "./helpers.ts";
 
 /**
  * 初回実装で埋め込んだ欠陥の回帰テスト。
@@ -37,7 +37,9 @@ describe("Done ガードが reopen を殺していた", () => {
     const db = memDb();
     const it = seedItem(db, { repo: "o/r", issue_number: 1 });
     const done = items.transitionItem(db, it, { state: "Done", hint: "" });
-    expect(items.transitionItem(db, done, { state: "Working", hint: "CI 待ち" }).state).toBe("Done");
+    expect(items.transitionItem(db, done, { state: "Working", hint: "CI 待ち" }).state).toBe(
+      "Done",
+    );
   });
 });
 
@@ -45,12 +47,18 @@ describe("job_context のマージが既存を消していた", () => {
   test("重複投入時に元の文脈が残る", () => {
     const db = memDb();
     const id = jobs.enqueueJob(db, {
-      repo: "o/r", issue_number: 1, job_type: "implement",
-      job_context: "最初の指示", trigger_key: "k1",
+      repo: "o/r",
+      issue_number: 1,
+      job_type: "implement",
+      job_context: "最初の指示",
+      trigger_key: "k1",
     })!;
     jobs.enqueueJob(db, {
-      repo: "o/r", issue_number: 1, job_type: "implement",
-      job_context: "追加の指示", trigger_key: "k2",
+      repo: "o/r",
+      issue_number: 1,
+      job_type: "implement",
+      job_context: "追加の指示",
+      trigger_key: "k2",
     });
     const ctx = jobs.getJob(db, id)!.job_context;
     expect(ctx).toContain("最初の指示");
@@ -65,7 +73,14 @@ describe("成果物検証が投稿者を見ていなかった", () => {
         return {
           data: {
             repository: {
-              issue: { comments: { nodes: nodes.map((n) => ({ databaseId: n.databaseId, author: { login: n.login } })) } },
+              issue: {
+                comments: {
+                  nodes: nodes.map((n) => ({
+                    databaseId: n.databaseId,
+                    author: { login: n.login },
+                  })),
+                },
+              },
               pullRequest: null,
             },
           } as T,
@@ -78,8 +93,17 @@ describe("成果物検証が投稿者を見ていなかった", () => {
   test("人間のコメントだけでは成功にならない", async () => {
     const before = await takeSnapshot(snapQuery([{ databaseId: 10, login: "human" }]), "o/r", 1, 0);
     const ok = await botCommentedSince(
-      snapQuery([{ databaseId: 10, login: "human" }, { databaseId: 11, login: "human" }]),
-      "o/r", 1, 0, "bot", before, "issue", 1,
+      snapQuery([
+        { databaseId: 10, login: "human" },
+        { databaseId: 11, login: "human" },
+      ]),
+      "o/r",
+      1,
+      0,
+      "bot",
+      before,
+      "issue",
+      1,
     );
     expect(ok).toBe(false);
   });
@@ -87,8 +111,16 @@ describe("成果物検証が投稿者を見ていなかった", () => {
   test("bot の新しいコメントがあれば成功", async () => {
     const before = await takeSnapshot(snapQuery([{ databaseId: 10, login: "human" }]), "o/r", 1, 0);
     const ok = await botCommentedSince(
-      snapQuery([{ databaseId: 10, login: "human" }, { databaseId: 11, login: "bot" }]),
-      "o/r", 1, 0, "bot", before, "issue",
+      snapQuery([
+        { databaseId: 10, login: "human" },
+        { databaseId: 11, login: "bot" },
+      ]),
+      "o/r",
+      1,
+      0,
+      "bot",
+      before,
+      "issue",
     );
     expect(ok).toBe(true);
   });
@@ -97,7 +129,13 @@ describe("成果物検証が投稿者を見ていなかった", () => {
     const before = await takeSnapshot(snapQuery([{ databaseId: 20, login: "bot" }]), "o/r", 1, 0);
     const ok = await botCommentedSince(
       snapQuery([{ databaseId: 20, login: "bot" }]),
-      "o/r", 1, 0, "bot", before, "issue", 1,
+      "o/r",
+      1,
+      0,
+      "bot",
+      before,
+      "issue",
+      1,
     );
     expect(ok).toBe(false);
   });
@@ -164,20 +202,36 @@ describe("同じ PR が複数 Issue を close すると poll loop 全体が落�
           pullRequests: { pageInfo: { hasNextPage: false }, nodes: [] },
         },
       },
-      rate, date,
+      rate,
+      date,
     };
     const detailResp = {
       data: {
         nodes: [
-          issue({ id: "I_4", number: 4, state: "CLOSED", timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] } }),
-          issue({ id: "I_6", number: 6, state: "CLOSED", timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] } }),
+          issue({
+            id: "I_4",
+            number: 4,
+            state: "CLOSED",
+            timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] },
+          }),
+          issue({
+            id: "I_6",
+            number: 6,
+            state: "CLOSED",
+            timelineItems: { nodes: [{ subject: { number: 1, state: "OPEN", merged: false } }] },
+          }),
         ],
       },
-      rate, date,
+      rate,
+      date,
     };
     const gh = fakeGh({
       async graphql<T>(q: string) {
-        return (/query PollRepository/.test(q) ? pollResp : detailResp) as { data: T; rate: typeof rate; date: string };
+        return (/query PollRepository/.test(q) ? pollResp : detailResp) as {
+          data: T;
+          rate: typeof rate;
+          date: string;
+        };
       },
     });
 
@@ -200,7 +254,9 @@ describe("コンパイル済みバイナリでマイグレーションが失敗�
     const v = (db.query("PRAGMA user_version").get() as { user_version: number }).user_version;
     expect(v).toBeGreaterThanOrEqual(1);
 
-    const tables = db.query("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{ name: string }>;
+    const tables = db.query("SELECT name FROM sqlite_master WHERE type='table'").all() as Array<{
+      name: string;
+    }>;
     const tableNames = tables.map((t) => t.name);
     expect(tableNames).toContain("items");
     expect(tableNames).toContain("job_queue");
@@ -209,4 +265,3 @@ describe("コンパイル済みバイナリでマイグレーションが失敗�
     expect(tableNames).toContain("cursors");
   });
 });
-

@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
 import { createMockDb, loadScenario, SCENARIOS, type ScenarioName } from "./mock.ts";
-import { buildState } from "./state.ts";
 import { Page } from "./page.tsx";
+import { buildState } from "./state.ts";
 
 const devBarStyles = `
 #dev-toolbar {
@@ -170,7 +170,9 @@ export function createDevApp(initialScenario: ScenarioName = "standard") {
   return { app, db, getScenario: () => currentScenario };
 }
 
-export function startDevServer(options: { port?: number; hostname?: string; scenario?: ScenarioName } = {}) {
+export function startDevServer(
+  options: { port?: number; hostname?: string; scenario?: ScenarioName } = {},
+) {
   const port = options.port ?? Number(process.env.PORT || 4000);
   const hostname = options.hostname ?? (process.env.HOST || "127.0.0.1");
   const scenario = options.scenario ?? "standard";

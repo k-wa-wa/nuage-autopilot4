@@ -1,4 +1,4 @@
-import { loadConfig, dbPath } from "../config.ts";
+import { dbPath, loadConfig } from "../config.ts";
 import { openDb } from "../store/db.ts";
 import * as jobs from "../store/jobs.ts";
 
@@ -16,5 +16,9 @@ export async function cmdCancel(target?: string, configPath?: string): Promise<v
   // cancel は DB を書くだけ。プロセス終了と items の更新は run 側が行う
   // （PID は OS に再利用されるため、無関係なプロセスを殺しうる）。
   const n = jobs.cancelJobsFor(db, repo, issueNumber);
-  console.log(n > 0 ? `${n} 件のジョブを中止しました。次のハートビートで停止します（最大 60 秒）。` : "対象のジョブはありません。");
+  console.log(
+    n > 0
+      ? `${n} 件のジョブを中止しました。次のハートビートで停止します（最大 60 秒）。`
+      : "対象のジョブはありません。",
+  );
 }

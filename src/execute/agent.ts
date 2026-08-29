@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, appendFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import type { AgentConfig } from "../config.ts";
 import { DEFAULTS } from "../config.ts";
@@ -96,7 +96,11 @@ function kill(proc: { kill: (sig?: number | NodeJS.Signals) => void }): void {
   try {
     proc.kill("SIGTERM");
     setTimeout(() => {
-      try { proc.kill("SIGKILL"); } catch { /* already gone */ }
+      try {
+        proc.kill("SIGKILL");
+      } catch {
+        /* already gone */
+      }
     }, DEFAULTS.killGraceMs);
   } catch {
     /* already gone */
@@ -104,13 +108,20 @@ function kill(proc: { kill: (sig?: number | NodeJS.Signals) => void }): void {
 }
 
 /** ログと job_context にはトークンが混入しうる。保存前にマスクする。 */
-const TOKEN_RE = /\b(gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9_-]{20,})\b/g;
+const TOKEN_RE =
+  /\b(gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,}|sk-ant-[A-Za-z0-9_-]{20,})\b/g;
 
 export function mask(s: string): string {
   return s.replace(TOKEN_RE, "***REDACTED***");
 }
 
-function writeLog(path: string, argv: string[], stdout: string, stderr: string, code: number): void {
+function writeLog(
+  path: string,
+  argv: string[],
+  stdout: string,
+  stderr: string,
+  code: number,
+): void {
   mkdirSync(dirname(path), { recursive: true });
   appendFileSync(
     path,

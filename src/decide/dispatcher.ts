@@ -1,19 +1,19 @@
-import type { DB } from "../store/db.ts";
-import * as items from "../store/items.ts";
-import * as jobs from "../store/jobs.ts";
-import * as cache from "../store/cache.ts";
-import * as runsStore from "../store/runs.ts";
 import type { Config } from "../config.ts";
 import { DEFAULTS } from "../config.ts";
 import type { GitHubClient } from "../github/client.ts";
 import type { IssueDetail, PrDetail } from "../github/detail.ts";
-import { forcedSync } from "./sync.ts";
+import * as cache from "../store/cache.ts";
+import type { DB } from "../store/db.ts";
+import * as items from "../store/items.ts";
+import * as jobs from "../store/jobs.ts";
+import * as runsStore from "../store/runs.ts";
+import type { Item, Logger } from "../types.ts";
+import { subProgress } from "../types.ts";
 import { decideCiAction } from "./ci.ts";
 import { fastPassApplies } from "./fastpass.ts";
-import { runTriage } from "./triage.ts";
 import { aggregate, completionComment, fanOut } from "./subissues.ts";
-import { subProgress } from "../types.ts";
-import type { Item, Logger } from "../types.ts";
+import { forcedSync } from "./sync.ts";
+import { runTriage } from "./triage.ts";
 
 /**
  * ② 判定（spec.md §6）。
@@ -45,19 +45,25 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
 
   const issue = cache.payload<IssueDetail>(d.db, repo, "issue", issueNumber);
   if (!issue) return;
-  const pr = it.pr_number > 0
-    ? cache.payload<PrDetail>(d.db, repo, "pull_request", it.pr_number)
-    : null;
+  const pr =
+    it.pr_number > 0 ? cache.payload<PrDetail>(d.db, repo, "pull_request", it.pr_number) : null;
 
   // 1. GitHub 実態による強制同期。該当すれば LLM を呼ばずに確定。
   const prevState = it.state === "Done" ? "CLOSED" : "OPEN";
   const sync = forcedSync(d.db, {
-    item: it, issue, pr, allowlist: d.cfg.allowlist, prevIssueState: prevState,
+    item: it,
+    issue,
+    pr,
+    allowlist: d.cfg.allowlist,
+    prevIssueState: prevState,
   });
   if (sync.handled) {
     d.log("info", `${repo}#${issueNumber}: sync=${sync.rule}`);
     if (sync.enqueued) {
-      d.log("info", `${repo}#${issueNumber}: enqueue ${sync.enqueued.job_type} (${sync.enqueued.trigger_key})`);
+      d.log(
+        "info",
+        `${repo}#${issueNumber}: enqueue ${sync.enqueued.job_type} (${sync.enqueued.trigger_key})`,
+      );
     }
     return;
   }
@@ -73,7 +79,8 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
   // 3. 新規イベントの抽出。0 件なら LLM を呼ばず機械的規則だけで処理する。
   const events = newEvents(fresh, issue, pr).filter((e) => e.author !== d.botLogin);
   const newest = events[events.length - 1];
-  if (newest) d.log("info", `${repo}#${issueNumber}: detected new ${newest.kind} by @${newest.author}`);
+  if (newest)
+    d.log("info", `${repo}#${issueNumber}: detected new ${newest.kind} by @${newest.author}`);
   if (events.length === 0) {
     await mechanicalOnly(d, fresh, issue, pr);
     return;
@@ -108,21 +115,32 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
 
   // 6. Triage Agent（LLM）。
   const result = await runTriage(d.cfg, {
-    item: fresh, issue, pr, lastRun: runsStore.lastRun(d.db, repo, issueNumber),
+    item: fresh,
+    issue,
+    pr,
+    lastRun: runsStore.lastRun(d.db, repo, issueNumber),
     newEvents: driving.map((e) => ({ kind: e.kind, author: e.author, body: e.body, at: e.at })),
   });
 
   if (result.kind === "error") {
     // 一過性の可能性が高い。カーソルを進めず（＝指示を落とさず）recheck を立てて次周期に再試行する。
     const n = fresh.triage_fail_count + 1;
-    d.log("warn", `${repo}#${issueNumber}: triage error (${n}/${DEFAULTS.triageFailLimit}): ${result.reason}`);
+    d.log(
+      "warn",
+      `${repo}#${issueNumber}: triage error (${n}/${DEFAULTS.triageFailLimit}): ${result.reason}`,
+    );
     items.withRetry(d.db, repo, issueNumber, (cur) =>
       n >= DEFAULTS.triageFailLimit
         ? items.transitionItem(d.db, cur, {
-            state: "ActionRequired", hint: "Triage 失敗（要判断）", triageFailCount: n,
+            state: "ActionRequired",
+            hint: "Triage 失敗（要判断）",
+            triageFailCount: n,
           })
         : items.transitionItem(d.db, cur, {
-            state: cur.state, hint: cur.display_hint, triageFailCount: n, recheckNeeded: true,
+            state: cur.state,
+            hint: cur.display_hint,
+            triageFailCount: n,
+            recheckNeeded: true,
           }),
     );
     return;
@@ -136,10 +154,14 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
     items.withRetry(d.db, repo, issueNumber, (cur) =>
       n >= DEFAULTS.triageFailLimit
         ? items.transitionItem(d.db, cur, {
-            state: "ActionRequired", hint: "Triage 失敗（要判断）", triageFailCount: n,
+            state: "ActionRequired",
+            hint: "Triage 失敗（要判断）",
+            triageFailCount: n,
           })
         : items.transitionItem(d.db, cur, {
-            state: cur.state, hint: cur.display_hint, triageFailCount: n,
+            state: cur.state,
+            hint: cur.display_hint,
+            triageFailCount: n,
           }),
     );
     return;
@@ -160,7 +182,11 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
   if (job === "none") {
     d.db.transaction(() => {
       items.withRetry(d.db, repo, issueNumber, (cur) =>
-        items.transitionItem(d.db, cur, { state: o.state, hint: o.display_hint, triageFailCount: 0 }),
+        items.transitionItem(d.db, cur, {
+          state: o.state,
+          hint: o.display_hint,
+          triageFailCount: 0,
+        }),
       );
       advanceCursor(d.db, fresh, events);
     })();
@@ -171,7 +197,10 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
 
 /** 新規イベントが無いときの経路。CI 判定と親の完了集約だけを機械的に行う。 */
 async function mechanicalOnly(
-  d: DispatchDeps, it: Item, issue: IssueDetail, pr: PrDetail | null,
+  d: DispatchDeps,
+  it: Item,
+  issue: IssueDetail,
+  pr: PrDetail | null,
 ): Promise<void> {
   if (it.sub_issues_total > 0) {
     await aggregateParent(d, it, issue);
@@ -188,13 +217,22 @@ async function mechanicalOnly(
       );
       return;
     case "evaluate":
-      enqueue(d, it, "evaluate", `CI が通過した。PR #${it.pr_number} を評価する。`, action.triggerKey);
+      enqueue(
+        d,
+        it,
+        "evaluate",
+        `CI が通過した。PR #${it.pr_number} を評価する。`,
+        action.triggerKey,
+      );
       return;
     case "reimplement": {
       const ctx = `CI が失敗した（${action.reason}）。ログを確認して修正すること。`;
       const id = jobs.enqueueJob(d.db, {
-        repo: it.repo, issue_number: it.issue_number, job_type: "implement",
-        job_context: ctx, trigger_key: action.triggerKey,
+        repo: it.repo,
+        issue_number: it.issue_number,
+        job_type: "implement",
+        job_context: ctx,
+        trigger_key: action.triggerKey,
       });
       if (id !== null) {
         d.log("info", `${it.repo}#${it.issue_number}: enqueue implement (${action.triggerKey})`);
@@ -231,8 +269,12 @@ async function aggregateParent(d: DispatchDeps, it: Item, issue: IssueDetail): P
     items.withRetry(d.db, it.repo, it.issue_number, (cur) =>
       items.transitionItem(d.db, cur, { state: "ActionRequired", hint: "完了確認待ち" }),
     );
-    await comment(d, it.repo, it.issue_number,
-      `すべての子タスクが却下 (NOT_PLANNED) されました: ${r.rejected.map((n) => `#${n}`).join(", ")}\n\n親 Issue の扱いを判断してください。`);
+    await comment(
+      d,
+      it.repo,
+      it.issue_number,
+      `すべての子タスクが却下 (NOT_PLANNED) されました: ${r.rejected.map((n) => `#${n}`).join(", ")}\n\n親 Issue の扱いを判断してください。`,
+    );
     return;
   }
 
@@ -247,12 +289,20 @@ async function aggregateParent(d: DispatchDeps, it: Item, issue: IssueDetail): P
  * 先に進めるとクラッシュ時に指示を取りこぼし、後に進めると二重投入を招く。
  */
 function enqueue(
-  d: DispatchDeps, it: Item, job: "refine" | "implement" | "evaluate", ctx: string, key: string,
+  d: DispatchDeps,
+  it: Item,
+  job: "refine" | "implement" | "evaluate",
+  ctx: string,
+  key: string,
   events?: NewEvent[],
 ): void {
   const enqueued = d.db.transaction(() => {
     const id = jobs.enqueueJob(d.db, {
-      repo: it.repo, issue_number: it.issue_number, job_type: job, job_context: ctx, trigger_key: key,
+      repo: it.repo,
+      issue_number: it.issue_number,
+      job_type: job,
+      job_context: ctx,
+      trigger_key: key,
     });
     if (events) advanceCursor(d.db, it, events);
     if (id === null) return false;
@@ -271,7 +321,13 @@ function enqueue(
  */
 export function newEvents(it: Item, issue: IssueDetail, pr: PrDetail | null): NewEvent[] {
   const out: NewEvent[] = [];
-  const push = (kind: NewEvent["kind"], id: number, author: string | undefined, body: string, at: string) => {
+  const push = (
+    kind: NewEvent["kind"],
+    id: number,
+    author: string | undefined,
+    body: string,
+    at: string,
+  ) => {
     if (!at) return;
     if (at < it.last_event_at) return;
     if (at === it.last_event_at && id <= it.last_event_id) return;
@@ -305,7 +361,13 @@ function advanceCursor(db: DB, it: Item, events: NewEvent[]): void {
   if (!last) return;
   db.query(
     "UPDATE items SET last_event_at = ?, last_event_id = ?, version = version + 1, updated_at = ? WHERE repo=? AND issue_number=?",
-  ).run(last.at, last.databaseId, new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), it.repo, it.issue_number);
+  ).run(
+    last.at,
+    last.databaseId,
+    new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+    it.repo,
+    it.issue_number,
+  );
 }
 
 function isApprovalLike(body: string): boolean {
@@ -318,4 +380,3 @@ async function comment(d: DispatchDeps, repo: string, issue: number, body: strin
     body: JSON.stringify({ body }),
   });
 }
-

@@ -1,7 +1,7 @@
 import { DEFAULTS } from "../config.ts";
-import type { Item } from "../types.ts";
 import type { PrDetail } from "../github/detail.ts";
 import { headOid, rollupState } from "../github/detail.ts";
+import type { Item } from "../types.ts";
 
 /**
  * CI 判定の唯一の場所（spec.md §4）。

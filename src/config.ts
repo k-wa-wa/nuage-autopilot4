@@ -1,11 +1,20 @@
-import { parse } from "yaml";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { parse } from "yaml";
 import type { JobType } from "./types.ts";
 
-export interface RepoConfig { owner: string; name: string; base_branch?: string }
-export interface AgentConfig { command: string; model?: string; args?: string[]; timeout_sec: number }
+export interface RepoConfig {
+  owner: string;
+  name: string;
+  base_branch?: string;
+}
+export interface AgentConfig {
+  command: string;
+  model?: string;
+  args?: string[];
+  timeout_sec: number;
+}
 
 export interface Config {
   home: string;
@@ -71,7 +80,11 @@ export function loadConfig(configPath?: string): Config {
   }
 
   return {
-    home, token, repos, allowlist, agents,
+    home,
+    token,
+    repos,
+    allowlist,
+    agents,
     queue: { max_parallel: raw?.queue?.max_parallel ?? 2 },
     dashboard: {
       // 既定はループバック。認証を持たないため、0.0.0.0 にするのは
