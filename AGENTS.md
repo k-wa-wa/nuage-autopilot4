@@ -13,6 +13,12 @@ bun run typecheck
 bun test
 ```
 
+nix 関連ファイルを変更した際は、以下のコマンドを実行してフォーマットを適用すること。
+
+```bash
+nix run nixpkgs#nixfmt-tree -- ./nix
+```
+
 ---
 
 ## 2. 操作・開発ルール

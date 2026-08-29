@@ -11,7 +11,10 @@ let
   yamlFormat = pkgs.formats.yaml { };
 
   configFile =
-    if cfg.configFile != null then cfg.configFile else yamlFormat.generate "autopilot-config.yaml" cfg.settings;
+    if cfg.configFile != null then
+      cfg.configFile
+    else
+      yamlFormat.generate "autopilot-config.yaml" cfg.settings;
 in
 {
   options.services.autopilot = {

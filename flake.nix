@@ -8,8 +8,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs { inherit system; };
       in
@@ -23,14 +29,21 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = [ pkgs.bun pkgs.git pkgs.gh pkgs.sqlite ];
+          packages = [
+            pkgs.bun
+            pkgs.git
+            pkgs.gh
+            pkgs.sqlite
+          ];
         };
-      })
+      }
+    )
     // {
       nixosModules.autopilot = { pkgs, lib, ... }: {
         imports = [ ./nix/module.nix ];
         services.autopilot.package =
-          lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.autopilot;
+          lib.mkDefault
+            self.packages.${pkgs.stdenv.hostPlatform.system}.autopilot;
       };
       nixosModules.default = self.nixosModules.autopilot;
     };
