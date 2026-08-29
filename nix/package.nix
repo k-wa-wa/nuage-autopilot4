@@ -38,7 +38,10 @@ let
       ];
     };
 
-    nativeBuildInputs = [ bun cacert ];
+    nativeBuildInputs = [
+      bun
+      cacert
+    ];
     dontConfigure = true;
 
     buildPhase = ''
@@ -66,7 +69,12 @@ stdenv.mkDerivation {
   pname = "autopilot";
   inherit version src;
 
-  nativeBuildInputs = [ bun makeWrapper ];
+  nativeBuildInputs = [
+    bun
+    makeWrapper
+    git
+    gh
+  ];
 
   dontConfigure = true;
 
@@ -97,7 +105,12 @@ stdenv.mkDerivation {
     # エージェントは gh でコメント投稿と PR 作成を行い、
     # ワークスペースの初期化は git を直接叩く（spec.md §8）。実行時 PATH に必ず入れる。
     wrapProgram $out/bin/autopilot \
-      --prefix PATH : ${lib.makeBinPath [ git gh ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          git
+          gh
+        ]
+      }
     runHook postInstall
   '';
 
