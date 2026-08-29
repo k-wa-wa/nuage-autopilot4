@@ -42,6 +42,8 @@ export interface Comment {
   body: string;
   createdAt: string;
   author: { login: string } | null;
+  path?: string;
+  line?: number | null;
 }
 
 export interface Review {

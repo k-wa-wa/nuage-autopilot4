@@ -152,7 +152,7 @@ export function parseJson(s: string): Record<string, unknown> | null {
   }
 }
 
-const HISTORY_LIMIT = 5;
+const HISTORY_LIMIT = 10;
 const HISTORY_CHARS = 1000;
 const BODY_CHARS = 4000;
 
@@ -189,7 +189,7 @@ export function buildPrompt(i: TriageInput): string {
 
   const past = pastComments(i).slice(-HISTORY_LIMIT);
   if (past.length > 0) {
-    lines.push("", "## 過去の履歴（参考・直近 5 件）");
+    lines.push("", "## 過去の履歴（参考・直近履歴）");
     for (const c of past) {
       lines.push(`- ${c.author} @ ${c.at}`, "<untrusted_content>", clip(c.body, HISTORY_CHARS), "</untrusted_content>");
     }
@@ -205,6 +205,17 @@ function pastComments(i: TriageInput): Array<{ author: string; body: string; at:
   }
   for (const c of i.pr?.comments.nodes ?? []) {
     out.push({ author: c.author?.login ?? "?", body: c.body ?? "", at: c.createdAt });
+  }
+  for (const r of i.pr?.reviews.nodes ?? []) {
+    if (r.body && r.body.trim() !== "") {
+      out.push({ author: r.author?.login ?? "?", body: r.body, at: r.submittedAt });
+    }
+  }
+  for (const t of i.pr?.reviewThreads.nodes ?? []) {
+    for (const c of t.comments.nodes) {
+      const loc = c.path ? `[${c.path}${c.line ? `:${c.line}` : ""}] ` : "";
+      out.push({ author: c.author?.login ?? "?", body: `${loc}${c.body ?? ""}`.trim(), at: c.createdAt });
+    }
   }
   out.sort((a, b) => a.at.localeCompare(b.at));
   return out;

@@ -281,7 +281,8 @@ export function newEvents(it: Item, issue: IssueDetail, pr: PrDetail | null): Ne
   // レビューだけを見ると「新しいイベントはあるが本文が無い」状態になる。
   for (const t of pr?.reviewThreads.nodes ?? []) {
     for (const c of t.comments.nodes) {
-      push("review_comment", c.databaseId, c.author?.login, c.body, c.createdAt);
+      const loc = c.path ? `[${c.path}${c.line ? `:${c.line}` : ""}] ` : "";
+      push("review_comment", c.databaseId, c.author?.login, `${loc}${c.body}`.trim(), c.createdAt);
     }
   }
 

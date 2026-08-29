@@ -118,5 +118,52 @@ describe("Triage Agent のプロンプトとバリデーション", () => {
     expect(parsed).not.toBeNull();
     expect(parsed?.display_hint).toBe("仕様確認待ち");
   });
+
+  test("buildPrompt: reviewThreads のインラインコメントがファイル位置付きで過去履歴に含まれる", () => {
+    const { buildPrompt } = require("../src/decide/triage.ts");
+    const prompt = buildPrompt({
+      item: {
+        repo: "o/r",
+        issue_number: 1,
+        pr_number: 10,
+        state: "ActionRequired",
+        display_hint: "仕様確認待ち",
+        blocked_from: "",
+        sub_issues_completed: 0,
+        sub_issues_total: 0,
+        retry_count: 0,
+      },
+      issue: {
+        title: "Test Issue",
+        body: "Issue Body",
+        comments: { nodes: [] },
+      },
+      pr: {
+        body: "PR Body",
+        state: "OPEN",
+        comments: { nodes: [] },
+        reviews: { nodes: [{ databaseId: 1, body: "全体のレビューコメント", submittedAt: "2026-08-24T00:50:00Z", author: { login: "reviewer" } }] },
+        reviewThreads: {
+          nodes: [{
+            isResolved: false,
+            comments: {
+              nodes: [
+                { databaseId: 10, body: "hostName は不要では？", path: "nix/flake.nix", line: 121, createdAt: "2026-08-24T01:00:00Z", author: { login: "reviewer" } },
+              ],
+            },
+          }],
+        },
+      },
+      newEvents: [
+        { kind: "review_comment", author: "reviewer", body: "[nix/flake.nix:121] 修正して。", at: "2026-08-24T01:05:00Z" },
+      ],
+      lastRun: null,
+    });
+
+    expect(prompt).toContain("## 過去の履歴");
+    expect(prompt).toContain("[nix/flake.nix:121] hostName は不要では？");
+    expect(prompt).toContain("全体のレビューコメント");
+    expect(prompt).toContain("[nix/flake.nix:121] 修正して。");
+  });
 });
 

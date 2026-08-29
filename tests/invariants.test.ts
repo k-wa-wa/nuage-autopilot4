@@ -326,13 +326,13 @@ describe("新規イベントの抽出", () => {
       reviews: { nodes: [{ databaseId: 1, state: "COMMENTED", body: "", submittedAt: "2026-08-24T01:00:00Z", author: { login: "human" } }] },
       reviewThreads: {
         nodes: [{ isResolved: false, comments: { nodes: [
-          { databaseId: 99, body: "ここの文言を変えて", createdAt: "2026-08-24T01:00:01Z", author: { login: "human" } },
+          { databaseId: 99, body: "ここの文言を変えて", path: "src/main.ts", line: 42, createdAt: "2026-08-24T01:00:01Z", author: { login: "human" } },
         ] } }],
       },
     });
     const evs = newEvents(it, issue(), p);
     expect(evs.map((e) => e.kind)).toContain("review_comment");
-    expect(evs.find((e) => e.kind === "review_comment")?.body).toBe("ここの文言を変えて");
+    expect(evs.find((e) => e.kind === "review_comment")?.body).toBe("[src/main.ts:42] ここの文言を変えて");
   });
 
   test("カーソルより古いものは拾わない、同時刻は databaseId で切る", () => {
