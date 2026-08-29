@@ -88,27 +88,29 @@ export function initClient(): void {
   function updateModal(health: StateResponse["health"]): void {
     const gqlRem = health.graphql_remaining ?? 0;
     const gqlLimit = health.graphql_limit || 5000;
-    const gqlPct = Math.max(0, Math.min(100, Math.round((gqlRem / gqlLimit) * 100)));
+    const gqlUsed = Math.max(0, gqlLimit - gqlRem);
+    const gqlUsedPct = Math.max(0, Math.min(100, Math.round((gqlUsed / gqlLimit) * 100)));
     const gqlVal = document.getElementById("graphql-rate-val");
-    if (gqlVal) gqlVal.textContent = `${gqlRem.toLocaleString()} / ${gqlLimit.toLocaleString()}`;
+    if (gqlVal) gqlVal.textContent = `${gqlUsed.toLocaleString()} / ${gqlLimit.toLocaleString()}`;
     const gqlBar = document.getElementById("graphql-progress-bar");
     if (gqlBar) {
-      gqlBar.style.width = `${gqlPct}%`;
-      gqlBar.classList.toggle("warn", gqlPct < 20);
+      gqlBar.style.width = `${gqlUsedPct}%`;
+      gqlBar.classList.toggle("warn", gqlUsedPct >= 80);
     }
     const gqlReset = document.getElementById("graphql-reset-val");
     if (gqlReset) gqlReset.textContent = formatReset(health.graphql_reset_at);
 
     const restRem = health.rest_remaining ?? 0;
     const restLimit = health.rest_limit || 5000;
-    const restPct = Math.max(0, Math.min(100, Math.round((restRem / restLimit) * 100)));
+    const restUsed = Math.max(0, restLimit - restRem);
+    const restUsedPct = Math.max(0, Math.min(100, Math.round((restUsed / restLimit) * 100)));
     const restVal = document.getElementById("rest-rate-val");
     if (restVal)
-      restVal.textContent = `${restRem.toLocaleString()} / ${restLimit.toLocaleString()}`;
+      restVal.textContent = `${restUsed.toLocaleString()} / ${restLimit.toLocaleString()}`;
     const restBar = document.getElementById("rest-progress-bar");
     if (restBar) {
-      restBar.style.width = `${restPct}%`;
-      restBar.classList.toggle("warn", restPct < 20);
+      restBar.style.width = `${restUsedPct}%`;
+      restBar.classList.toggle("warn", restUsedPct >= 80);
     }
     const restReset = document.getElementById("rest-reset-val");
     if (restReset) restReset.textContent = formatReset(health.rest_reset_at);
@@ -137,7 +139,8 @@ export function initClient(): void {
             continue;
           }
           for (const lim of u.limits) {
-            const isWarn = lim.remainingPct < 20;
+            const usedPct = Math.max(0, Math.min(100, 100 - lim.remainingPct));
+            const isWarn = usedPct >= 80;
             html +=
               `<div class="rate-card">` +
               `<div class="rate-header">` +
@@ -145,7 +148,7 @@ export function initClient(): void {
               `<div class="rate-val">残り ${lim.remainingPct}%</div>` +
               `</div>` +
               `<div class="progress-bar-bg">` +
-              `<div class="progress-bar-fill${isWarn ? " warn" : ""}" style="width: ${lim.remainingPct}%"></div>` +
+              `<div class="progress-bar-fill${isWarn ? " warn" : ""}" style="width: ${usedPct}%"></div>` +
               `</div>` +
               `<div class="rate-footer">` +
               `<span>リセット</span>` +

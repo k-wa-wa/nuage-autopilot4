@@ -413,7 +413,7 @@ export const Page: FC = () => {
                       <div
                         class="progress-bar-fill"
                         id="graphql-progress-bar"
-                        style="width: 100%"
+                        style="width: 0%"
                       ></div>
                     </div>
                     <div class="rate-footer">
@@ -432,11 +432,7 @@ export const Page: FC = () => {
                       </div>
                     </div>
                     <div class="progress-bar-bg">
-                      <div
-                        class="progress-bar-fill"
-                        id="rest-progress-bar"
-                        style="width: 100%"
-                      ></div>
+                      <div class="progress-bar-fill" id="rest-progress-bar" style="width: 0%"></div>
                     </div>
                     <div class="rate-footer">
                       <span>リセット</span>
