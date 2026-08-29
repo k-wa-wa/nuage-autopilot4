@@ -122,3 +122,6 @@ export interface Job {
 export function nowIso(offsetMs = 0): string {
   return new Date(Date.now() + offsetMs).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
+
+export type LogLevel = "info" | "warn" | "error";
+export type Logger = (level: LogLevel, msg: string) => void;

@@ -15,6 +15,7 @@ import { runtime } from "../view/state.ts";
 import { acquireLock } from "./utils/lock.ts";
 import { doctor, printChecks } from "./doctor.ts";
 import { nowIso } from "../types.ts";
+import { log } from "../log.ts";
 
 export async function cmdRun(configPath?: string): Promise<void> {
   const cfg = loadConfig(configPath);
@@ -23,12 +24,13 @@ export async function cmdRun(configPath?: string): Promise<void> {
   const bootId = randomUUID();
   const lock = acquireLock(lockPath(cfg), bootId);
   if ("heldBy" in lock) {
-    console.error(`autopilot is already running (pid ${lock.heldBy})`);
+    log("error", `another autopilot is already running (pid ${lock.heldBy})`);
     process.exit(1);
   }
 
   const gh = createClient(cfg.token);
   if (!printChecks(await doctor(cfg, gh))) {
+    log("error", "startup aborted: doctor found fatal problem(s)");
     lock.release();
     process.exit(1);
   }
@@ -38,9 +40,6 @@ export async function cmdRun(configPath?: string): Promise<void> {
   // 既定ブランチは main 決め打ちにしない。設定に無ければ起動時に 1 回だけ解決してキャッシュする。
   const baseBranches = await resolveBaseBranches(cfg, gh);
 
-  const log = (level: "info" | "warn", msg: string) =>
-    console.log(`${nowIso()} [${level}] ${msg}`);
-
   const dd: DispatchDeps = {
     db, cfg, gh, botLogin,
     monitored: new Set(cfg.repos.map(repoSlug)),
@@ -49,6 +48,7 @@ export async function cmdRun(configPath?: string): Promise<void> {
   const wd: WorkerDeps = {
     db, cfg, gh, botLogin, bootId,
     baseBranchOf: (repo) => baseBranches.get(repo) ?? "main",
+    log,
   };
 
   // 起動時点の running はすべて前回プロセスの残骸。
@@ -56,7 +56,7 @@ export async function cmdRun(configPath?: string): Promise<void> {
   if (recovered > 0) log("info", `recovered ${recovered} orphaned job(s)`);
 
   const server = startServer(db, cfg.dashboard.port, cfg.dashboard.host);
-  log("info", `dashboard http://${cfg.dashboard.host}:${cfg.dashboard.port}`);
+  log("info", `autopilot started (dashboard: http://${cfg.dashboard.host}:${cfg.dashboard.port})`);
 
   let stopping = false;
   const shutdown = () => {
@@ -80,7 +80,7 @@ export async function cmdRun(configPath?: string): Promise<void> {
     for (const r of cfg.repos) {
       const out = await pollRepo(db, gh, r, botLogin);
       if (out.error) {
-        log("warn", `${out.repo}: poll ${out.error}`);
+        log("warn", `${out.repo}: poll failed (${out.error})`);
         if (out.error === "not_found" || out.error === "forbidden") {
           runtime.degraded.add(`監視対象外: ${out.repo}`);
         }
@@ -114,7 +114,7 @@ export async function cmdRun(configPath?: string): Promise<void> {
       const c = claimJob(wd);
       if (!c) break;
       const p = runClaimed(wd, c)
-        .catch((e) => log("warn", `job ${c.job.id}: ${String(e)}`))
+        .catch((e) => log("warn", `job ${c.job.id}: unexpected error: ${String(e)}`))
         .finally(() => inflight.delete(p));
       inflight.add(p);
     }

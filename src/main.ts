@@ -2,6 +2,7 @@ import { cmdRun } from "./cli/run.ts";
 import { cmdDoctor } from "./cli/doctor.ts";
 import { cmdCancel } from "./cli/cancel.ts";
 import { cmdStatus } from "./cli/status.ts";
+import { log } from "./log.ts";
 
 const [, , cmd, ...rest] = process.argv;
 
@@ -24,7 +25,10 @@ try {
     default: usage();
   }
 } catch (e) {
-  console.error(`error: ${e instanceof Error ? e.message : String(e)}`);
+  const msg = e instanceof Error ? e.message : String(e);
+  // 常駐（run）の異常終了は標準ログの error として出す。単発コマンドは素の 1 行で十分。
+  if (cmd === "run") log("error", msg);
+  else console.error(`error: ${msg}`);
   process.exit(1);
 }
 

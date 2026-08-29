@@ -9,7 +9,7 @@ import { DEFAULTS, logDir, runDir } from "../config.ts";
 import type { GitHubClient } from "../github/client.ts";
 import * as verify from "../github/verify.ts";
 import { nowIso } from "../types.ts";
-import type { Item, Job, JobType, RunResult } from "../types.ts";
+import type { Item, Job, JobType, Logger, RunResult } from "../types.ts";
 import { buildPrompt } from "./prompt.ts";
 import { readResult, resultPath, promptPath, cleanup } from "./result.ts";
 import { runAgent } from "./agent.ts";
@@ -29,6 +29,7 @@ export interface WorkerDeps {
   botLogin: string;
   bootId: string;
   baseBranchOf: (repo: string) => string;
+  log: Logger;
 }
 
 const HINT_OF: Record<JobType, "精緻化中" | "実装中" | "評価中"> = {
@@ -82,10 +83,11 @@ export async function runClaimed(d: WorkerDeps, { job, logPath }: Claimed): Prom
     if (!alive || cur?.status === "canceled") abort.abort();
   }, DEFAULTS.heartbeatMs);
 
+  const startMs = Date.now();
   try {
-    await execute(d, job, logPath, abort.signal);
+    await execute(d, job, logPath, abort.signal, startMs);
   } catch (e) {
-    fail(d, job, `worker error: ${String(e)}`);
+    fail(d, job, `worker error: ${String(e)}`, "FAIL", Math.round((Date.now() - startMs) / 1000));
   } finally {
     clearInterval(hb);
     cleanup(promptPath(runDir(d.cfg), job.id), resultPath(runDir(d.cfg), job.id));
@@ -100,9 +102,17 @@ export async function runOnce(d: WorkerDeps): Promise<boolean> {
   return true;
 }
 
-async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSignal): Promise<void> {
+async function execute(
+  d: WorkerDeps, job: Job, logPath: string, signal: AbortSignal, startMs: number,
+): Promise<void> {
+  const elapsedSec = () => Math.round((Date.now() - startMs) / 1000);
+  const tag = `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type})`;
+  /** 終端ログは finish() のトランザクションが commit した後にだけ出す。 */
+  const finished = (outcome: string) => d.log("info", `${tag} finished in ${elapsedSec()}s: ${outcome}`);
+  d.log("info", `${tag} started`);
+
   const it = items.getItem(d.db, job.repo, job.issue_number);
-  if (!it) return fail(d, job, "item not found");
+  if (!it) return fail(d, job, "item not found", "FAIL", elapsedSec());
 
   const base = d.baseBranchOf(job.repo);
   const isNewPr = job.job_type === "implement" && it.pr_number === 0;
@@ -152,11 +162,11 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
   });
 
   if (res.kind === "canceled") return canceled(d, job);
-  if (res.kind === "timeout") return fail(d, job, "timeout", "TIMEOUT");
-  if (res.code !== 0) return fail(d, job, `agent exited with ${res.code}`);
+  if (res.kind === "timeout") return fail(d, job, "TIMEOUT", "TIMEOUT", elapsedSec());
+  if (res.code !== 0) return fail(d, job, `agent exited with ${res.code}`, "FAIL", elapsedSec());
 
   const parsed = readResult(rPath, job.job_type === "evaluate");
-  if (!parsed.ok) return fail(d, job, parsed.reason);
+  if (!parsed.ok) return fail(d, job, parsed.reason, "FAIL", elapsedSec());
   const r = parsed.value;
 
   // blocked は設計された出口。ただし選択肢コメントが Issue / PR 側に存在することを検証する。
@@ -164,7 +174,7 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
     const ok = await verify.botCommentedSince(
       d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
     );
-    if (!ok) return fail(d, job, "blocked but no option comment was posted");
+    if (!ok) return fail(d, job, "blocked but no option comment was posted", "FAIL", elapsedSec());
     finish(d, job, "completed", "BLOCKED", r.summary, r.next_context, (cur) =>
       items.transitionItem(d.db, cur, {
         state: "ActionRequired",
@@ -173,6 +183,7 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
         recheckNeeded: true,
       }),
     );
+    finished("BLOCKED (asked for advice)");
     return;
   }
 
@@ -181,19 +192,20 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
       const ok = await verify.botCommentedSince(
         d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "any",
       );
-      if (!ok) return fail(d, job, "refine posted no comment");
+      if (!ok) return fail(d, job, "refine posted no comment", "FAIL", elapsedSec());
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
         items.transitionItem(d.db, cur, {
           state: "ActionRequired", hint: "仕様確認待ち", blockedFrom: job.job_type, recheckNeeded: true,
         }),
       );
+      finished("SUCCESS (posted spec comment)");
       return;
     }
 
     case "implement": {
       if (isNewPr) {
         const pr = await verify.findNewPr(d.gh, job.repo, job.issue_number, d.botLogin);
-        if (!pr) return fail(d, job, "no PR with Closes #n was created");
+        if (!pr) return fail(d, job, "no PR with Closes #n was created", "FAIL", elapsedSec());
         finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) => {
           items.refreshFromGitHub(d.db, cur, {
             pr_number: pr.number, branch: pr.branch, head_sha: pr.headSha,
@@ -203,15 +215,17 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
             state: "Working", hint: "CI 待ち", setCiSince: nowIso(), recheckNeeded: true,
           });
         });
+        finished(`SUCCESS (created PR #${pr.number})`);
         return;
       }
       const pushed = await verify.headChangedSince(d.gh, job.repo, job.issue_number, it.pr_number, snap);
-      if (!pushed) return fail(d, job, "head_sha did not change");
+      if (!pushed) return fail(d, job, "head_sha did not change", "FAIL", elapsedSec());
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
         items.transitionItem(d.db, cur, {
           state: "Working", hint: "CI 待ち", setCiSince: nowIso(), recheckNeeded: true,
         }),
       );
+      finished("SUCCESS (pushed updates)");
       return;
     }
 
@@ -220,21 +234,24 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
         const ok = await verify.botCommentedSince(
           d.gh, job.repo, job.issue_number, it.pr_number, d.botLogin, snap, "pr",
         );
-        if (!ok) return fail(d, job, "merge_ready but no PR comment");
+        if (!ok) return fail(d, job, "merge_ready but no PR comment", "FAIL", elapsedSec());
         finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) =>
           items.transitionItem(d.db, cur, {
             state: "ActionRequired", hint: "マージ待ち", blockedFrom: job.job_type,
             retryCount: 0, recheckNeeded: true,
           }),
         );
+        finished("SUCCESS (merge_ready)");
         return;
       }
       // needs_work はコメントを求めない。人間への通知を出さず静かに差し戻す。
+      let requeued = false;
       finish(d, job, "completed", "SUCCESS", r.summary, r.next_context, (cur) => {
         const id = jobs.enqueueJob(d.db, {
           repo: job.repo, issue_number: job.issue_number, job_type: "implement",
           job_context: r.next_context, trigger_key: `verdict:${job.id}`,
         });
+        requeued = id !== null;
         return items.transitionItem(d.db, cur, {
           state: id ? "Queued" : "ActionRequired",
           hint: id ? "着手待ち" : "エラー対応待ち",
@@ -242,6 +259,10 @@ async function execute(d: WorkerDeps, job: Job, logPath: string, signal: AbortSi
           recheckNeeded: true,
         });
       });
+      finished("SUCCESS (needs_work)");
+      if (requeued) {
+        d.log("info", `${job.repo}#${job.issue_number}: enqueue implement (verdict:${job.id})`);
+      }
       return;
     }
   }
@@ -260,7 +281,9 @@ function finish(
   })();
 }
 
-function fail(d: WorkerDeps, job: Job, reason: string, result: RunResult = "FAIL"): void {
+function fail(
+  d: WorkerDeps, job: Job, reason: string, result: RunResult = "FAIL", elapsedSec?: number,
+): void {
   d.db.transaction(() => {
     jobs.finishJob(d.db, job.id, "failed");
     runsStore.endRun(d.db, job.id, result, { summary: reason });
@@ -270,6 +293,8 @@ function fail(d: WorkerDeps, job: Job, reason: string, result: RunResult = "FAIL
       }),
     );
   })();
+  const timeStr = elapsedSec !== undefined ? ` in ${elapsedSec}s` : "";
+  d.log("warn", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) failed${timeStr}: ${reason}`);
 }
 
 function canceled(d: WorkerDeps, job: Job): void {
@@ -280,6 +305,7 @@ function canceled(d: WorkerDeps, job: Job): void {
       items.transitionItem(d.db, it, { state: "ActionRequired", hint: "中止済み", recheckNeeded: true }),
     );
   })();
+  d.log("info", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled by human`);
 }
 
 /**
@@ -292,6 +318,7 @@ function stale(d: WorkerDeps, job: Job, reason: string): void {
     runsStore.endRun(d.db, job.id, "CANCELED", { summary: reason });
     items.markRecheck(d.db, job.repo, job.issue_number);
   })();
+  d.log("info", `${job.repo}#${job.issue_number}: job ${job.id} (${job.job_type}) canceled: ${reason}`);
 }
 
 /** 起動時・稼働中の孤児回収。runs も終端化して RUNNING を残さない。 */

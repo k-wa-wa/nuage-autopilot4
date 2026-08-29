@@ -13,7 +13,7 @@ import { fastPassApplies } from "./fastpass.ts";
 import { runTriage } from "./triage.ts";
 import { aggregate, completionComment, fanOut } from "./subissues.ts";
 import { subProgress } from "../types.ts";
-import type { Item } from "../types.ts";
+import type { Item, Logger } from "../types.ts";
 
 /**
  * ② 判定（spec.md §6）。
@@ -28,7 +28,7 @@ export interface DispatchDeps {
   gh: GitHubClient;
   botLogin: string;
   monitored: Set<string>;
-  log: (level: "info" | "warn", msg: string) => void;
+  log: Logger;
 }
 
 export interface NewEvent {
@@ -56,6 +56,9 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
   });
   if (sync.handled) {
     d.log("info", `${repo}#${issueNumber}: sync=${sync.rule}`);
+    if (sync.enqueued) {
+      d.log("info", `${repo}#${issueNumber}: enqueue ${sync.enqueued.job_type} (${sync.enqueued.trigger_key})`);
+    }
     return;
   }
 
@@ -69,6 +72,8 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
 
   // 3. 新規イベントの抽出。0 件なら LLM を呼ばず機械的規則だけで処理する。
   const events = newEvents(fresh, issue, pr).filter((e) => e.author !== d.botLogin);
+  const newest = events[events.length - 1];
+  if (newest) d.log("info", `${repo}#${issueNumber}: detected new ${newest.kind} by @${newest.author}`);
   if (events.length === 0) {
     await mechanicalOnly(d, fresh, issue, pr);
     return;
@@ -92,11 +97,12 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
 
   // 5b. 子を持つ親への承認はファンアウト。親自身の実装ではない。
   if (fresh.sub_issues_total > 0 && isApprovalLike(last.body)) {
-    d.db.transaction(() => {
-      const n = fanOut(d.db, fresh, issue, d.monitored, last.databaseId, last.body);
+    const n = d.db.transaction(() => {
+      const fanned = fanOut(d.db, fresh, issue, d.monitored, last.databaseId, last.body);
       advanceCursor(d.db, fresh, events);
-      d.log("info", `${repo}#${issueNumber}: fanout ${n} children`);
+      return fanned;
     })();
+    d.log("info", `${repo}#${issueNumber}: fanout ${n} children`);
     return;
   }
 
@@ -109,7 +115,7 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
   if (result.kind === "error") {
     // 一過性の可能性が高い。カーソルを進めず（＝指示を落とさず）recheck を立てて次周期に再試行する。
     const n = fresh.triage_fail_count + 1;
-    d.log("warn", `${repo}#${issueNumber}: triage error (${n}/${DEFAULTS.triageFailLimit}) ${result.reason}`);
+    d.log("warn", `${repo}#${issueNumber}: triage error (${n}/${DEFAULTS.triageFailLimit}): ${result.reason}`);
     items.withRetry(d.db, repo, issueNumber, (cur) =>
       n >= DEFAULTS.triageFailLimit
         ? items.transitionItem(d.db, cur, {
@@ -126,7 +132,7 @@ export async function dispatch(d: DispatchDeps, repo: string, issueNumber: numbe
     // 同じ入力を再投入しても同じ不正出力が返る蓋然性が高い。進めないと毎周期 LLM を呼び続ける。
     advanceCursor(d.db, fresh, events);
     const n = fresh.triage_fail_count + 1;
-    d.log("warn", `${repo}#${issueNumber}: triage invalid (${n}) ${result.reason}`);
+    d.log("warn", `${repo}#${issueNumber}: triage invalid (${n}): ${result.reason}`);
     items.withRetry(d.db, repo, issueNumber, (cur) =>
       n >= DEFAULTS.triageFailLimit
         ? items.transitionItem(d.db, cur, {
@@ -190,6 +196,9 @@ async function mechanicalOnly(
         repo: it.repo, issue_number: it.issue_number, job_type: "implement",
         job_context: ctx, trigger_key: action.triggerKey,
       });
+      if (id !== null) {
+        d.log("info", `${it.repo}#${it.issue_number}: enqueue implement (${action.triggerKey})`);
+      }
       items.withRetry(d.db, it.repo, it.issue_number, (cur) =>
         items.transitionItem(d.db, cur, {
           state: id ? "Queued" : "Working",
@@ -241,17 +250,18 @@ function enqueue(
   d: DispatchDeps, it: Item, job: "refine" | "implement" | "evaluate", ctx: string, key: string,
   events?: NewEvent[],
 ): void {
-  d.db.transaction(() => {
+  const enqueued = d.db.transaction(() => {
     const id = jobs.enqueueJob(d.db, {
       repo: it.repo, issue_number: it.issue_number, job_type: job, job_context: ctx, trigger_key: key,
     });
     if (events) advanceCursor(d.db, it, events);
-    if (id === null) return;
+    if (id === null) return false;
     items.withRetry(d.db, it.repo, it.issue_number, (cur) =>
       items.transitionItem(d.db, cur, { state: "Queued", hint: "着手待ち", retryCount: 0 }),
     );
-    d.log("info", `${it.repo}#${it.issue_number}: enqueue ${job} (${key})`);
+    return true;
   })();
+  if (enqueued) d.log("info", `${it.repo}#${it.issue_number}: enqueue ${job} (${key})`);
 }
 
 /**
