@@ -67,7 +67,7 @@ export async function runTriage(cfg: Config, input: TriageInput): Promise<Triage
   try {
     const r = await runAgent({
       agent,
-      prompt: `${TRIAGE_SYSTEM_PROMPT}\n\n---\n\n${prompt}`,
+      prompt,
       cwd: cfg.home,
       timeoutMs: agent.timeout_sec * 1000,
       // Triage は GitHub に書き込まない。権限もトークンも渡さない。
@@ -156,8 +156,13 @@ const HISTORY_LIMIT = 10;
 const HISTORY_CHARS = 1000;
 const BODY_CHARS = 4000;
 
-/** 入力サイズを切り詰める。判定に要るのは「直近に何が起きたか」であって古い議論の全文ではない。 */
+/** LLM に渡す完全なプロンプト（システム指示・出力JSON仕様・GitHubスナップショット）を組み立てる。 */
 export function buildPrompt(i: TriageInput): string {
+  return `${TRIAGE_SYSTEM_PROMPT}\n\n---\n\n${buildSnapshot(i)}`;
+}
+
+/** 入力サイズを切り詰める。判定に要るのは「直近に何が起きたか」であって古い議論の全文ではない。 */
+export function buildSnapshot(i: TriageInput): string {
   const lines: string[] = [];
   lines.push(`## 対象`);
   lines.push(`${i.item.repo}#${i.item.issue_number} ${i.issue.title}`);
