@@ -17,6 +17,8 @@ export interface Card {
   title: string;
   display_hint: string;
   url: string;
+  issue_url: string;
+  pr_url: string | null;
   state_since: string;
   queue_position: number | null;
   job_type: string | null;
@@ -61,15 +63,17 @@ export function buildState(db: DB): StateResponse {
 
   const card = (it: Item): Card => {
     const r = running.get(key(it.repo, it.issue_number));
+    const issueUrl = `https://github.com/${it.repo}/issues/${it.issue_number}`;
+    const prUrl = it.pr_number > 0 ? `https://github.com/${it.repo}/pull/${it.pr_number}` : null;
     return {
       repo: it.repo,
       issue_number: it.issue_number,
       pr_number: it.pr_number,
       title: it.title,
       display_hint: it.display_hint,
-      url: it.pr_number > 0
-        ? `https://github.com/${it.repo}/pull/${it.pr_number}`
-        : `https://github.com/${it.repo}/issues/${it.issue_number}`,
+      url: prUrl ?? issueUrl,
+      issue_url: issueUrl,
+      pr_url: prUrl,
       state_since: it.state_since,
       queue_position: position.get(key(it.repo, it.issue_number)) ?? null,
       job_type: r?.job_type ?? null,

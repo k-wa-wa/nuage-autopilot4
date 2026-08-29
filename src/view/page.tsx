@@ -116,21 +116,29 @@ main {
   align-items: start;
 }
 section { min-width: 0; }
-a.card {
-  display: block;
+.card {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 11px 13px;
   margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.card:hover { border-color: var(--muted); }
+.card-main {
+  display: block;
+  padding: 11px 13px;
   text-decoration: none;
   color: inherit;
 }
-a.card:hover { border-color: var(--muted); }
+.card-main:hover .t {
+  color: var(--accent);
+}
 .t {
   font-weight: 500;
   margin-bottom: 4px;
   overflow-wrap: anywhere;
+  transition: color 0.15s ease;
 }
 .s {
   color: var(--muted);
@@ -138,10 +146,46 @@ a.card:hover { border-color: var(--muted); }
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  align-items: center;
 }
 .hint {
   font-weight: 500;
   color: var(--fg);
+}
+.card-sub {
+  border-top: 1px dashed var(--line);
+  padding: 6px 13px;
+  background: rgba(120, 120, 120, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.sub-connector {
+  color: var(--muted);
+  font-family: monospace;
+  font-size: 12px;
+  user-select: none;
+}
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pr-badge:hover {
+  background: rgba(59, 130, 246, 0.18);
+  text-decoration: underline;
+}
+.pr-badge svg {
+  flex-shrink: 0;
 }
 .empty {
   color: var(--muted);

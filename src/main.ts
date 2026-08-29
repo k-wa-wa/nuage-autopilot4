@@ -84,7 +84,8 @@ async function cmdStatus(): Promise<void> {
     const lane = (title: string, cards: typeof s.lanes.action_required) => {
       console.log(`\n${title} (${cards.length})`);
       for (const c of cards) {
-        console.log(`  ${c.repo}#${c.issue_number}  ${c.display_hint.padEnd(18)} ${c.title}`);
+        const prInfo = c.pr_number > 0 ? ` (PR #${c.pr_number})` : "";
+        console.log(`  ${c.repo}#${c.issue_number}${prInfo}  ${c.display_hint.padEnd(18)} ${c.title}`);
       }
     };
     lane("🧑 Action Required", s.lanes.action_required);

@@ -45,16 +45,37 @@ export function initClient(): void {
       el.innerHTML = '<div class="empty">なし</div>';
       return;
     }
+    const prIcon =
+      '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>';
     el.innerHTML = cards
       .map((c) => {
         const bits = [`${c.repo}#${c.issue_number}`];
         if (c.queue_position) bits.push(`${c.queue_position}番目`);
         if (c.job_type) bits.push(`${c.job_type} ${ago(c.started_at)}`);
         else bits.push(ago(c.state_since));
+
+        const issueUrl = c.issue_url || `https://github.com/${c.repo}/issues/${c.issue_number}`;
+        const prUrl = c.pr_url || (c.pr_number > 0 ? `https://github.com/${c.repo}/pull/${c.pr_number}` : null);
+
+        let subHtml = "";
+        if (c.pr_number > 0 && prUrl) {
+          subHtml =
+            `<div class="card-sub">` +
+            `<span class="sub-connector">↳</span>` +
+            `<a class="pr-badge" href="${prUrl}" target="_blank" rel="noreferrer" title="関連 Pull Request を開く">` +
+            `${prIcon}<span>PR #${c.pr_number}</span>` +
+            `</a>` +
+            `</div>`;
+        }
+
         return (
-          `<a class="card" href="${c.url}" target="_blank" rel="noreferrer">` +
+          `<div class="card">` +
+          `<a class="card-main" href="${issueUrl}" target="_blank" rel="noreferrer" title="Issue を開く">` +
           `<div class="t">${esc(c.title || "(no title)")}</div>` +
-          `<div class="s"><span class="hint">${esc(c.display_hint)}</span><span>${bits.map(esc).join(" · ")}</span></div></a>`
+          `<div class="s"><span class="hint">${esc(c.display_hint)}</span><span>${bits.map(esc).join(" · ")}</span></div>` +
+          `</a>` +
+          subHtml +
+          `</div>`
         );
       })
       .join("");

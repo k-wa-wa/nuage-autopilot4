@@ -80,6 +80,17 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(stateJson.health.rest_limit).toBe(5000);
     expect(stateJson.health.rest_reset_at).not.toBeNull();
 
+    // PR あり/なし の Card プロパティ検証
+    const cardWithPr = stateJson.lanes.action_required.find((c) => c.pr_number > 0);
+    expect(cardWithPr).toBeDefined();
+    expect(cardWithPr?.issue_url).toBe(`https://github.com/${cardWithPr?.repo}/issues/${cardWithPr?.issue_number}`);
+    expect(cardWithPr?.pr_url).toBe(`https://github.com/${cardWithPr?.repo}/pull/${cardWithPr?.pr_number}`);
+
+    const cardWithoutPr = stateJson.lanes.action_required.find((c) => c.pr_number === 0);
+    expect(cardWithoutPr).toBeDefined();
+    expect(cardWithoutPr?.issue_url).toBe(`https://github.com/${cardWithoutPr?.repo}/issues/${cardWithoutPr?.issue_number}`);
+    expect(cardWithoutPr?.pr_url).toBeNull();
+
     // GET /api/health (JSON)
     const resHealth = await app.request("/api/health");
     expect(resHealth.status).toBe(200);
