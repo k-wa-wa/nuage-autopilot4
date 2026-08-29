@@ -417,7 +417,7 @@ export const Page: FC = () => {
                       ></div>
                     </div>
                     <div class="rate-footer">
-                      <span>リセット時刻</span>
+                      <span>リセット</span>
                       <span class="rate-reset" id="graphql-reset-val">
                         --
                       </span>
@@ -439,7 +439,7 @@ export const Page: FC = () => {
                       ></div>
                     </div>
                     <div class="rate-footer">
-                      <span>リセット時刻</span>
+                      <span>リセット</span>
                       <span class="rate-reset" id="rest-reset-val">
                         --
                       </span>
