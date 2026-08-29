@@ -144,6 +144,7 @@ describe("CLI status formatter", () => {
         rest_remaining: 5000,
         rest_limit: 5000,
         rest_reset_at: null,
+        agent_usages: [],
         running_jobs: 1,
         last_poll_at: "2026-08-29T00:00:00Z",
         degraded: ["レートリミット待機中"],

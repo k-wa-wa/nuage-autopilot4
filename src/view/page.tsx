@@ -448,6 +448,13 @@ export const Page: FC = () => {
                 </div>
               </div>
 
+              <div class="modal-section" id="agent-usage-section">
+                <h3>LLM / エージェント キャパシティ</h3>
+                <div class="rate-limit-cards" id="agent-rate-cards">
+                  <div class="empty">使用量情報を取得中...</div>
+                </div>
+              </div>
+
               <div class="modal-section">
                 <h3>システム状態</h3>
                 <dl class="status-grid">

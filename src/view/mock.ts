@@ -88,6 +88,28 @@ export function loadScenario(db: DB, scenario: ScenarioName): void {
   runtime.restRemaining = 5000;
   runtime.restLimit = 5000;
   runtime.restResetAt = futureIso(50);
+  runtime.agentUsages = [
+    {
+      adapter: "claude",
+      command: "claude",
+      updatedAt: nowIso(),
+      limits: [
+        { label: "Session", remainingPct: 37, resetAt: futureIso(109) },
+        { label: "Weekly", remainingPct: 94, resetAt: futureIso(8639) },
+      ],
+    },
+    {
+      adapter: "agy",
+      command: "agy",
+      updatedAt: nowIso(),
+      limits: [
+        { label: "Gemini (5h)", remainingPct: 60, resetAt: futureIso(119) },
+        { label: "Gemini (Weekly)", remainingPct: 85, resetAt: futureIso(7199) },
+        { label: "Claude/GPT (5h)", remainingPct: 100, resetAt: futureIso(299) },
+        { label: "Claude/GPT (Weekly)", remainingPct: 100, resetAt: futureIso(8599) },
+      ],
+    },
+  ];
   runtime.lastPollAt = nowIso();
   runtime.degraded.clear();
 

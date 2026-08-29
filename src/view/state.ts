@@ -1,3 +1,4 @@
+import type { AgentUsage } from "../execute/adapters/index.ts";
 import type { DB } from "../store/db.ts";
 import * as jobs from "../store/jobs.ts";
 import type { Item } from "../types.ts";
@@ -32,6 +33,7 @@ export interface Health {
   rest_remaining: number;
   rest_limit: number;
   rest_reset_at: string | null;
+  agent_usages: AgentUsage[];
   running_jobs: number;
   last_poll_at: string | null;
   degraded: string[];
@@ -51,6 +53,7 @@ export const runtime = {
   restRemaining: 5000,
   restLimit: 5000,
   restResetAt: null as string | null,
+  agentUsages: [] as AgentUsage[],
   lastPollAt: null as string | null,
   degraded: new Set<string>(),
 };
@@ -107,6 +110,7 @@ export function buildState(db: DB): StateResponse {
       rest_remaining: runtime.restRemaining,
       rest_limit: runtime.restLimit,
       rest_reset_at: runtime.restResetAt,
+      agent_usages: runtime.agentUsages,
       running_jobs: running.size,
       last_poll_at: runtime.lastPollAt,
       degraded: degraded(db),

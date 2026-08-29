@@ -7,16 +7,17 @@ import type { AgentConfig } from "../../config.ts";
 import { agyAdapter } from "./agy.ts";
 import { claudeAdapter } from "./claude.ts";
 import { execAdapter } from "./exec.ts";
-import type { AdapterKind, AdapterOptions, AgentAdapter, Invocation } from "./types.ts";
+import type { AdapterKind, AdapterOptions, AgentAdapter, AgentUsage, Invocation } from "./types.ts";
 
 export type {
   AdapterKind,
   AdapterOptions,
   AgentAdapter,
+  AgentUsage,
+  AgentUsageLimit,
   Invocation,
   PromptChannel,
 } from "./types.ts";
-export { agyAdapter, claudeAdapter, execAdapter };
 
 const ADAPTERS: Record<AdapterKind, AgentAdapter> = {
   claude: claudeAdapter,
@@ -48,4 +49,30 @@ export function getAdapter(cmd: string): AgentAdapter {
 export function buildInvocation(agent: AgentConfig, o: AdapterOptions): Invocation {
   const adapter = getAdapter(agent.command);
   return adapter.buildInvocation(agent, o);
+}
+
+/**
+ * 指定された複数のエージェントコマンドの使用量を一括取得する。
+ */
+export async function fetchAgentUsages(commands: string[]): Promise<AgentUsage[]> {
+  const results: AgentUsage[] = [];
+
+  for (const cmd of commands) {
+    const adapter = getAdapter(cmd);
+    if (!adapter.fetchUsage) continue;
+    try {
+      const usage = await adapter.fetchUsage(cmd);
+      if (usage) results.push(usage);
+    } catch (e) {
+      results.push({
+        adapter: adapter.kind,
+        command: cmd,
+        updatedAt: new Date().toISOString(),
+        limits: [],
+        error: String(e),
+      });
+    }
+  }
+
+  return results;
 }

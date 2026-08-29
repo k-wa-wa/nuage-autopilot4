@@ -6,6 +6,7 @@ import { DEFAULTS, dbPath, loadConfig, lockPath, logDir, repoSlug, runDir } from
 import type { DispatchDeps } from "../decide/dispatcher.ts";
 import { dispatch } from "../decide/dispatcher.ts";
 import { tick } from "../decide/tick.ts";
+import { fetchAgentUsages } from "../execute/adapters/index.ts";
 import type { WorkerDeps } from "../execute/worker.ts";
 import { claimJob, recover, runClaimed } from "../execute/worker.ts";
 import { createClient, rateLimitState } from "../github/client.ts";
@@ -139,6 +140,17 @@ export async function cmdRun(configPath?: string): Promise<void> {
       }
     },
     (e) => log("warn", `worker loop: ${String(e)}`),
+    () => stopping,
+  );
+
+  // ④ エージェント使用量の定期取得（数分おきに非同期実行）
+  const agentCommands = [...new Set(Object.values(cfg.agents).map((a) => a.command))];
+  void loop(
+    () => DEFAULTS.agentUsageIntervalMs,
+    async () => {
+      runtime.agentUsages = await fetchAgentUsages(agentCommands);
+    },
+    (e) => log("warn", `agent usage loop: ${String(e)}`),
     () => stopping,
   );
 

@@ -44,6 +44,7 @@ export const DEFAULTS = {
   rateLimitSlowRemaining: 1000,
   rateLimitSlowMs: 300_000,
   rateLimitStopRemaining: 200,
+  agentUsageIntervalMs: 300_000,
   verifyRetries: 7,
   verifyIntervalMs: 2_000,
   phase1PageSize: 50,

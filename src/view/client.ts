@@ -22,16 +22,18 @@ export function initClient(): void {
   const formatReset = (iso: string | null): string => {
     if (!iso) return "--";
     const resetMs = Date.parse(iso);
-    if (Number.isNaN(resetMs)) return "--";
-    const d = new Date(resetMs);
-    const hh = String(d.getHours()).padStart(2, "0");
-    const mm = String(d.getMinutes()).padStart(2, "0");
+    if (Number.isNaN(resetMs)) return iso;
     const diffMin = Math.round((resetMs - Date.now()) / 60000);
-    if (diffMin <= 0) return `${hh}:${mm} (まもなく/リセット済)`;
-    if (diffMin < 60) return `${hh}:${mm} (あと${diffMin}分)`;
-    const diffHours = Math.floor(diffMin / 60);
-    const remMin = diffMin % 60;
-    return `${hh}:${mm} (あと${diffHours}時間${remMin}分)`;
+    if (diffMin <= 0) return "まもなくリセット";
+    if (diffMin < 60) return `あと${diffMin}分`;
+    if (diffMin < 1440) {
+      const hours = Math.floor(diffMin / 60);
+      const mins = diffMin % 60;
+      return mins === 0 ? `あと${hours}時間` : `あと${hours}時間${mins}分`;
+    }
+    const days = Math.floor(diffMin / 1440);
+    const remHours = Math.floor((diffMin % 1440) / 60);
+    return remHours === 0 ? `あと${days}日` : `あと${days}日${remHours}時間`;
   };
 
   const formatPollTime = (iso: string | null): string => {
@@ -58,25 +60,17 @@ export function initClient(): void {
       '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>';
     el.innerHTML = cards
       .map((c) => {
-        const bits = [`${c.repo}#${c.issue_number}`];
-        if (c.queue_position) bits.push(`${c.queue_position}番目`);
-        if (c.job_type) bits.push(`${c.job_type} ${ago(c.started_at)}`);
-        else bits.push(ago(c.state_since));
-
-        const issueUrl = c.issue_url || `https://github.com/${c.repo}/issues/${c.issue_number}`;
-        const prUrl =
-          c.pr_url || (c.pr_number > 0 ? `https://github.com/${c.repo}/pull/${c.pr_number}` : null);
-
-        let subHtml = "";
-        if (c.pr_number > 0 && prUrl) {
-          subHtml =
-            `<div class="card-sub">` +
-            `<span class="sub-connector">↳</span>` +
-            `<a class="pr-badge" href="${prUrl}" target="_blank" rel="noreferrer" title="関連 Pull Request を開く">` +
-            `${prIcon}<span>PR #${c.pr_number}</span>` +
-            `</a>` +
-            `</div>`;
-        }
+        const bits = [c.repo, `#${c.issue_number}`];
+        if (c.queue_position) bits.push(`待ち順位 #${c.queue_position}`);
+        if (c.job_type) bits.push(`ジョブ: ${c.job_type}`);
+        if (c.started_at) bits.push(`開始: ${ago(c.started_at)}`);
+        const issueUrl = c.issue_url || c.url;
+        const prHtml = c.pr_url
+          ? `<a class="pr-badge" href="${c.pr_url}" target="_blank" rel="noreferrer" title="PR を開く">${prIcon}<span>#${c.pr_number}</span></a>`
+          : "";
+        const subHtml = prHtml
+          ? `<div class="card-sub"><span class="sub-connector">└</span>${prHtml}</div>`
+          : "";
 
         return (
           `<div class="card">` +
@@ -118,6 +112,51 @@ export function initClient(): void {
     }
     const restReset = document.getElementById("rest-reset-val");
     if (restReset) restReset.textContent = formatReset(health.rest_reset_at);
+
+    const agentContainer = document.getElementById("agent-rate-cards");
+    if (agentContainer) {
+      if (!health.agent_usages || health.agent_usages.length === 0) {
+        agentContainer.innerHTML = '<div class="empty">使用量情報なし</div>';
+      } else {
+        let html = "";
+        for (const u of health.agent_usages) {
+          const adapterTitle =
+            u.adapter === "claude"
+              ? "Claude Code"
+              : u.adapter === "agy"
+                ? "Antigravity"
+                : u.command;
+          if (u.error) {
+            html +=
+              `<div class="rate-card">` +
+              `<div class="rate-header">` +
+              `<div class="rate-name">${esc(adapterTitle)}</div>` +
+              `<div class="rate-val" style="color: var(--warn); font-size: 11px;">${esc(u.error)}</div>` +
+              `</div>` +
+              `</div>`;
+            continue;
+          }
+          for (const lim of u.limits) {
+            const isWarn = lim.remainingPct < 20;
+            html +=
+              `<div class="rate-card">` +
+              `<div class="rate-header">` +
+              `<div class="rate-name">${esc(adapterTitle)} · ${esc(lim.label)}</div>` +
+              `<div class="rate-val">残り ${lim.remainingPct}%</div>` +
+              `</div>` +
+              `<div class="progress-bar-bg">` +
+              `<div class="progress-bar-fill${isWarn ? " warn" : ""}" style="width: ${lim.remainingPct}%"></div>` +
+              `</div>` +
+              `<div class="rate-footer">` +
+              `<span>リセット</span>` +
+              `<span class="rate-reset">${esc(formatReset(lim.resetAt))}</span>` +
+              `</div>` +
+              `</div>`;
+          }
+        }
+        agentContainer.innerHTML = html || '<div class="empty">使用量情報なし</div>';
+      }
+    }
 
     const jobsEl = document.getElementById("modal-running-jobs");
     if (jobsEl) jobsEl.textContent = `${health.running_jobs} 件`;
