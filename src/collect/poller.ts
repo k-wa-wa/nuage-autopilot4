@@ -196,7 +196,11 @@ function latestEventId(d: IssueDetail): number {
 
 function dedupe(xs: Array<{ issueNumber: number }>): Array<{ issueNumber: number }> {
   const seen = new Set<number>();
-  return xs.filter((x) => (seen.has(x.issueNumber) ? false : (seen.add(x.issueNumber), true)));
+  return xs.filter((x) => {
+    if (seen.has(x.issueNumber)) return false;
+    seen.add(x.issueNumber);
+    return true;
+  });
 }
 
 /** クロックドリフト対策。サーバ時刻から 5 分引く。重複は fingerprint / payload_hash で無害化される。 */

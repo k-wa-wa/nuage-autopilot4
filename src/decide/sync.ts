@@ -32,7 +32,7 @@ export interface SyncResult {
 type Rule = {
   name: string;
   when: (i: SyncInput) => boolean;
-  then: (db: DB, i: SyncInput) => SyncResult;
+  run: (db: DB, i: SyncInput) => SyncResult;
 };
 
 const RULES: Rule[] = [
@@ -40,7 +40,7 @@ const RULES: Rule[] = [
     // 1. Issue が CLOSED
     name: "issue-closed",
     when: ({ issue }) => issue.state === "CLOSED",
-    then: (db, i) => {
+    run: (db, i) => {
       finishAsDone(db, i);
       return { handled: true, rule: "issue-closed" };
     },
@@ -49,7 +49,7 @@ const RULES: Rule[] = [
     // 2. PR が MERGED かつ Issue も CLOSED（1 で拾われるが、明示のため残す）
     name: "pr-merged-issue-closed",
     when: ({ pr, issue }) => !!pr?.merged && issue.state === "CLOSED",
-    then: (db, i) => {
+    run: (db, i) => {
       finishAsDone(db, i);
       return { handled: true, rule: "pr-merged-issue-closed" };
     },
@@ -58,7 +58,7 @@ const RULES: Rule[] = [
     // 3. PR が MERGED だが Issue は OPEN のまま
     name: "pr-merged-issue-open",
     when: ({ pr, issue }) => !!pr?.merged && issue.state === "OPEN",
-    then: (db, i) => {
+    run: (db, i) => {
       items.transitionItem(db, i.item, { state: "ActionRequired", hint: "Issue クローズ確認待ち" });
       return { handled: true, rule: "pr-merged-issue-open" };
     },
@@ -67,7 +67,7 @@ const RULES: Rule[] = [
     // 4. PR が未マージのまま CLOSED。紐付けをリセットして人間に返す。
     name: "pr-closed-unmerged",
     when: ({ pr }) => !!pr && pr.state === "CLOSED" && !pr.merged,
-    then: (db, i) => {
+    run: (db, i) => {
       jobs.cancelJobsFor(db, i.item.repo, i.item.issue_number);
       items.transitionItem(db, i.item, {
         state: "ActionRequired",
@@ -81,7 +81,7 @@ const RULES: Rule[] = [
     // 5. reopen。retry_count / blocked_from をリセットして refine を積み直す。
     name: "reopened",
     when: ({ issue, prevIssueState }) => prevIssueState === "CLOSED" && issue.state === "OPEN",
-    then: (db, i) => {
+    run: (db, i) => {
       const key = `reopen:${i.issue.updatedAt}`;
       const id = jobs.enqueueJob(db, {
         repo: i.item.repo,
@@ -116,7 +116,7 @@ const RULES: Rule[] = [
       !issue.parent &&
       !!issue.author &&
       allowlist.includes(issue.author.login),
-    then: (db, i) => {
+    run: (db, i) => {
       const key = `open:${i.item.issue_number}`;
       const id = jobs.enqueueJob(db, {
         repo: i.item.repo,
@@ -142,7 +142,7 @@ const RULES: Rule[] = [
 /** 該当すれば機械的に確定させる。該当しなければ handled: false で Triage へ流す。 */
 export function forcedSync(db: DB, input: SyncInput): SyncResult {
   for (const r of RULES) {
-    if (r.when(input)) return r.then(db, input);
+    if (r.when(input)) return r.run(db, input);
   }
   return { handled: false };
 }

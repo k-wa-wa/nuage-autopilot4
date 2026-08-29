@@ -22,7 +22,7 @@ export function initClient(): void {
   const formatReset = (iso: string | null): string => {
     if (!iso) return "--";
     const resetMs = Date.parse(iso);
-    if (isNaN(resetMs)) return "--";
+    if (Number.isNaN(resetMs)) return "--";
     const d = new Date(resetMs);
     const hh = String(d.getHours()).padStart(2, "0");
     const mm = String(d.getMinutes()).padStart(2, "0");
@@ -37,7 +37,7 @@ export function initClient(): void {
   const formatPollTime = (iso: string | null): string => {
     if (!iso) return "未実行";
     const d = new Date(iso);
-    const timeStr = isNaN(d.getTime()) ? "" : ` (${d.toLocaleTimeString()})`;
+    const timeStr = Number.isNaN(d.getTime()) ? "" : ` (${d.toLocaleTimeString()})`;
     return `${ago(iso)}${timeStr}`;
   };
 

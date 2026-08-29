@@ -8,6 +8,7 @@ import { formatStatus, type StateData } from "../src/cli/status.ts";
 import { c } from "../src/cli/utils/color.ts";
 import { acquireLock } from "../src/cli/utils/lock.ts";
 import type { Config } from "../src/config.ts";
+import type { GitHubClient } from "../src/github/client.ts";
 
 describe("CLI lock utilities", () => {
   const tempDirs: string[] = [];
@@ -208,7 +209,7 @@ describe("CLI doctor logic", () => {
       restRemaining: () => 5000,
       restLimit: () => 5000,
       restResetAt: () => "2026-08-29T00:00:00Z",
-    } as any;
+    } as unknown as GitHubClient;
 
     const checks = await doctor(mockCfg, mockGh);
     expect(checks.length).toBeGreaterThan(0);
@@ -248,7 +249,7 @@ describe("CLI doctor logic", () => {
       restRemaining: () => 5000,
       restLimit: () => 5000,
       restResetAt: () => "2026-08-29T00:00:00Z",
-    } as any;
+    } as unknown as GitHubClient;
 
     const checks = await doctor(mockCfg, mockGh);
     const fatal = checks.filter((c) => c.level === "fatal");
