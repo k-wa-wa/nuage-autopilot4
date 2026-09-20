@@ -108,17 +108,12 @@ What's contributing to your limits usage?
         { promptPath: "/tmp/p.md", timeoutMs: 300_000, elevated: false },
       );
       // timeoutMs 300,000 -> 300s - 30s = 270s
-      expect(inv).toEqual({
-        argv: [
-          "agy",
-          "--print",
-          "以下の指示ファイルを読み、タスクを完走せよ: /tmp/p.md",
-          "--disable-slash-commands",
-          "--print-timeout",
-          "270s",
-        ],
-        channel: "file",
-      });
+      expect(inv.argv[0]).toBe("agy");
+      expect(inv.argv[1]).toBe("--print");
+      expect(inv.argv[2]).toContain("以下の指示ファイルを読み、タスクを完走せよ: /tmp/p.md");
+      expect(inv.argv[2]).toContain("結果JSONファイル");
+      expect(inv.argv.slice(3)).toEqual(["--disable-slash-commands", "--print-timeout", "270s"]);
+      expect(inv.channel).toBe("file");
     });
 
     test("model 指定と権限昇格", () => {
@@ -127,20 +122,18 @@ What's contributing to your limits usage?
         { promptPath: "/tmp/prompt.txt", timeoutMs: 60_000, elevated: true },
       );
       // timeoutMs 60,000 -> 60s - 30s = 30s (Math.max(30, 30) = 30)
-      expect(inv).toEqual({
-        argv: [
-          "agy",
-          "--print",
-          "以下の指示ファイルを読み、タスクを完走せよ: /tmp/prompt.txt",
-          "--dangerously-skip-permissions",
-          "--disable-slash-commands",
-          "--print-timeout",
-          "30s",
-          "--model",
-          "gemini-1.5-pro",
-        ],
-        channel: "file",
-      });
+      expect(inv.argv[0]).toBe("agy");
+      expect(inv.argv[1]).toBe("--print");
+      expect(inv.argv[2]).toContain("以下の指示ファイルを読み、タスクを完走せよ: /tmp/prompt.txt");
+      expect(inv.argv.slice(3)).toEqual([
+        "--dangerously-skip-permissions",
+        "--disable-slash-commands",
+        "--print-timeout",
+        "30s",
+        "--model",
+        "gemini-1.5-pro",
+      ]);
+      expect(inv.channel).toBe("file");
     });
 
     test("parseAgyUsage: TSV 出力のパース（既定では Claude/GPT 枠は除外）", () => {
