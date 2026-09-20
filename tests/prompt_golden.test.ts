@@ -8,6 +8,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildPrompt as buildTriagePrompt, type TriageInput } from "../src/decide/triage.ts";
+import { patrolPrompt as buildPatrolPrompt } from "../src/execute/patrol.ts";
 import { buildPrompt as buildWorkerPrompt, type PromptInput } from "../src/execute/prompt.ts";
 import type { IssueDetail, PrDetail } from "../src/github/detail.ts";
 import type { Item } from "../src/types.ts";
@@ -299,5 +300,133 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
       },
     };
     golden("triage_blocked_resume", buildTriagePrompt(input));
+  });
+
+  test("triage: 任意項目がすべて欠けている場合（PR 無し・履歴無し・新規イベント無し・本文なし）", () => {
+    const input: TriageInput = {
+      item: baseItem({ display_hint: "", blocked_from: "", state: "Queued" }),
+      issue: baseIssue({ body: undefined }),
+      pr: null,
+      newEvents: [],
+      lastRun: null,
+    };
+    golden("triage_minimal", buildTriagePrompt(input));
+  });
+
+  test("triage: PR 本文が空でも PR セクションは出す / 直前ジョブの summary・next_context が空なら行を出さない", () => {
+    const input: TriageInput = {
+      item: baseItem({ pr_number: 43 }),
+      issue: baseIssue(),
+      pr: basePr({ body: "", state: "MERGED" }),
+      newEvents: [],
+      lastRun: {
+        id: 3,
+        job_id: 3,
+        repo: "k-wa-wa/example-repo",
+        issue_number: 42,
+        job_type: "implement",
+        started_at: "2026-08-28T16:08:00Z",
+        ended_at: "2026-08-28T16:10:00Z",
+        result: null,
+        summary: "",
+        next_context: "",
+        log_path: "/var/lib/autopilot/logs/3.log",
+      },
+    };
+    golden("triage_empty_pr_body", buildTriagePrompt(input));
+  });
+
+  test("triage: 過去の履歴は直近 10 件だけ、古い順に並ぶ", () => {
+    const input: TriageInput = {
+      item: baseItem(),
+      issue: baseIssue({
+        comments: {
+          nodes: Array.from({ length: 12 }, (_, n) => ({
+            databaseId: 500 + n,
+            body: `コメント ${n + 1}`,
+            createdAt: `2026-08-28T16:${String(10 + n).padStart(2, "0")}:00Z`,
+            author: { login: n % 2 === 0 ? "k-wa-wa" : "bot-wa-wa" },
+          })),
+        },
+      }),
+      pr: null,
+      newEvents: [],
+      lastRun: null,
+    };
+    golden("triage_history_limit", buildTriagePrompt(input));
+  });
+
+  test("triage: 本文・履歴は長ければ切り詰められる", () => {
+    const long = "あ".repeat(5000);
+    const p = buildTriagePrompt({
+      item: baseItem({ pr_number: 43 }),
+      issue: baseIssue({
+        body: long,
+        comments: {
+          nodes: [
+            {
+              databaseId: 1,
+              body: long,
+              createdAt: "2026-08-28T16:10:00Z",
+              author: { login: "k-wa-wa" },
+            },
+          ],
+        },
+      }),
+      pr: basePr({ body: long }),
+      newEvents: [],
+      lastRun: null,
+    });
+    // Issue 本文・PR 本文は 4000 文字、履歴は 1000 文字で切る。
+    expect(p.split("あ".repeat(4000) + "\n…（省略）").length - 1).toBe(2);
+    expect(p).toContain("あ".repeat(1000) + "\n…（省略）");
+    expect(p).not.toContain("あ".repeat(4001));
+  });
+});
+
+describe("定期巡回プロンプトの Golden テスト", () => {
+  test("patrol: 品質ゲートなし", () => {
+    golden(
+      "patrol_no_gate",
+      buildPatrolPrompt({ repo: "k-wa-wa/example-repo", base: "master", gate: null }),
+    );
+  });
+
+  test("patrol: 品質ゲートあり", () => {
+    golden(
+      "patrol_with_gate",
+      buildPatrolPrompt({
+        repo: "k-wa-wa/example-repo",
+        base: "master",
+        gate: "## 品質基準\n- `nix flake check ./nix` が成功すること",
+      }),
+    );
+  });
+});
+
+describe("プロンプトの境界条件", () => {
+  test("worker: 品質ゲートが空文字でも既定文言に置き換えず、そのまま出す", () => {
+    const p = buildWorkerPrompt(workerInput({ jobType: "evaluate", prNumber: 43, gate: "" }));
+    expect(p.endsWith("## このリポジトリの品質ゲート\n")).toBe(true);
+  });
+
+  test("worker: 品質ゲートの末尾改行は保つ", () => {
+    const p = buildWorkerPrompt(workerInput({ jobType: "evaluate", prNumber: 43, gate: "基準\n" }));
+    expect(p.endsWith("## このリポジトリの品質ゲート\n基準\n")).toBe(true);
+  });
+
+  test("worker: 引き継ぎ文脈は前後の空白を除いて出す。空白のみなら節ごと出さない", () => {
+    const withCtx = buildWorkerPrompt(workerInput({ jobContext: "\n  指示  \n\n" }));
+    expect(withCtx).toContain("## 引き継がれた指示・文脈\n指示\n\n## このリポジトリの品質ゲート");
+    const blank = buildWorkerPrompt(workerInput({ jobContext: " \n " }));
+    expect(blank).not.toContain("引き継がれた指示");
+  });
+
+  test("値に含まれる {{ }} はテンプレートとして解釈されない（第三者テキストの混入対策）", () => {
+    const p = buildWorkerPrompt(
+      workerInput({ issueTitle: "{{#if x}}{{repo}}{{/if}} $& $1", jobContext: "{{> rules}}" }),
+    );
+    expect(p).toContain("対象 Issue: #42 {{#if x}}{{repo}}{{/if}} $& $1");
+    expect(p).toContain("{{> rules}}");
   });
 });
