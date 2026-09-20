@@ -125,6 +125,12 @@ section { min-width: 0; }
   transition: border-color 0.15s ease;
 }
 .card:hover { border-color: var(--muted); }
+.card.has-error {
+  border-color: rgba(168, 68, 42, 0.35);
+}
+.card.has-error:hover {
+  border-color: var(--warn);
+}
 .card-main {
   display: block;
   padding: 11px 13px;
@@ -160,12 +166,14 @@ section { min-width: 0; }
   align-items: center;
   gap: 6px;
   font-size: 12px;
+  overflow: hidden;
 }
 .sub-connector {
   color: var(--muted);
   font-family: monospace;
   font-size: 12px;
   user-select: none;
+  flex-shrink: 0;
 }
 .pr-badge {
   display: inline-flex;
@@ -179,12 +187,40 @@ section { min-width: 0; }
   border-radius: 4px;
   background: rgba(59, 130, 246, 0.08);
   transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
 }
 .pr-badge:hover {
   background: rgba(59, 130, 246, 0.18);
   text-decoration: underline;
 }
 .pr-badge svg {
+  flex-shrink: 0;
+}
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--warn);
+  text-decoration: none;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(168, 68, 42, 0.08);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.error-badge:hover {
+  background: rgba(168, 68, 42, 0.18);
+  text-decoration: underline;
+}
+.error-badge svg {
   flex-shrink: 0;
 }
 .empty {
@@ -203,6 +239,24 @@ details summary {
   user-select: none;
 }
 details summary:hover { color: var(--fg); }
+.banner {
+  background: var(--warn);
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.banner:hover {
+  filter: brightness(0.95);
+}
+.banner-tap-hint {
+  font-size: 11px;
+  opacity: 0.85;
+  text-decoration: underline;
+}
 
 /* Modal Dialog */
 dialog.modal {
@@ -343,6 +397,143 @@ dialog.modal::backdrop {
   padding-top: 6px;
   margin-top: 2px;
 }
+.error-modal-box {
+  width: 540px;
+}
+.error-meta-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.error-issue-title {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.error-badges-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 11px;
+}
+.tag-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 500;
+  background: var(--line);
+  color: var(--fg);
+}
+.tag-badge.warn {
+  background: rgba(168, 68, 42, 0.15);
+  color: var(--warn);
+}
+.error-detail-box {
+  background: var(--bg);
+  border: 1px solid rgba(168, 68, 42, 0.3);
+  border-left: 4px solid var(--warn);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+}
+.error-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.error-history-item {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.error-history-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.error-history-reason {
+  color: var(--fg);
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  text-decoration: none;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.btn-primary {
+  background: var(--fg);
+  color: var(--bg);
+}
+.btn-primary:hover {
+  opacity: 0.9;
+}
+.btn-secondary {
+  background: var(--bg);
+  border-color: var(--line);
+  color: var(--fg);
+}
+.btn-secondary:hover {
+  border-color: var(--muted);
+}
+.failed-jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.failed-job-card {
+  background: var(--bg);
+  border: 1px solid rgba(168, 68, 42, 0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.failed-job-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.failed-job-reason {
+  color: var(--muted);
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 `;
 
 export const Page: FC = () => {
@@ -471,6 +662,92 @@ export const Page: FC = () => {
                     <dd id="modal-degraded-status">正常稼働中</dd>
                   </div>
                 </dl>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog id="error-modal" class="modal">
+          <div class="modal-box error-modal-box">
+            <div class="modal-header">
+              <h2 id="error-modal-title">⚠️ エラー原因</h2>
+              <button
+                type="button"
+                id="error-modal-close-btn"
+                class="close-btn"
+                aria-label="閉じる"
+              >
+                &times;
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="modal-section">
+                <div class="error-meta-box">
+                  <div class="error-issue-title" id="error-modal-issue-title">
+                    --
+                  </div>
+                  <div class="error-badges-row" id="error-modal-badges"></div>
+                </div>
+                <div class="error-detail-box" id="error-modal-reason">
+                  --
+                </div>
+              </div>
+              <div class="modal-section" id="error-history-section" style="display: none;">
+                <h3>
+                  過去のエラー履歴 (<span id="error-history-count">0</span>件)
+                </h3>
+                <div id="error-modal-history" class="error-history-list"></div>
+              </div>
+              <div class="modal-footer">
+                <a
+                  id="error-modal-issue-link"
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="btn btn-secondary"
+                >
+                  GitHub で開く
+                </a>
+                <button type="button" id="error-modal-dismiss-btn" class="btn btn-primary">
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog id="system-error-modal" class="modal">
+          <div class="modal-box error-modal-box">
+            <div class="modal-header">
+              <h2>⚠️ システム障害・滞留ジョブ詳細</h2>
+              <button
+                type="button"
+                id="system-error-modal-close-btn"
+                class="close-btn"
+                aria-label="閉じる"
+              >
+                &times;
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="modal-section" id="system-degraded-section">
+                <h3>障害ステータス</h3>
+                <div
+                  id="system-degraded-list"
+                  class="error-detail-box"
+                  style="margin-bottom: 14px;"
+                >
+                  --
+                </div>
+              </div>
+              <div class="modal-section" id="system-failed-jobs-section" style="display: none;">
+                <h3>直近の失敗ジョブ一覧（1時間以内）</h3>
+                <div class="failed-jobs-list" id="system-failed-jobs-list"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" id="system-error-modal-dismiss-btn" class="btn btn-primary">
+                  閉じる
+                </button>
               </div>
             </div>
           </div>

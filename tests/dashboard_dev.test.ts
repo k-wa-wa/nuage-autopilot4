@@ -42,13 +42,18 @@ describe("Dashboard Dev & Mock Environment", () => {
     // 5. errors
     loadScenario(db, "errors");
     state = buildState(db);
-    expect(state.lanes.action_required.length).toBe(5);
+    expect(state.lanes.action_required.length).toBe(7);
+    expect(state.lanes.working.length).toBe(2);
+    expect(state.lanes.queued.length).toBe(1);
+    expect(state.lanes.backlog.length).toBe(1);
     const hints = state.lanes.action_required.map((c) => c.display_hint);
     expect(hints).toContain("Triage 失敗（要判断）");
     expect(hints).toContain("CI 失敗（要判断）");
     expect(hints).toContain("助言待ち");
     expect(hints).toContain("エラー対応待ち");
     expect(hints).toContain("中止済み");
+    expect(hints).toContain("仕様確認待ち");
+    expect(hints).toContain("マージ待ち");
   });
 
   test("createDevApp の HTTP エンドポイントが正常に応答する", async () => {
@@ -126,5 +131,59 @@ describe("Dashboard Dev & Mock Environment", () => {
     // POST /api/dev/scenario/unknown (400)
     const resBad = await app.request("/api/dev/scenario/invalid_scenario", { method: "POST" });
     expect(resBad.status).toBe(400);
+  });
+
+  test("各レーンが新しい順（降順）にソートされている", () => {
+    const { db } = createMockDb("dense");
+    const state = buildState(db);
+
+    // Action Required: state_since 降順
+    for (let i = 1; i < state.lanes.action_required.length; i++) {
+      const prev = state.lanes.action_required[i - 1]!.state_since;
+      const curr = state.lanes.action_required[i]!.state_since;
+      expect(prev.localeCompare(curr)).toBeGreaterThanOrEqual(0);
+    }
+
+    // Queued: state_since 降順
+    for (let i = 1; i < state.lanes.queued.length; i++) {
+      const prev = state.lanes.queued[i - 1]!.state_since;
+      const curr = state.lanes.queued[i]!.state_since;
+      expect(prev.localeCompare(curr)).toBeGreaterThanOrEqual(0);
+    }
+
+    // Backlog: state_since 降順
+    for (let i = 1; i < state.lanes.backlog.length; i++) {
+      const prev = state.lanes.backlog[i - 1]!.state_since;
+      const curr = state.lanes.backlog[i]!.state_since;
+      expect(prev.localeCompare(curr)).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  test("エラーカードに error_detail と複数エラー履歴 (error_history) が正しく反映される", () => {
+    const { db } = createMockDb("errors");
+    const state = buildState(db);
+
+    // #72: CI 失敗（リトライ3回すべて失敗したカード）
+    const item72 = state.lanes.action_required.find((c) => c.issue_number === 72);
+    expect(item72).toBeDefined();
+    expect(item72?.error_detail).not.toBeNull();
+    expect(item72?.error_detail?.summary).toContain("試行 3/3");
+    // 複数エラー履歴（3件）が保持されていること
+    expect(item72?.error_history).toBeDefined();
+    expect(item72?.error_history?.length).toBe(3);
+    expect(item72?.error_history?.[0]?.summary).toContain("試行 3/3");
+    expect(item72?.error_history?.[1]?.summary).toContain("試行 2/3");
+    expect(item72?.error_history?.[2]?.summary).toContain("試行 1/3");
+
+    // standard シナリオの pechka#61（本番再現カード）
+    loadScenario(db, "standard");
+    const stdState = buildState(db);
+    const pechka61 = stdState.lanes.action_required.find(
+      (c) => c.repo === "k-wa-wa/pechka" && c.issue_number === 61,
+    );
+    expect(pechka61).toBeDefined();
+    expect(pechka61?.display_hint).toBe("エラー対応待ち");
+    expect(pechka61?.error_detail).not.toBeNull();
+    expect(pechka61?.error_detail?.summary).toContain("Claude Code 実行失敗");
   });
 });

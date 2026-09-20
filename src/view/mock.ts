@@ -76,10 +76,10 @@ export function createMockDb(scenario: ScenarioName = "standard"): {
  * 既存のDBをクリアして新しいシナリオのデータを投入する。
  */
 export function loadScenario(db: DB, scenario: ScenarioName): void {
-  // テーブル初期化
-  db.run("DELETE FROM items");
-  db.run("DELETE FROM job_queue");
+  // テーブル初期化（外部キー制約に配慮し runs -> job_queue -> items の順序で削除）
   db.run("DELETE FROM runs");
+  db.run("DELETE FROM job_queue");
+  db.run("DELETE FROM items");
 
   // runtime リセット
   runtime.graphqlRemaining = 5000;
@@ -168,6 +168,42 @@ function insertItem(db: DB, it: MockItemInput): void {
   }
 }
 
+function insertMockRun(
+  db: DB,
+  r: {
+    repo: string;
+    issue_number: number;
+    job_type: JobType;
+    result: string;
+    summary: string;
+    started_at?: string;
+    ended_at?: string;
+  },
+): void {
+  const started = r.started_at ?? pastIso(10);
+  const ended = r.ended_at ?? pastIso(5);
+  const j = db
+    .query(
+      `INSERT INTO job_queue (repo, issue_number, job_type, job_context, trigger_key, status, created_at, started_at, completed_at)
+       VALUES (?, ?, ?, ?, 'mock_trig', ?, ?, ?, ?) RETURNING id`,
+    )
+    .get(
+      r.repo,
+      r.issue_number,
+      r.job_type,
+      r.summary,
+      r.result === "SUCCESS" ? "completed" : "failed",
+      started,
+      started,
+      ended,
+    ) as { id: number };
+
+  db.query(
+    `INSERT INTO runs (job_id, repo, issue_number, job_type, started_at, ended_at, result, summary, next_context, log_path)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '/tmp/mock.log')`,
+  ).run(j.id, r.repo, r.issue_number, r.job_type, started, ended, r.result, r.summary);
+}
+
 function seedStandardScenario(db: DB): void {
   runtime.graphqlRemaining = 4820;
   runtime.graphqlLimit = 5000;
@@ -177,15 +213,79 @@ function seedStandardScenario(db: DB): void {
   runtime.restResetAt = futureIso(42);
   runtime.lastPollAt = pastIso(1);
 
-  // 🧑 Action Required
+  // 🧑 Action Required（新しい順に並ぶ）
+  // 1. [単一エラー] 本番環境再現カード
+  insertItem(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 61,
+    title: "【Frontend】管理画面に動画アップロード UI を追加する",
+    state: "ActionRequired",
+    display_hint: "エラー対応待ち",
+    state_since: pastIso(5),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 61,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "Claude Code 実行失敗 (exit code 1):\nerror TS2322: Type 'string' is not assignable to type 'File | Blob'.\n  --> frontend/components/AdminUploadModal.tsx:42:15\nビルド検証 (bun run typecheck) に失敗したためロールバックしました。",
+    started_at: pastIso(80),
+    ended_at: pastIso(75),
+  });
+
+  // 2. [正常カード] 仕様確認待ち（エラーなし・通常表示）
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 104,
     title: "ユーザー認証のリフレッシュトークンローテーション対応",
     state: "ActionRequired",
     display_hint: "仕様確認待ち",
-    state_since: pastIso(25),
+    state_since: pastIso(15),
   });
+
+  // 3. [複数エラー履歴] リトライ上限超過（過去3回の失敗履歴付き）
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    title: "CI ビルドパイプラインが 3 回連続失敗（リトライ上限超過）",
+    state: "ActionRequired",
+    display_hint: "CI 失敗（要判断）",
+    pr_number: 75,
+    state_since: pastIso(30),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 1/3: 型エラー TS2339: Property 'userToken' does not exist on type 'SessionContext'.",
+    started_at: pastIso(95),
+    ended_at: pastIso(90),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 2/3: 単体テスト失敗: tests/auth.test.ts > refreshToken > 401 Unauthorized expected 200",
+    started_at: pastIso(88),
+    ended_at: pastIso(85),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 3/3 (直近): CI ビルドタイムアウト (1800秒超過)。修正コードが無限ループに陥っている可能性があります。",
+    started_at: pastIso(80),
+    ended_at: pastIso(76),
+  });
+
+  // 4. [正常カード] PRマージ待ち（エラーなし・通常表示）
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 88,
@@ -193,16 +293,17 @@ function seedStandardScenario(db: DB): void {
     state: "ActionRequired",
     display_hint: "マージ待ち",
     pr_number: 92,
-    state_since: pastIso(130), // ~2時間前
+    state_since: pastIso(130),
   });
+
+  // 5. [正常カード] 助言待ち（エラーなし・通常表示）
   insertItem(db, {
     repo: "org/backend-service",
     issue_number: 42,
     title: "PostgreSQL 接続プールの最適化とタイムアウト監視",
     state: "ActionRequired",
-    display_hint: "CI 失敗（要判断）",
-    pr_number: 45,
-    state_since: pastIso(280), // ~4時間前
+    display_hint: "助言待ち",
+    state_since: pastIso(280),
   });
 
   // 🤖 Working
@@ -289,8 +390,8 @@ function seedAlertsScenario(db: DB): void {
   // ジョブ失敗履歴を投入して「ジョブ滞留」バナーを発火
   db.query(`
     INSERT INTO job_queue (repo, issue_number, job_type, job_context, trigger_key, status, created_at, completed_at)
-    VALUES ('k-wa-wa/nuage-autopilot4', 104, 'implement', 'mock context', 'trig_fail1', 'failed', ?, ?),
-           ('org/backend-service', 42, 'refine', 'mock context', 'trig_fail2', 'failed', ?, ?)
+    VALUES ('k-wa-wa/nuage-autopilot4', 104, 'implement', 'TypeError: Failed to fetch API key from environment', 'trig_fail1', 'failed', ?, ?),
+           ('org/backend-service', 42, 'refine', 'TimeoutError: LLM refinement timed out after 900s', 'trig_fail2', 'failed', ?, ?)
   `).run(pastIso(20), pastIso(10), pastIso(15), pastIso(5));
 
   insertItem(db, {
@@ -301,6 +402,17 @@ function seedAlertsScenario(db: DB): void {
     display_hint: "Triage 失敗（要判断）",
     state_since: pastIso(15),
   });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 99,
+    job_type: "refine",
+    result: "FAIL",
+    summary:
+      "Triage Agent 出力検証エラー:\nJSONパース失敗: Unexpected token < in JSON at position 0\nプロンプト指示に対するエージェントの出力がJSON形式ではありませんでした。",
+    started_at: pastIso(18),
+    ended_at: pastIso(15),
+  });
+
   insertItem(db, {
     repo: "org/backend-service",
     issue_number: 42,
@@ -317,6 +429,16 @@ function seedAlertsScenario(db: DB): void {
     state: "ActionRequired",
     display_hint: "エラー対応待ち",
     state_since: pastIso(50),
+  });
+  insertMockRun(db, {
+    repo: "org/backend-service",
+    issue_number: 38,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "外部 API (Stripe Webhook Gateway) 接続タイムアウト (ETIMEDOUT 192.0.2.1:443)\n3回のリトライ後も応答がないためジョブを中断しました。",
+    started_at: pastIso(55),
+    ended_at: pastIso(50),
   });
 
   insertItem(db, {
@@ -439,6 +561,18 @@ function seedErrorsScenario(db: DB): void {
     display_hint: "Triage 失敗（要判断）",
     state_since: pastIso(8),
   });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 71,
+    job_type: "refine",
+    result: "FAIL",
+    summary:
+      "Triage エージェント出力例外: JSON.parse エラー (position 124)\nモデルがマークダウンブロックなしで不完全なJSON文字列を出力しました。",
+    started_at: pastIso(10),
+    ended_at: pastIso(8),
+  });
+
+  // 複数エラー履歴を持つアイテム（リトライ3回すべて失敗したケース）
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 72,
@@ -448,6 +582,40 @@ function seedErrorsScenario(db: DB): void {
     pr_number: 75,
     state_since: pastIso(45),
   });
+  // 1回目の失敗履歴 (40分前)
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 1/3: 型エラー TS2339: Property 'userToken' does not exist on type 'SessionContext'.",
+    started_at: pastIso(45),
+    ended_at: pastIso(40),
+  });
+  // 2回目の失敗履歴 (25分前)
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 2/3: 単体テスト失敗: tests/auth.test.ts > refreshToken > 401 Unauthorized expected 200",
+    started_at: pastIso(30),
+    ended_at: pastIso(25),
+  });
+  // 3回目の失敗履歴 (直近最新: 10分前)
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 72,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "試行 3/3 (最終): CI ビルドタイムアウト (1800秒超過)。修正コードが無限ループに陥っている可能性があります。",
+    started_at: pastIso(15),
+    ended_at: pastIso(10),
+  });
+
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 73,
@@ -456,6 +624,17 @@ function seedErrorsScenario(db: DB): void {
     display_hint: "助言待ち",
     state_since: pastIso(90),
   });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 73,
+    job_type: "implement",
+    result: "BLOCKED",
+    summary:
+      "ワーカーが助言を要求: リファクタリング対象ファイルが想定より多く、影響範囲の決定について人間の指示を求めています。",
+    started_at: pastIso(95),
+    ended_at: pastIso(90),
+  });
+
   insertItem(db, {
     repo: "org/backend-service",
     issue_number: 74,
@@ -465,6 +644,17 @@ function seedErrorsScenario(db: DB): void {
     pr_number: 80,
     state_since: pastIso(120),
   });
+  insertMockRun(db, {
+    repo: "org/backend-service",
+    issue_number: 74,
+    job_type: "implement",
+    result: "FAIL",
+    summary:
+      "Git マージ競合エラー (Merge conflict in src/routes/api.ts):\n自動マージを試行しましたがコンフリクトマーカーが残存したため中断しました。",
+    started_at: pastIso(125),
+    ended_at: pastIso(120),
+  });
+
   insertItem(db, {
     repo: "org/backend-service",
     issue_number: 75,
@@ -472,5 +662,68 @@ function seedErrorsScenario(db: DB): void {
     state: "ActionRequired",
     display_hint: "中止済み",
     state_since: pastIso(200),
+  });
+
+  // 正常カード（エラーカードとの対比確認用）
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 80,
+    title: "正常な機能要望: API レートリミットヘッダーの自動パース処理",
+    state: "ActionRequired",
+    display_hint: "仕様確認待ち",
+    state_since: pastIso(15),
+  });
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 81,
+    title: "正常なPR: ダッシュボードのフォントファミリー設定改善",
+    state: "ActionRequired",
+    display_hint: "マージ待ち",
+    pr_number: 82,
+    state_since: pastIso(60),
+  });
+
+  // 🤖 Working レーン
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 90,
+    title: "自動修復パイプラインのワーカープロセス隔離",
+    state: "Working",
+    display_hint: "実装中",
+    pr_number: 91,
+    job_type: "implement",
+    started_at: pastIso(5),
+    state_since: pastIso(8),
+  });
+  insertItem(db, {
+    repo: "org/frontend-app",
+    issue_number: 30,
+    title: "エラートラッキング画面のフィルタリング機能追加",
+    state: "Working",
+    display_hint: "精緻化中",
+    job_type: "refine",
+    started_at: pastIso(2),
+    state_since: pastIso(3),
+  });
+
+  // 📦 Queued レーン
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 92,
+    title: "Webhook 再送キューのインデックス最適化",
+    state: "Queued",
+    display_hint: "着手待ち",
+    job_type: "implement",
+    state_since: pastIso(10),
+  });
+
+  // 📥 Backlog レーン
+  insertItem(db, {
+    repo: "org/backend-service",
+    issue_number: 95,
+    title: "将来のマイクロサービス分割に向けたドメインモデリング",
+    state: "ActionRequired",
+    display_hint: "未着手",
+    state_since: pastIso(1440),
   });
 }
