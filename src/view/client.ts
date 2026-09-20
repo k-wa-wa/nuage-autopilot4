@@ -113,14 +113,14 @@ export function initClient(): void {
         const cardKey = `${c.repo}#${c.issue_number}`;
         cardCache.set(cardKey, c);
 
-        const isErrorHint = [
+        const hasError = [
           "エラー対応待ち",
           "CI 失敗（要判断）",
           "Triage 失敗（要判断）",
           "CI 停滞",
           "助言待ち",
+          "中止済み",
         ].includes(c.display_hint);
-        const hasError = isErrorHint || Boolean(c.error_detail);
 
         const bits = [c.repo, `#${c.issue_number}`];
         if (c.queue_position) bits.push(`待ち順位 #${c.queue_position}`);
