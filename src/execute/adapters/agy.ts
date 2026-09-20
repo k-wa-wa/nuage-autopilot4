@@ -8,6 +8,11 @@ import type {
   Invocation,
 } from "./types.ts";
 
+export interface ParseAgyUsageOptions {
+  /** Claude/GPT モデル枠を含めるか（現状 autopilot では不要のため既定 false） */
+  includeClaudeGpt?: boolean;
+}
+
 /**
  * Antigravity (agy) の /usage コマンド出力をパースする。
  *
@@ -17,7 +22,11 @@ import type {
  * Claude and GPT models\tWeekly Limit Remaining\t100%\t2026-09-05T13:31:29Z
  * Claude and GPT models\tFive Hour Limit Remaining\t100%\t2026-08-29T18:31:29Z
  */
-export function parseAgyUsage(stdout: string): AgentUsageLimit[] {
+export function parseAgyUsage(
+  stdout: string,
+  options: ParseAgyUsageOptions = {},
+): AgentUsageLimit[] {
+  const { includeClaudeGpt = false } = options;
   const limits: AgentUsageLimit[] = [];
   const lines = stdout.split(/\r?\n/);
 
@@ -39,6 +48,11 @@ export function parseAgyUsage(stdout: string): AgentUsageLimit[] {
     let groupShort = group;
     if (group.toLowerCase().includes("gemini")) groupShort = "Gemini";
     else if (group.toLowerCase().includes("claude")) groupShort = "Claude/GPT";
+
+    // Claude/GPT モデル枠は現状 autopilot で使用しないため除外（将来使用する可能性に備えてオプションで有効化可能）
+    if (!includeClaudeGpt && groupShort === "Claude/GPT") {
+      continue;
+    }
 
     let windowShort = window;
     if (/five hour|5.?h/i.test(window)) windowShort = "5h";

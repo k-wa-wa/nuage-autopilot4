@@ -111,6 +111,11 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(healthJson.rest_remaining).toBeGreaterThan(0);
     expect(healthJson.rest_limit).toBe(5000);
 
+    const agyUsage = healthJson.agent_usages.find((u) => u.adapter === "agy");
+    expect(agyUsage).toBeDefined();
+    expect(agyUsage?.limits.every((lim) => !lim.label.startsWith("Claude/GPT"))).toBe(true);
+    expect(agyUsage?.limits.some((lim) => lim.label.startsWith("Gemini"))).toBe(true);
+
     // GET /api/dev/scenarios
     const resScenarios = await app.request("/api/dev/scenarios");
     expect(resScenarios.status).toBe(200);

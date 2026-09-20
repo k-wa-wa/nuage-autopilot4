@@ -9,10 +9,12 @@ import type {
 } from "./types.ts";
 
 /**
- * Claude のリセット日時文字列（例: "Aug 29 at 11:49pm (Asia/Tokyo)"）を ISO 形式に変換する。
+ * Claude のリセット日時文字列（例: "Aug 29 at 11:49pm (Asia/Tokyo)", "Sep 21, 3:50am (Asia/Tokyo)", "Sep 26, 6am (Asia/Tokyo)"）を ISO 形式に変換する。
  */
-export function parseClaudeResetDate(raw: string): string | null {
-  const m = raw.match(/([A-Za-z]+)\s+(\d+)\s+at\s+(\d+):(\d+)(am|pm)(?:\s*\(([^)]+)\))?/i);
+export function parseClaudeResetDate(raw: string, now: Date = new Date()): string | null {
+  const m = raw.match(
+    /(?:resets\s+)?([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(?:at)?\s*|\s+)(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)(?:\s*\(([^)]+)\))?/i,
+  );
   if (!m) return raw;
 
   const [, monStr, dayStr, hourStr, minStr, ampm, tz] = m;
@@ -35,11 +37,10 @@ export function parseClaudeResetDate(raw: string): string | null {
 
   const day = Number.parseInt(dayStr ?? "1", 10);
   let hour = Number.parseInt(hourStr ?? "0", 10);
-  const min = Number.parseInt(minStr ?? "0", 10);
+  const min = minStr ? Number.parseInt(minStr, 10) : 0;
   if (ampm?.toLowerCase() === "pm" && hour < 12) hour += 12;
   if (ampm?.toLowerCase() === "am" && hour === 12) hour = 0;
 
-  const now = new Date();
   let year = now.getFullYear();
   if (mon < now.getMonth() - 6) year += 1;
 
@@ -47,7 +48,20 @@ export function parseClaudeResetDate(raw: string): string | null {
   let tzOffset = "+09:00";
   if (tz === "Asia/Tokyo" || tz === "JST") tzOffset = "+09:00";
   else if (tz === "UTC" || tz === "GMT") tzOffset = "Z";
-  else {
+  else if (tz) {
+    const offsetMatch = tz.match(/^(?:UTC|GMT)?([+-]\d{1,2})(?::?(\d{2}))?$/i);
+    if (offsetMatch) {
+      const h = Number.parseInt(offsetMatch[1]!, 10);
+      const sign = h >= 0 ? "+" : "-";
+      const m = offsetMatch[2] ? Number.parseInt(offsetMatch[2], 10) : 0;
+      tzOffset = `${sign}${pad(Math.abs(h))}:${pad(m)}`;
+    } else {
+      const offsetMin = -now.getTimezoneOffset();
+      const sign = offsetMin >= 0 ? "+" : "-";
+      const absMin = Math.abs(offsetMin);
+      tzOffset = `${sign}${pad(Math.floor(absMin / 60))}:${pad(absMin % 60)}`;
+    }
+  } else {
     const offsetMin = -now.getTimezoneOffset();
     const sign = offsetMin >= 0 ? "+" : "-";
     const absMin = Math.abs(offsetMin);

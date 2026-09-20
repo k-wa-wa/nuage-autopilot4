@@ -105,8 +105,9 @@ export function loadScenario(db: DB, scenario: ScenarioName): void {
       limits: [
         { label: "Gemini (5h)", remainingPct: 60, resetAt: futureIso(119) },
         { label: "Gemini (Weekly)", remainingPct: 85, resetAt: futureIso(7199) },
-        { label: "Claude/GPT (5h)", remainingPct: 100, resetAt: futureIso(299) },
-        { label: "Claude/GPT (Weekly)", remainingPct: 100, resetAt: futureIso(8599) },
+        // Claude/GPT 枠は現状 autopilot で不要のため除外
+        // { label: "Claude/GPT (5h)", remainingPct: 100, resetAt: futureIso(299) },
+        // { label: "Claude/GPT (Weekly)", remainingPct: 100, resetAt: futureIso(8599) },
       ],
     },
   ];

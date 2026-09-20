@@ -56,6 +56,16 @@ describe("adapters", () => {
       const resetIso = parseClaudeResetDate("Aug 29 at 11:49pm (Asia/Tokyo)");
       expect(resetIso).not.toBeNull();
       expect(resetIso).toMatch(/^\d{4}-08-29T14:49:00(\.000)?Z$/);
+
+      // カンマ区切り形式 (Sep 21, 3:50am)
+      const commaIso = parseClaudeResetDate("Sep 21, 3:50am (Asia/Tokyo)");
+      expect(commaIso).not.toBeNull();
+      expect(commaIso).toMatch(/^\d{4}-09-20T18:50:00(\.000)?Z$/);
+
+      // 分省略形式 (Sep 26, 6am)
+      const noMinIso = parseClaudeResetDate("Sep 26, 6am (Asia/Tokyo)");
+      expect(noMinIso).not.toBeNull();
+      expect(noMinIso).toMatch(/^\d{4}-09-25T21:00:00(\.000)?Z$/);
     });
 
     test("parseClaudeUsage: 正常系のパース", () => {
@@ -133,14 +143,14 @@ What's contributing to your limits usage?
       });
     });
 
-    test("parseAgyUsage: TSV 出力のパース", () => {
+    test("parseAgyUsage: TSV 出力のパース（既定では Claude/GPT 枠は除外）", () => {
       const output = `Gemini Models\tWeekly Limit Remaining\t85%\t2026-09-04T01:13:55Z
 Gemini Models\tFive Hour Limit Remaining\t60%\t2026-08-29T14:50:37Z
 Claude and GPT models\tWeekly Limit Remaining\t100%\t2026-09-05T13:31:29Z
 Claude and GPT models\tFive Hour Limit Remaining\t100%\t2026-08-29T18:31:29Z`;
 
       const limits = parseAgyUsage(output);
-      expect(limits).toHaveLength(4);
+      expect(limits).toHaveLength(2);
       expect(limits[0]).toEqual({
         label: "Gemini (Weekly)",
         remainingPct: 85,
@@ -151,12 +161,16 @@ Claude and GPT models\tFive Hour Limit Remaining\t100%\t2026-08-29T18:31:29Z`;
         remainingPct: 60,
         resetAt: "2026-08-29T14:50:37Z",
       });
-      expect(limits[2]).toEqual({
+
+      // includeClaudeGpt: true の場合は全件含まれる
+      const allLimits = parseAgyUsage(output, { includeClaudeGpt: true });
+      expect(allLimits).toHaveLength(4);
+      expect(allLimits[2]).toEqual({
         label: "Claude/GPT (Weekly)",
         remainingPct: 100,
         resetAt: "2026-09-05T13:31:29Z",
       });
-      expect(limits[3]).toEqual({
+      expect(allLimits[3]).toEqual({
         label: "Claude/GPT (5h)",
         remainingPct: 100,
         resetAt: "2026-08-29T18:31:29Z",

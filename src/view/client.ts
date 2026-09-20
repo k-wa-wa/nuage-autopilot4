@@ -19,9 +19,58 @@ export function initClient(): void {
           : `${Math.floor(m / 1440)}日前`;
   };
 
+  const parseResetMs = (str: string): number => {
+    const ms = Date.parse(str);
+    if (!Number.isNaN(ms)) return ms;
+
+    const m = str.match(
+      /(?:resets\s+)?([A-Za-z]+)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(?:at)?\s*|\s+)(\d{1,2})(?::(\d{1,2}))?\s*(am|pm)(?:\s*\(([^)]+)\))?/i,
+    );
+    if (m) {
+      const [, monStr, dayStr, hourStr, minStr, ampm, tz] = m;
+      const months: Record<string, number> = {
+        jan: 0,
+        feb: 1,
+        mar: 2,
+        apr: 3,
+        may: 4,
+        jun: 5,
+        jul: 6,
+        aug: 7,
+        sep: 8,
+        oct: 9,
+        nov: 10,
+        dec: 11,
+      };
+      const mon = months[monStr?.toLowerCase().slice(0, 3) ?? ""];
+      if (mon !== undefined) {
+        const day = Number.parseInt(dayStr ?? "1", 10);
+        let hour = Number.parseInt(hourStr ?? "0", 10);
+        const min = minStr ? Number.parseInt(minStr, 10) : 0;
+        if (ampm?.toLowerCase() === "pm" && hour < 12) hour += 12;
+        if (ampm?.toLowerCase() === "am" && hour === 12) hour = 0;
+
+        const now = new Date();
+        let year = now.getFullYear();
+        if (mon < now.getMonth() - 6) year += 1;
+
+        const pad = (n: number) => String(n).padStart(2, "0");
+        let tzOffset = "+09:00";
+        if (tz === "Asia/Tokyo" || tz === "JST") tzOffset = "+09:00";
+        else if (tz === "UTC" || tz === "GMT") tzOffset = "Z";
+
+        const d = new Date(
+          `${year}-${pad(mon + 1)}-${pad(day)}T${pad(hour)}:${pad(min)}:00${tzOffset}`,
+        );
+        if (!Number.isNaN(d.getTime())) return d.getTime();
+      }
+    }
+    return Number.NaN;
+  };
+
   const formatReset = (iso: string | null): string => {
     if (!iso) return "--";
-    const resetMs = Date.parse(iso);
+    const resetMs = parseResetMs(iso);
     if (Number.isNaN(resetMs)) return iso;
     const diffMin = Math.round((resetMs - Date.now()) / 60000);
     if (diffMin <= 0) return "まもなくリセット";
