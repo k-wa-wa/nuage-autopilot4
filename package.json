@@ -9,9 +9,9 @@
     "build": "bun build --compile --outfile dist/autopilot src/main.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check src tests",
-    "lint:fix": "biome check --write src tests",
-    "format": "biome format --write src tests",
+    "lint": "biome check src",
+    "lint:fix": "biome check --write src",
+    "format": "biome format --write src",
     "check": "bun run typecheck && bun run lint"
   },
   "devDependencies": {

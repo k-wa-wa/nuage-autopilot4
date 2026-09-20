@@ -1,45 +1,206 @@
-// プロンプトの golden テスト。
-//
-// 出力そのものを testdata/*.golden に固定し、テンプレートを触ったときに
-// 意図しない差分が出ていないかを見る。更新は UPDATE_GOLDEN=1 で行う。
-
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { buildPrompt as buildTriagePrompt, type TriageInput } from "../src/decide/triage.ts";
-import { patrolPrompt as buildPatrolPrompt } from "../src/execute/patrol.ts";
-import { buildPrompt as buildWorkerPrompt, type PromptInput } from "../src/execute/prompt.ts";
-import type { IssueDetail, PrDetail } from "../src/github/detail.ts";
-import type { Item } from "../src/types.ts";
+import type { IssueDetail, PrDetail } from "../github/detail.ts";
+import { goldenIn } from "../testing/golden.ts";
+import type { Item } from "../types.ts";
+import { ACTION_REQUIRED_HINTS, WORKING_HINTS } from "../types.ts";
+import {
+  buildPrompt as buildTriagePrompt,
+  normalizeTriageOutput,
+  parseJson,
+  TRIAGE_SYSTEM_PROMPT,
+  type TriageInput,
+  validate,
+} from "./triage.ts";
 
-const DIR = join(dirname(fileURLToPath(import.meta.url)), "testdata");
+const golden = goldenIn(import.meta.url);
 
-function golden(name: string, actual: string): void {
-  const path = join(DIR, `${name}.golden`);
-  if (process.env.UPDATE_GOLDEN === "1" || !existsSync(path)) {
-    mkdirSync(DIR, { recursive: true });
-    writeFileSync(path, actual, "utf8");
-    return;
-  }
-  const expected = readFileSync(path, "utf8");
-  expect(actual).toBe(expected);
+describe("Triage Agent のプロンプトとバリデーション", () => {
+  test("SYSTEM プロンプトに定義済みの全 display_hint が含まれていること", () => {
+    for (const hint of ACTION_REQUIRED_HINTS) {
+      expect(TRIAGE_SYSTEM_PROMPT).toContain(`"${hint}"`);
+    }
+    for (const hint of WORKING_HINTS) {
+      expect(TRIAGE_SYSTEM_PROMPT).toContain(`"${hint}"`);
+    }
+  });
+
+  test("validate: 正常な判定 JSON を通す", () => {
+    const valid = {
+      display_hint: "仕様確認待ち",
+      next_job: "none",
+      job_context: "",
+      reason: "スコープの確認が必要",
+    };
+    expect(validate(valid)).toBeNull();
+
+    const queuedWithJob = {
+      display_hint: "着手待ち",
+      next_job: "refine",
+      job_context: "要件を整理してください",
+      reason: "新しい指示があるため",
+    };
+    expect(validate(queuedWithJob)).toBeNull();
+
+    const done = {
+      display_hint: "",
+      next_job: "none",
+      job_context: "",
+      reason: "完了",
+    };
+    expect(validate(done)).toBeNull();
+  });
+
+  test("validate: 自由形式や英語の display_hint を拒否する", () => {
+    const invalidHint = {
+      display_hint: "Scope clarification needed",
+      next_job: "none",
+      job_context: "",
+      reason: "スコープの確認が必要",
+    };
+    expect(validate(invalidHint)).toBe("bad display_hint: Scope clarification needed");
+  });
+
+  test("validate: next_job があるのに job_context が空なら拒否する", () => {
+    const emptyCtx = {
+      next_job: "implement",
+      job_context: "",
+      reason: "実装指示",
+    };
+    expect(validate(emptyCtx)).toBe("empty job_context");
+  });
+
+  test("normalizeTriageOutput: next_job がある場合は自動的に Queued / 着手待ち に正規化される", () => {
+    // LLM が state: ActionRequired や display_hint: 仕様確認待ち を返してきても安全に補正
+    const raw = {
+      state: "ActionRequired",
+      display_hint: "仕様確認待ち",
+      next_job: "implement",
+      job_context: "flake.nix を修正してください",
+      reason: "レビュー指摘に対応するため",
+    };
+    const out = normalizeTriageOutput(raw);
+    expect(out.state).toBe("Queued");
+    expect(out.display_hint).toBe("着手待ち");
+    expect(out.next_job).toBe("implement");
+    expect(out.job_context).toBe("flake.nix を修正してください");
+  });
+
+  test("normalizeTriageOutput: next_job が none の場合は display_hint から state が一意に導出される", () => {
+    const mergeWait = normalizeTriageOutput({
+      display_hint: "マージ待ち",
+      next_job: "none",
+      reason: "CI合格",
+    });
+    expect(mergeWait.state).toBe("ActionRequired");
+    expect(mergeWait.display_hint).toBe("マージ待ち");
+
+    const ciWait = normalizeTriageOutput({
+      display_hint: "CI 待ち",
+      next_job: "none",
+      reason: "CI実行中",
+    });
+    expect(ciWait.state).toBe("Working");
+    expect(ciWait.display_hint).toBe("CI 待ち");
+
+    const done = normalizeTriageOutput({
+      display_hint: "",
+      next_job: "none",
+      reason: "完了",
+    });
+    expect(done.state).toBe("Done");
+    expect(done.display_hint).toBe("");
+  });
+
+  test("parseJson: Markdown や前後のノイズがあっても JSON を抽出できる", () => {
+    const output = `
+思考プロセス:
+スコープが曖昧なので仕様確認待ちにします。
+
+\`\`\`json
+{
+  "display_hint": "仕様確認待ち",
+  "next_job": "none",
+  "job_context": "",
+  "reason": "スコープ確認が必要"
 }
+\`\`\`
+以上です。
+`;
+    const parsed = parseJson(output);
+    expect(parsed).not.toBeNull();
+    expect(parsed?.display_hint).toBe("仕様確認待ち");
+  });
 
-function workerInput(patch: Partial<PromptInput> = {}): PromptInput {
-  return {
-    jobType: "refine",
-    repo: "k-wa-wa/example-repo",
-    issueNumber: 42,
-    issueTitle: "ホストごとの自動アップグレード設定を追加したい",
-    jobContext: "",
-    resultPath: "/var/lib/autopilot/run/42.result.json",
-    baseBranch: "master",
-    prNumber: 0,
-    gate: null,
-    ...patch,
-  };
-}
+  test("buildPrompt: reviewThreads のインラインコメントがファイル位置付きで過去履歴に含まれる", () => {
+    const { buildPrompt } = require("./triage.ts");
+    const prompt = buildPrompt({
+      item: {
+        repo: "o/r",
+        issue_number: 1,
+        pr_number: 10,
+        state: "ActionRequired",
+        display_hint: "仕様確認待ち",
+        blocked_from: "",
+        sub_issues_completed: 0,
+        sub_issues_total: 0,
+        retry_count: 0,
+      },
+      issue: {
+        title: "Test Issue",
+        body: "Issue Body",
+        comments: { nodes: [] },
+      },
+      pr: {
+        body: "PR Body",
+        state: "OPEN",
+        comments: { nodes: [] },
+        reviews: {
+          nodes: [
+            {
+              databaseId: 1,
+              body: "全体のレビューコメント",
+              submittedAt: "2026-08-24T00:50:00Z",
+              author: { login: "reviewer" },
+            },
+          ],
+        },
+        reviewThreads: {
+          nodes: [
+            {
+              isResolved: false,
+              comments: {
+                nodes: [
+                  {
+                    databaseId: 10,
+                    body: "hostName は不要では？",
+                    path: "nix/flake.nix",
+                    line: 121,
+                    createdAt: "2026-08-24T01:00:00Z",
+                    author: { login: "reviewer" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+      newEvents: [
+        {
+          kind: "review_comment",
+          author: "reviewer",
+          body: "[nix/flake.nix:121] 修正して。",
+          at: "2026-08-24T01:05:00Z",
+        },
+      ],
+      lastRun: null,
+    });
+
+    expect(prompt).toContain("## 過去の履歴");
+    expect(prompt).toContain("[nix/flake.nix:121] hostName は不要では？");
+    expect(prompt).toContain("全体のレビューコメント");
+    expect(prompt).toContain("[nix/flake.nix:121] 修正して。");
+  });
+});
 
 function baseItem(patch: Partial<Item> = {}): Item {
   return {
@@ -121,67 +282,6 @@ function basePr(patch: Partial<PrDetail> = {}): PrDetail {
     ...patch,
   };
 }
-
-describe("Worker Agent プロンプトの Golden テスト", () => {
-  test("refine: 要求の精緻化プロンプト", () => {
-    golden("refine", buildWorkerPrompt(workerInput({ jobType: "refine" })));
-  });
-
-  test("implement: 新規ブランチ・PR 作成の実装プロンプト", () => {
-    golden(
-      "implement_new",
-      buildWorkerPrompt(
-        workerInput({
-          jobType: "implement",
-          prNumber: 0,
-          jobContext: "Issue 本文の仕様に従って実装し、nix flake check で検証してください。",
-        }),
-      ),
-    );
-  });
-
-  test("implement: 既存 PR に対する修正実装プロンプト", () => {
-    golden(
-      "implement_existing_pr",
-      buildWorkerPrompt(
-        workerInput({
-          jobType: "implement",
-          prNumber: 43,
-          jobContext:
-            "PR #43 の nix/flake.nix:121 行でのレビュー指摘「hostNameは不要では」に対応してください。",
-        }),
-      ),
-    );
-  });
-
-  test("evaluate: カスタム品質ゲートありの品質評価プロンプト", () => {
-    golden(
-      "evaluate_with_gate",
-      buildWorkerPrompt(
-        workerInput({
-          jobType: "evaluate",
-          prNumber: 43,
-          gate: "## 品質基準\n- `nix flake check ./nix` が成功すること\n- 全ホストの時刻重複がないこと",
-          jobContext: "CI が通過した。PR #43 を評価する。",
-        }),
-      ),
-    );
-  });
-
-  test("evaluate: 品質ゲートなし（デフォルト基準）の品質評価プロンプト", () => {
-    golden(
-      "evaluate_no_gate",
-      buildWorkerPrompt(
-        workerInput({
-          jobType: "evaluate",
-          prNumber: 43,
-          gate: null,
-          jobContext: "CI が通過した。PR #43 を評価する。",
-        }),
-      ),
-    );
-  });
-});
 
 describe("Triage Agent プロンプトの Golden テスト", () => {
   test("triage: 新規 Issue 起票時の判定プロンプト", () => {
@@ -381,52 +481,5 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
     expect(p.split("あ".repeat(4000) + "\n…（省略）").length - 1).toBe(2);
     expect(p).toContain("あ".repeat(1000) + "\n…（省略）");
     expect(p).not.toContain("あ".repeat(4001));
-  });
-});
-
-describe("定期巡回プロンプトの Golden テスト", () => {
-  test("patrol: 品質ゲートなし", () => {
-    golden(
-      "patrol_no_gate",
-      buildPatrolPrompt({ repo: "k-wa-wa/example-repo", base: "master", gate: null }),
-    );
-  });
-
-  test("patrol: 品質ゲートあり", () => {
-    golden(
-      "patrol_with_gate",
-      buildPatrolPrompt({
-        repo: "k-wa-wa/example-repo",
-        base: "master",
-        gate: "## 品質基準\n- `nix flake check ./nix` が成功すること",
-      }),
-    );
-  });
-});
-
-describe("プロンプトの境界条件", () => {
-  test("worker: 品質ゲートが空文字でも既定文言に置き換えず、そのまま出す", () => {
-    const p = buildWorkerPrompt(workerInput({ jobType: "evaluate", prNumber: 43, gate: "" }));
-    expect(p.endsWith("## このリポジトリの品質ゲート\n")).toBe(true);
-  });
-
-  test("worker: 品質ゲートの末尾改行は保つ", () => {
-    const p = buildWorkerPrompt(workerInput({ jobType: "evaluate", prNumber: 43, gate: "基準\n" }));
-    expect(p.endsWith("## このリポジトリの品質ゲート\n基準\n")).toBe(true);
-  });
-
-  test("worker: 引き継ぎ文脈は前後の空白を除いて出す。空白のみなら節ごと出さない", () => {
-    const withCtx = buildWorkerPrompt(workerInput({ jobContext: "\n  指示  \n\n" }));
-    expect(withCtx).toContain("## 引き継がれた指示・文脈\n指示\n\n## このリポジトリの品質ゲート");
-    const blank = buildWorkerPrompt(workerInput({ jobContext: " \n " }));
-    expect(blank).not.toContain("引き継がれた指示");
-  });
-
-  test("値に含まれる {{ }} はテンプレートとして解釈されない（第三者テキストの混入対策）", () => {
-    const p = buildWorkerPrompt(
-      workerInput({ issueTitle: "{{#if x}}{{repo}}{{/if}} $& $1", jobContext: "{{> rules}}" }),
-    );
-    expect(p).toContain("対象 Issue: #42 {{#if x}}{{repo}}{{/if}} $& $1");
-    expect(p).toContain("{{> rules}}");
   });
 });

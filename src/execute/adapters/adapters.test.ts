@@ -1,12 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { agyAdapter, parseAgyUsage } from "../src/execute/adapters/agy.ts";
-import {
-  claudeAdapter,
-  parseClaudeResetDate,
-  parseClaudeUsage,
-} from "../src/execute/adapters/claude.ts";
-import { execAdapter } from "../src/execute/adapters/exec.ts";
-import { buildInvocation, getAdapter, resolveAdapter } from "../src/execute/adapters/index.ts";
+import { agyAdapter, parseAgyUsage } from "./agy.ts";
+import { claudeAdapter, parseClaudeResetDate, parseClaudeUsage } from "./claude.ts";
+import { execAdapter } from "./exec.ts";
+import { buildInvocation, getAdapter, resolveAdapter } from "./index.ts";
 
 describe("adapters", () => {
   describe("resolveAdapter & getAdapter", () => {

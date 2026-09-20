@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createDevApp } from "../src/view/dev.ts";
-import { createMockDb, loadScenario, SCENARIOS } from "../src/view/mock.ts";
-import { buildState } from "../src/view/state.ts";
+import { createDevApp } from "./dev.ts";
+import { createMockDb, loadScenario, SCENARIOS } from "./mock.ts";
+import { buildState } from "./state.ts";
 
 describe("Dashboard Dev & Mock Environment", () => {
   test("各シナリオが正常に初期化され、buildState を正しく生成できる", () => {

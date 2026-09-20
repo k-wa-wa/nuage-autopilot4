@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { pollRepo } from "../src/collect/poller.ts";
-import { forcedSync } from "../src/decide/sync.ts";
-import { buildInvocation } from "../src/execute/adapters/index.ts";
-import { botCommentedSince, takeSnapshot } from "../src/github/verify.ts";
-import * as items from "../src/store/items.ts";
-import * as jobs from "../src/store/jobs.ts";
-import { fakeGh, issue, memDb, seedItem } from "./helpers.ts";
+import { pollRepo } from "./collect/poller.ts";
+import { forcedSync } from "./decide/sync.ts";
+import { buildInvocation } from "./execute/adapters/index.ts";
+import { botCommentedSince, takeSnapshot } from "./github/verify.ts";
+import * as items from "./store/items.ts";
+import * as jobs from "./store/jobs.ts";
+import { fakeGh, issue, memDb, seedItem } from "./testing/helpers.ts";
 
 /**
  * 初回実装で埋め込んだ欠陥の回帰テスト。

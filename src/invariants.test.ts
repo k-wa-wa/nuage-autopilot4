@@ -1,15 +1,15 @@
 import { describe, expect, test } from "bun:test";
-import { decideCiAction, shaFromTriggerKey } from "../src/decide/ci.ts";
-import { newEvents } from "../src/decide/dispatcher.ts";
-import { fastPassApplies, isApproval } from "../src/decide/fastpass.ts";
-import { aggregate } from "../src/decide/subissues.ts";
-import { forcedSync } from "../src/decide/sync.ts";
-import { VersionConflict } from "../src/store/db.ts";
-import * as items from "../src/store/items.ts";
-import * as jobs from "../src/store/jobs.ts";
-import * as runsStore from "../src/store/runs.ts";
-import { hintMatchesState, isDisplayHint, subProgress } from "../src/types.ts";
-import { issue, memDb, pr, seedItem } from "./helpers.ts";
+import { decideCiAction, shaFromTriggerKey } from "./decide/ci.ts";
+import { newEvents } from "./decide/dispatcher.ts";
+import { fastPassApplies, isApproval } from "./decide/fastpass.ts";
+import { aggregate } from "./decide/subissues.ts";
+import { forcedSync } from "./decide/sync.ts";
+import { VersionConflict } from "./store/db.ts";
+import * as items from "./store/items.ts";
+import * as jobs from "./store/jobs.ts";
+import * as runsStore from "./store/runs.ts";
+import { issue, memDb, pr, seedItem } from "./testing/helpers.ts";
+import { hintMatchesState, isDisplayHint, subProgress } from "./types.ts";
 
 /**
  * 不変条件のテスト。
@@ -33,7 +33,7 @@ describe("値域が閉じている", () => {
   });
 
   test("hintToState は display_hint から正しく state を導出する", () => {
-    const { hintToState } = require("../src/types.ts");
+    const { hintToState } = require("./types.ts");
     expect(hintToState("マージ待ち")).toBe("ActionRequired");
     expect(hintToState("仕様確認待ち")).toBe("ActionRequired");
     expect(hintToState("助言待ち")).toBe("ActionRequired");

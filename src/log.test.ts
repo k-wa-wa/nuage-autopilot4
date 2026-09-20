@@ -1,13 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import type { Config } from "../src/config.ts";
-import type { DispatchDeps } from "../src/decide/dispatcher.ts";
-import { dispatch } from "../src/decide/dispatcher.ts";
+import type { Config } from "./config.ts";
+import type { DispatchDeps } from "./decide/dispatcher.ts";
+import { dispatch } from "./decide/dispatcher.ts";
 
-import type { WorkerDeps } from "../src/execute/worker.ts";
-import { runOnce } from "../src/execute/worker.ts";
-import * as cache from "../src/store/cache.ts";
-import * as jobs from "../src/store/jobs.ts";
-import { fakeGh, issue, memDb, seedItem } from "./helpers.ts";
+import type { WorkerDeps } from "./execute/worker.ts";
+import { runOnce } from "./execute/worker.ts";
+import * as cache from "./store/cache.ts";
+import * as jobs from "./store/jobs.ts";
+import { fakeGh, issue, memDb, seedItem } from "./testing/helpers.ts";
 
 function testConfig(): Config {
   return {

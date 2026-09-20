@@ -19,7 +19,6 @@ let
       ../bun.lock
       ../tsconfig.json
       ../src
-      ../tests
     ];
   };
 

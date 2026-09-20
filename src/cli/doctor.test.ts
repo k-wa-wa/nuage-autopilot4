@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import type { Check } from "../src/cli/doctor.ts";
-import { printChecks } from "../src/cli/doctor.ts";
+import type { Check } from "./doctor.ts";
+import { printChecks } from "./doctor.ts";
 
 describe("doctor printChecks", () => {
   test("全件 ok の場合 true を返し、サマリーに正常件数が表示される", () => {

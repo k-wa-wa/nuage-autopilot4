@@ -2,14 +2,14 @@ import { afterEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseCancelTarget } from "../src/cli/cancel.ts";
-import { doctor } from "../src/cli/doctor.ts";
-import { formatStatus, type StateData } from "../src/cli/status.ts";
-import { c } from "../src/cli/utils/color.ts";
-import { acquireLock } from "../src/cli/utils/lock.ts";
-import { getVersionInfo } from "../src/cli/version.ts";
-import type { Config } from "../src/config.ts";
-import type { GitHubClient } from "../src/github/client.ts";
+import type { Config } from "../config.ts";
+import type { GitHubClient } from "../github/client.ts";
+import { parseCancelTarget } from "./cancel.ts";
+import { doctor } from "./doctor.ts";
+import { formatStatus, type StateData } from "./status.ts";
+import { c } from "./utils/color.ts";
+import { acquireLock } from "./utils/lock.ts";
+import { getVersionInfo } from "./version.ts";
 
 describe("CLI lock utilities", () => {
   const tempDirs: string[] = [];

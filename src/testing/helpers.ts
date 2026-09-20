@@ -1,9 +1,9 @@
-import type { GitHubClient } from "../src/github/client.ts";
-import type { IssueDetail, PrDetail } from "../src/github/detail.ts";
-import type { DB } from "../src/store/db.ts";
-import { openDb } from "../src/store/db.ts";
-import * as items from "../src/store/items.ts";
-import type { Item } from "../src/types.ts";
+import type { GitHubClient } from "../github/client.ts";
+import type { IssueDetail, PrDetail } from "../github/detail.ts";
+import type { DB } from "../store/db.ts";
+import { openDb } from "../store/db.ts";
+import * as items from "../store/items.ts";
+import type { Item } from "../types.ts";
 
 export function memDb(): DB {
   return openDb(":memory:");

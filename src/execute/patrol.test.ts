@@ -1,22 +1,25 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import { pollRepo } from "../src/collect/poller.ts";
-import type { Config } from "../src/config.ts";
-import { patrolIntervalMs } from "../src/config.ts";
-import type { DispatchDeps } from "../src/decide/dispatcher.ts";
-import { dispatch } from "../src/decide/dispatcher.ts";
-import type { PatrolDeps } from "../src/execute/patrol.ts";
+import { pollRepo } from "../collect/poller.ts";
+import type { Config } from "../config.ts";
+import { patrolIntervalMs } from "../config.ts";
+import type { DispatchDeps } from "../decide/dispatcher.ts";
+import { dispatch } from "../decide/dispatcher.ts";
+import * as cache from "../store/cache.ts";
+import * as cursors from "../store/cursors.ts";
+import * as items from "../store/items.ts";
+import * as jobs from "../store/jobs.ts";
+import { goldenIn } from "../testing/golden.ts";
+import { fakeGh, issue, memDb } from "../testing/helpers.ts";
+import type { PatrolDeps } from "./patrol.ts";
 import {
   PATROL_LABEL,
   patrol,
   patrolCursorName,
   patrolPrompt,
   resetPatrolThrottle,
-} from "../src/execute/patrol.ts";
-import * as cache from "../src/store/cache.ts";
-import * as cursors from "../src/store/cursors.ts";
-import * as items from "../src/store/items.ts";
-import * as jobs from "../src/store/jobs.ts";
-import { fakeGh, issue, memDb } from "./helpers.ts";
+} from "./patrol.ts";
+
+const golden = goldenIn(import.meta.url);
 
 const HOUR = 3_600_000;
 const NOW = Date.parse("2026-09-21T00:00:00Z");
@@ -300,5 +303,25 @@ describe("bot が起票した Issue は仕様定義済みとして扱う", () =>
     } | null;
     expect(job?.job_type).toBe("implement");
     expect(items.getItem(db, "o/r", 5)!.display_hint).toBe("着手待ち");
+  });
+});
+
+describe("定期巡回プロンプトの Golden テスト", () => {
+  test("patrol: 品質ゲートなし", () => {
+    golden(
+      "patrol_no_gate",
+      patrolPrompt({ repo: "k-wa-wa/example-repo", base: "master", gate: null }),
+    );
+  });
+
+  test("patrol: 品質ゲートあり", () => {
+    golden(
+      "patrol_with_gate",
+      patrolPrompt({
+        repo: "k-wa-wa/example-repo",
+        base: "master",
+        gate: "## 品質基準\n- `nix flake check ./nix` が成功すること",
+      }),
+    );
   });
 });
