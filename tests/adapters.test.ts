@@ -115,7 +115,7 @@ What's contributing to your limits usage?
           "以下の指示ファイルを読み、タスクを完走せよ: /tmp/p.md",
           "--disable-slash-commands",
           "--print-timeout",
-          "270",
+          "270s",
         ],
         channel: "file",
       });
@@ -135,7 +135,7 @@ What's contributing to your limits usage?
           "--dangerously-skip-permissions",
           "--disable-slash-commands",
           "--print-timeout",
-          "30",
+          "30s",
           "--model",
           "gemini-1.5-pro",
         ],

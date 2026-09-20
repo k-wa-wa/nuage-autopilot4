@@ -167,7 +167,7 @@ describe("stdin アダプタでプロンプトが消えていた", () => {
     );
     expect(inv.channel).toBe("file");
     expect(inv.argv.join(" ")).toContain("/tmp/p.md");
-    expect(inv.argv[inv.argv.indexOf("--print-timeout") + 1]).toBe("3570");
+    expect(inv.argv[inv.argv.indexOf("--print-timeout") + 1]).toBe("3570s");
   });
 });
 

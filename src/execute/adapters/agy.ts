@@ -83,7 +83,7 @@ export const agyAdapter: AgentAdapter = {
       `以下の指示ファイルを読み、タスクを完走せよ: ${o.promptPath}`,
     ];
     if (o.elevated) argv.push("--dangerously-skip-permissions");
-    argv.push("--disable-slash-commands", "--print-timeout", String(printTimeout));
+    argv.push("--disable-slash-commands", "--print-timeout", `${printTimeout}s`);
     if (agent.model) argv.push("--model", agent.model);
     return { argv, channel: "file" };
   },
