@@ -7,6 +7,7 @@ import type { DispatchDeps } from "../decide/dispatcher.ts";
 import { dispatch } from "../decide/dispatcher.ts";
 import { tick } from "../decide/tick.ts";
 import { fetchAgentUsages } from "../execute/adapters/index.ts";
+import { patrol } from "../execute/patrol.ts";
 import type { WorkerDeps } from "../execute/worker.ts";
 import { claimJob, recover, runClaimed } from "../execute/worker.ts";
 import { createClient, rateLimitState } from "../github/client.ts";
@@ -121,6 +122,18 @@ export async function cmdRun(configPath?: string): Promise<void> {
       await tick(dd);
     },
     (e) => log("warn", `tick loop: ${String(e)}`),
+    () => stopping,
+  );
+
+  // 定期巡回。Tick は GitHub API を呼ばない規約なので別ループにする。
+  // 間引きと起票判断は patrol() 側が持つ（無効なら何もしない）。
+  void loop(
+    () => DEFAULTS.tickIntervalMs,
+    async () => {
+      if (rateLimitState.stopped()) return;
+      await patrol(wd);
+    },
+    (e) => log("warn", `patrol loop: ${String(e)}`),
     () => stopping,
   );
 

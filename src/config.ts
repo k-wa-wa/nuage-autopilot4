@@ -8,6 +8,8 @@ export interface RepoConfig {
   owner: string;
   name: string;
   base_branch?: string;
+  /** 定期巡回（リファクタ・品質向上の Issue を bot が起票する）。省略 / false で無効。 */
+  patrol?: boolean | { interval_hours?: number };
 }
 export interface AgentConfig {
   command: string;
@@ -35,6 +37,8 @@ export const DEFAULTS = {
   ciGraceMs: 10 * 60_000,
   ciStallMs: 30 * 60_000,
   retryLimit: 5,
+  patrolIntervalHours: 168,
+  patrolCheckMs: 10 * 60_000,
   triageFailLimit: 3,
   orphanAttemptLimit: 3,
   leaseMs: 5 * 60_000,
@@ -97,6 +101,15 @@ export function loadConfig(configPath?: string): Config {
 }
 
 export const repoSlug = (r: RepoConfig) => `${r.owner}/${r.name}`;
+
+/** 巡回の起票間隔（ms）。無効なら null。 */
+export function patrolIntervalMs(r: RepoConfig): number | null {
+  if (!r.patrol) return null;
+  const h = typeof r.patrol === "object" ? r.patrol.interval_hours : undefined;
+  const hours =
+    typeof h === "number" && Number.isFinite(h) && h > 0 ? h : DEFAULTS.patrolIntervalHours;
+  return hours * 3_600_000;
+}
 export const dbPath = (c: Config) => join(c.home, "autopilot.db");
 export const lockPath = (c: Config) => join(c.home, "autopilot.lock");
 export const runDir = (c: Config) => join(c.home, "run");

@@ -123,7 +123,7 @@ graph LR
 - カーソルは `cursors` に `sync:owner/repo`。値は**レスポンスの `Date` ヘッダ**基準、`since = 前回 - 5分`。
   Phase 1 と Phase 2 の**両方が成功した後**にのみ前進させる。
 - **コールドスタート**: 初回 `since` は 30 日前。作成した全行を `triaged=1` とし、
-  `ActionRequired` / `未着手` で登録（PR があれば `pr_number`/`branch`/`head_sha` を埋め、`ci_since` は `NULL`）。
+  `ActionRequired` / `未着手` で登録（bot 起票の Issue は §9 のとおり `仕様確認待ち`。PR があれば `pr_number`/`branch`/`head_sha` を埋め、`ci_since` は `NULL`）。
   **Triage を起動せず `job_queue` に一切 INSERT しない。** `last_event_at` は既存コメントの最新時刻。
 - **Tick**（60 秒・GitHub API を呼ばない）: CI Grace / CI 停滞 / `recheck_needed=1` / `lease_until < now` を評価。
 - GraphQL の `errors` が返ったら `github_cache` を更新せず周期ごとスキップ。
@@ -268,8 +268,9 @@ RETURNING id, repo, issue_number, job_type, job_context;
 - `Issue.parent` / `subIssues` / `subIssuesSummary` はプレビューヘッダ不要（実測確認済み）。
   `subIssues` の `stateReason` と `repository { nameWithOwner }` を省略しない。
 - **`subIssuesSummary.completed` は却下（`NOT_PLANNED`）も数える。** 完了報告では内訳を分けて提示する。
-- 子は `refine` 済みで作成する。**Poller が**「`author.login == bot_login` かつ `parent` を持つ」Issue を
-  `ActionRequired` / `親 Issue の承認待ち` / `triaged=1` で登録する（二重 `refine` 防止）。
+- 子は `refine` 済みで作成する。**Poller が**「`author.login == bot_login`」の Issue を
+  `triaged=1` で登録する（二重 `refine` 防止。**bot 起票 = 仕様定義済み**）。
+  `parent` を持てば `ActionRequired` / `親 Issue の承認待ち`、持たなければ（§12 の定期巡回）`仕様確認待ち`。
   確認コメントは親に 1 通だけ投稿する。
 ```mermaid
 flowchart TD
@@ -311,3 +312,24 @@ flowchart TD
 - Sub-issues API が使えなくなった場合のタスクリスト方式フォールバック
 - レートリミット低下時の自動抑制（`remaining < 1000` で 300 秒、`< 200` で停止）
 - コメント 20 件超の遡り取得
+
+## 12. 定期巡回
+
+リファクタ・品質向上の Issue を bot が起票する。**起票までが巡回の責務で、以降は人間の起票と同じ流れ**
+（`仕様確認待ち` ➔ 人間の「OK」➔ FastPass ➔ `implement`）。新しいジョブ種別・状態・`display_hint` は増やさない。
+
+- **設定**: `repos[].patrol`（`true` または `{ interval_hours }`）。省略 / `false` で無効。既定間隔は 168 時間。
+- **巡回はジョブキューに載せない**。`agents.refine` の設定で巡回エージェントを起動し、リポジトリを調べて
+  **仕様（背景・目的・受け入れ条件・非スコープ）を書いた Issue を 1 件**起票させる。ラベル `autopilot:patrol` を付ける。
+  エージェントはリポジトリを変更せず、起票以外の GitHub 書き込みもしない。
+- **専用クローン** `$AUTOPILOT_HOME/patrol/workspaces/<owner>/<repo>/` を使う。ジョブが使うワークスペース（§8）は触らないので、
+  ジョブの有無は起票条件に含めない。巡回エージェントは `max_parallel` の枠外で、同時に走るのは最大 1 本。
+- **起票条件**（すべて満たすときだけ）:
+  1. 未クローズの巡回 Issue（`autopilot:patrol` ＋ 起票者が bot）が無い。人間の Issue や、放置された Issue、
+     `refine` が作った子 Issue は数えない（数えると放置された 1 件で巡回が止まる）。不要な巡回 Issue はクローズすれば次に進む。
+  2. 直近の巡回 Issue の作成から `interval_hours` 経過している。
+  3. 前回の**試行**から `interval_hours` 経過している（`cursors` の `patrol:<repo>`。何も起票しなかった場合に毎周期走らせない）。
+- **成果物は GitHub で検証する**（方針8）。実行前後の巡回 Issue 一覧を比べ、番号が増えていなければ、`exit 0` でも起票なし。
+- **信頼境界**: 起票された Issue は bot の発言なので、それ自体はパイプラインを駆動しない（§6）。
+  駆動するのは人間の「OK」だけで、原則 8 は変わらない。
+- 巡回ループは Tick（§5）とは別。Tick は GitHub API を呼ばない規約のため。

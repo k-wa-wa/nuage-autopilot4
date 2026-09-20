@@ -133,17 +133,25 @@ function syncIssueItem(
   const parentNum = d.parent?.number ?? 0;
 
   if (!existing) {
-    // bot が起票し parent を持つ Issue は refine 済みの子。再度 refine を走らせない。
-    const isBotChild = d.author?.login === botLogin && !!d.parent;
+    // bot が起票した Issue は起票時点で仕様が書かれている（refine が作る子 / 定期巡回）。
+    // 再度 refine を走らせず、人間の OK を待つ。
+    const isBotIssue = d.author?.login === botLogin;
     const prNumber = resolveLinkedPr(db, repo, d.number, d);
     items.createItem(db, {
       repo,
       issue_number: d.number,
       title: d.title,
       state: d.state === "CLOSED" ? "Done" : "ActionRequired",
-      display_hint: d.state === "CLOSED" ? "" : isBotChild ? "親 Issue の承認待ち" : "未着手",
-      // コールドスタートと bot の子は refine 投入の対象外にする。
-      triaged: coldStart || isBotChild ? 1 : 0,
+      display_hint:
+        d.state === "CLOSED"
+          ? ""
+          : !isBotIssue
+            ? "未着手"
+            : d.parent
+              ? "親 Issue の承認待ち"
+              : "仕様確認待ち",
+      // コールドスタートと bot の Issue は refine 投入の対象外にする。
+      triaged: coldStart || isBotIssue ? 1 : 0,
       last_event_at: latestEventAt(d),
       last_event_id: latestEventId(d),
       pr_number: prNumber,

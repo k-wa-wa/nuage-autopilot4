@@ -5,6 +5,10 @@ repos:
   - owner: k-wa-wa
     name: nuage-cluster
     base_branch: develop
+    # 定期巡回。エージェントがリファクタ・品質向上の Issue を仕様つきで 1 件起票する。
+    # 以降は人間が起票した Issue と同じ流れ（OK ➔ 実装）。未クローズの巡回 Issue がある間は起票しない。
+    # true か { interval_hours: 168 }（既定 168 時間 = 週 1 回）。
+    # patrol: true
 
 # パイプラインを駆動できる人間の login。
 # Issue とコメントはそのままエージェントへの指示になるため、ここに無い人の発言は
