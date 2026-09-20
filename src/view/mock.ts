@@ -169,6 +169,10 @@ function insertItem(db: DB, it: MockItemInput): void {
   }
 }
 
+function pastIsoSec(secondsAgo: number): string {
+  return new Date(Date.now() - secondsAgo * 1000).toISOString();
+}
+
 function insertMockRun(
   db: DB,
   r: {
@@ -179,6 +183,7 @@ function insertMockRun(
     summary: string;
     started_at?: string;
     ended_at?: string;
+    next_context?: string;
   },
 ): void {
   const started = r.started_at ?? pastIso(10);
@@ -201,8 +206,18 @@ function insertMockRun(
 
   db.query(
     `INSERT INTO runs (job_id, repo, issue_number, job_type, started_at, ended_at, result, summary, next_context, log_path)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, '', '/tmp/mock.log')`,
-  ).run(j.id, r.repo, r.issue_number, r.job_type, started, ended, r.result, r.summary);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, '/tmp/mock.log')`,
+  ).run(
+    j.id,
+    r.repo,
+    r.issue_number,
+    r.job_type,
+    started,
+    ended,
+    r.result,
+    r.summary,
+    r.next_context ?? "",
+  );
 }
 
 function seedStandardScenario(db: DB): void {
@@ -215,7 +230,169 @@ function seedStandardScenario(db: DB): void {
   runtime.lastPollAt = pastIso(1);
 
   // 🧑 Action Required（新しい順に並ぶ）
-  // 1. [単一エラー] 本番環境再現カード
+  // 1. [マージ待ち・本番再現] nuage-cluster#40 (マルチステップ・リトライ経由で成功)
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 40,
+    title: "Kubernetes マニフェスト修正および Argo CD 自動同期対応",
+    state: "ActionRequired",
+    display_hint: "マージ待ち",
+    pr_number: 41,
+    state_since: pastIso(3),
+  });
+  // 履歴（過去順に挿入 -> id DESC で最新順になる）
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 40,
+    job_type: "implement",
+    result: "SUCCESS",
+    summary:
+      "Kubernetes マニフェスト修正とドキュメント更新を完了しました。Argo CD 自動同期に対応する kustomize 設定を追加。",
+    next_context: "PR #41 の自動CI評価待ち",
+    started_at: pastIsoSec(80 * 60),
+    ended_at: pastIsoSec(80 * 60 - 336), // 所要 336s (5m 36s)
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 40,
+    job_type: "evaluate",
+    result: "FAIL",
+    summary: "Evaluation failed: process exited with code 2 (引数フォーマット不整合)",
+    started_at: pastIsoSec(75 * 60),
+    ended_at: pastIsoSec(75 * 60 - 1), // 所要 1s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 40,
+    job_type: "evaluate",
+    result: "FAIL",
+    summary:
+      "Evaluation failed: result file /tmp/autopilot-result.json not found (非対話セッション終了)",
+    started_at: pastIsoSec(70 * 60),
+    ended_at: pastIsoSec(70 * 60 - 63), // 所要 63s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 40,
+    job_type: "evaluate",
+    result: "SUCCESS",
+    summary:
+      "PRレビュー完了: merge_ready。すべてのCIチェックに合格し、設計通りの修正が確認できました。",
+    next_context: "レビュー承認済み。人間によるマージ操作を待機中。",
+    started_at: pastIsoSec(10 * 60),
+    ended_at: pastIsoSec(10 * 60 - 86), // 所要 86s
+  });
+
+  // 2. [マージ待ち・本番再現] bare-web-proxy#7
+  insertItem(db, {
+    repo: "k-wa-wa/bare-web-proxy",
+    issue_number: 7,
+    title: "リバースプロキシのルーティング設定およびSSL終端処理",
+    state: "ActionRequired",
+    display_hint: "マージ待ち",
+    pr_number: 8,
+    state_since: pastIso(5),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/bare-web-proxy",
+    issue_number: 7,
+    job_type: "implement",
+    result: "SUCCESS",
+    summary: "リバースプロキシのルーティング設定およびSSL終端処理の実装完了",
+    next_context: "PR #8 のCI評価へ移行",
+    started_at: pastIsoSec(75 * 60),
+    ended_at: pastIsoSec(75 * 60 - 305), // 所要 305s (5m 5s)
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/bare-web-proxy",
+    issue_number: 7,
+    job_type: "evaluate",
+    result: "FAIL",
+    summary: "Evaluation failed: process exited with code 2",
+    started_at: pastIsoSec(65 * 60),
+    ended_at: pastIsoSec(65 * 60 - 25), // 所要 25s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/bare-web-proxy",
+    issue_number: 7,
+    job_type: "evaluate",
+    result: "SUCCESS",
+    summary: "PRレビュー完了: merge_ready。HAProxy 設定構文チェック通過、単体テスト全件パス。",
+    next_context: "レビュー承認済み。マージ準備完了。",
+    started_at: pastIsoSec(12 * 60),
+    ended_at: pastIsoSec(12 * 60 - 123), // 所要 123s
+  });
+
+  // 3. [多段ステップ・ブロック本番再現] pechka#55 (6段階の実行履歴)
+  insertItem(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    title: "動画ストリーミングのトランスコードパイプライン構築",
+    state: "ActionRequired",
+    display_hint: "エラー対応待ち",
+    pr_number: 55,
+    state_since: pastIso(8),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "implement",
+    result: "SUCCESS",
+    summary: "初期実装完了: ffmpeg パイプラインラッパーモジュールの追加",
+    next_context: "PR #55 のレビューへ",
+    started_at: pastIsoSec(120 * 60),
+    ended_at: pastIsoSec(120 * 60 - 102), // 102s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "evaluate",
+    result: "SUCCESS",
+    summary: "レビュー完了。仕様追加が必要なため refine へ移行指示",
+    next_context: "追加要件の精緻化ジョブをキュー投入",
+    started_at: pastIsoSec(110 * 60),
+    ended_at: pastIsoSec(110 * 60 - 37), // 37s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "refine",
+    result: "SUCCESS",
+    summary: "精緻化完了。可変ビットレート設定とチャンク配信仕様を Issue に追記",
+    next_context: "精緻化された仕様に基づき再実装",
+    started_at: pastIsoSec(100 * 60),
+    ended_at: pastIsoSec(100 * 60 - 257), // 257s (4m 17s)
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "implement",
+    result: "FAIL",
+    summary: "ビルドエラー: TS2322 型の不整合。BitrateOptions のプロパティ欠落",
+    started_at: pastIsoSec(90 * 60),
+    ended_at: pastIsoSec(90 * 60 - 123), // 123s
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "implement",
+    result: "FAIL",
+    summary: "テスト失敗: timeout。トランスコード処理のモックが完了しませんでした",
+    started_at: pastIsoSec(80 * 60),
+    ended_at: pastIsoSec(80 * 60 - 331), // 331s (5m 31s)
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 55,
+    job_type: "implement",
+    result: "BLOCKED",
+    summary: "3回連続失敗のためブロック。人間の介入が必要です。",
+    next_context: "開発者による手動確認待ち",
+    started_at: pastIsoSec(70 * 60),
+    ended_at: pastIsoSec(70 * 60 - 108), // 108s
+  });
+
+  // 4. [単一エラー] pechka#61
   insertItem(db, {
     repo: "k-wa-wa/pechka",
     issue_number: 61,
@@ -235,7 +412,7 @@ function seedStandardScenario(db: DB): void {
     ended_at: pastIso(75),
   });
 
-  // 2. [正常カード] 仕様確認待ち（エラーなし・通常表示）
+  // 5. [正常カード] 仕様確認待ち
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 104,
@@ -245,7 +422,7 @@ function seedStandardScenario(db: DB): void {
     state_since: pastIso(15),
   });
 
-  // 3. [複数エラー履歴] リトライ上限超過（過去3回の失敗履歴付き）
+  // 6. [複数エラー履歴] リトライ上限超過
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 72,
@@ -286,18 +463,7 @@ function seedStandardScenario(db: DB): void {
     ended_at: pastIso(76),
   });
 
-  // 4. [正常カード] PRマージ待ち（エラーなし・通常表示）
-  insertItem(db, {
-    repo: "k-wa-wa/nuage-autopilot4",
-    issue_number: 88,
-    title: "GraphQL クエリエラー時の自動リトライおよび指数バックオフ",
-    state: "ActionRequired",
-    display_hint: "マージ待ち",
-    pr_number: 92,
-    state_since: pastIso(130),
-  });
-
-  // 5. [正常カード] 助言待ち（エラーなし・通常表示）
+  // 7. [正常カード] 助言待ち
   insertItem(db, {
     repo: "org/backend-service",
     issue_number: 42,
@@ -318,6 +484,16 @@ function seedStandardScenario(db: DB): void {
     job_type: "implement",
     started_at: pastIso(6),
     state_since: pastIso(10),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 110,
+    job_type: "refine",
+    result: "SUCCESS",
+    summary: "精緻化完了: ダークモードCSS変数定義とコントラスト比（WCAG AA）基準策定",
+    next_context: "設計に基づきダッシュボード実装に着手",
+    started_at: pastIsoSec(900),
+    ended_at: pastIsoSec(900 - 140), // 140s
   });
   insertItem(db, {
     repo: "org/frontend-app",

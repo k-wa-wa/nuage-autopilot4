@@ -19,6 +19,18 @@ export interface CardErrorItem {
   occurred_at: string | null;
 }
 
+export interface JobHistoryItem {
+  id: number;
+  job_id: number;
+  job_type: string;
+  started_at: string;
+  ended_at: string | null;
+  duration_sec: number | null;
+  result: string | null;
+  summary: string;
+  next_context?: string;
+}
+
 export interface Card {
   repo: string;
   issue_number: number;
@@ -34,6 +46,7 @@ export interface Card {
   started_at: string | null;
   error_detail?: CardErrorItem | null;
   error_history?: CardErrorItem[];
+  job_history?: JobHistoryItem[];
 }
 
 export interface FailedJobSummary {
@@ -173,6 +186,49 @@ export function buildState(db: DB): StateResponse {
       });
     }
 
+    // ジョブ実行履歴の抽出（新しい順）
+    const jobHistory: JobHistoryItem[] = [];
+    try {
+      const allRuns = db
+        .query(
+          "SELECT id, job_id, job_type, started_at, ended_at, result, summary, next_context FROM runs WHERE repo=? AND issue_number=? ORDER BY id DESC LIMIT 20",
+        )
+        .all(it.repo, it.issue_number) as Array<{
+        id: number;
+        job_id: number;
+        job_type: string;
+        started_at: string;
+        ended_at: string | null;
+        result: string | null;
+        summary: string;
+        next_context: string | null;
+      }>;
+
+      for (const run of allRuns) {
+        let durationSec: number | null = null;
+        if (run.started_at && run.ended_at) {
+          const start = Date.parse(run.started_at);
+          const end = Date.parse(run.ended_at);
+          if (!Number.isNaN(start) && !Number.isNaN(end) && end >= start) {
+            durationSec = Math.round((end - start) / 1000);
+          }
+        }
+        jobHistory.push({
+          id: run.id,
+          job_id: run.job_id,
+          job_type: run.job_type,
+          started_at: run.started_at,
+          ended_at: run.ended_at,
+          duration_sec: durationSec,
+          result: run.result,
+          summary: run.summary || "",
+          next_context: run.next_context || undefined,
+        });
+      }
+    } catch {
+      // 例外対策
+    }
+
     return {
       repo: it.repo,
       issue_number: it.issue_number,
@@ -188,6 +244,7 @@ export function buildState(db: DB): StateResponse {
       started_at: r?.started_at ?? null,
       error_detail: errorHistory.length > 0 ? errorHistory[0]! : null,
       error_history: errorHistory,
+      job_history: jobHistory,
     };
   };
 

@@ -117,6 +117,7 @@ main {
 }
 section { min-width: 0; }
 .card {
+  position: relative;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -144,6 +145,7 @@ section { min-width: 0; }
   font-weight: 500;
   margin-bottom: 4px;
   overflow-wrap: anywhere;
+  padding-right: 38px;
   transition: color 0.15s ease;
 }
 .s {
@@ -221,6 +223,34 @@ section { min-width: 0; }
   text-decoration: underline;
 }
 .error-badge svg {
+  flex-shrink: 0;
+}
+.card-history-btn {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 2px 7px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  z-index: 2;
+  line-height: 1.2;
+}
+.card-history-btn:hover {
+  background: var(--line);
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.card-history-btn svg {
   flex-shrink: 0;
 }
 .empty {
@@ -473,6 +503,141 @@ dialog.modal::backdrop {
   font-family: monospace;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.history-modal-box {
+  width: 620px;
+}
+.timeline {
+  position: relative;
+  padding-left: 24px;
+  margin: 12px 0 6px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 7px;
+  width: 2px;
+  background: var(--line);
+}
+.timeline-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.timeline-marker {
+  position: absolute;
+  left: -24px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--card);
+  border: 2px solid var(--muted);
+  box-sizing: border-box;
+}
+.timeline-marker.success {
+  border-color: #10b981;
+  background: #10b981;
+}
+.timeline-marker.fail {
+  border-color: var(--warn);
+  background: var(--warn);
+}
+.timeline-marker.blocked {
+  border-color: #f59e0b;
+  background: #f59e0b;
+}
+.timeline-marker.running {
+  border-color: var(--accent);
+  background: var(--card);
+}
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+.timeline-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.timeline-job-type {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--fg);
+}
+.timeline-result {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.timeline-result.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+.timeline-result.fail {
+  background: rgba(168, 68, 42, 0.15);
+  color: var(--warn);
+}
+.timeline-result.blocked {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+.timeline-result.running {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+.timeline-time-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.timeline-duration {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-family: monospace;
+}
+.timeline-body {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.timeline-summary {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--fg);
+  font-family: inherit;
+}
+.timeline-next-context {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--line);
+  color: var(--muted);
+  font-size: 11px;
+}
+.timeline-empty {
+  color: var(--muted);
+  font-size: 12px;
+  padding: 16px 0;
+  text-align: center;
 }
 .modal-footer {
   display: flex;
@@ -748,6 +913,59 @@ export const Page: FC = () => {
                 <button type="button" id="system-error-modal-dismiss-btn" class="btn btn-primary">
                   閉じる
                 </button>
+              </div>
+            </div>
+          </div>
+        </dialog>
+
+        <dialog id="history-modal" class="modal">
+          <div class="modal-box history-modal-box">
+            <div class="modal-header">
+              <h2 id="history-modal-title">⏱️ ジョブ実行履歴</h2>
+              <button
+                type="button"
+                id="history-modal-close-btn"
+                class="close-btn"
+                aria-label="閉じる"
+              >
+                &times;
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="modal-section">
+                <div class="error-meta-box">
+                  <div class="error-issue-title" id="history-modal-issue-title">
+                    --
+                  </div>
+                  <div class="error-badges-row" id="history-modal-badges"></div>
+                </div>
+              </div>
+              <div
+                class="modal-section"
+                style="max-height: 420px; overflow-y: auto; padding-right: 4px;"
+              >
+                <div id="history-modal-timeline" class="timeline"></div>
+              </div>
+              <div class="modal-footer">
+                <a
+                  id="history-modal-issue-link"
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="btn btn-secondary"
+                >
+                  Issue を開く
+                </a>
+                <a
+                  id="history-modal-pr-link"
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  class="btn btn-secondary"
+                  style="display: none;"
+                >
+                  PR を開く
+                </a>
               </div>
             </div>
           </div>

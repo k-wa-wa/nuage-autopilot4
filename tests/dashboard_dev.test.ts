@@ -191,4 +191,56 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(pechka61?.error_detail).not.toBeNull();
     expect(pechka61?.error_detail?.summary).toContain("Claude Code 実行失敗");
   });
+
+  test("各カードに job_history が降順（新しい順）で正しく格納され、所要時間が計算される", () => {
+    const { db } = createMockDb("standard");
+    const state = buildState(db);
+
+    // nuage-cluster#40（マルチステップ・リトライ経由で成功）
+    const cluster40 = state.lanes.action_required.find(
+      (c) => c.repo === "k-wa-wa/nuage-cluster" && c.issue_number === 40,
+    );
+    expect(cluster40).toBeDefined();
+    expect(cluster40?.job_history).toBeDefined();
+    expect(cluster40?.job_history?.length).toBe(4);
+
+    // 新しい順（降順）チェック
+    const runs = cluster40!.job_history!;
+    expect(runs[0]?.job_type).toBe("evaluate");
+    expect(runs[0]?.result).toBe("SUCCESS");
+    expect(runs[0]?.duration_sec).toBe(86);
+    expect(runs[0]?.summary).toContain("PRレビュー完了: merge_ready");
+    expect(runs[0]?.next_context).toContain("レビュー承認済み");
+
+    expect(runs[1]?.job_type).toBe("evaluate");
+    expect(runs[1]?.result).toBe("FAIL");
+    expect(runs[1]?.duration_sec).toBe(63);
+
+    expect(runs[2]?.job_type).toBe("evaluate");
+    expect(runs[2]?.result).toBe("FAIL");
+    expect(runs[2]?.duration_sec).toBe(1);
+
+    expect(runs[3]?.job_type).toBe("implement");
+    expect(runs[3]?.result).toBe("SUCCESS");
+    expect(runs[3]?.duration_sec).toBe(336);
+
+    // bare-web-proxy#7
+    const proxy7 = state.lanes.action_required.find(
+      (c) => c.repo === "k-wa-wa/bare-web-proxy" && c.issue_number === 7,
+    );
+    expect(proxy7).toBeDefined();
+    expect(proxy7?.job_history?.length).toBe(3);
+    expect(proxy7?.job_history?.[0]?.job_type).toBe("evaluate");
+    expect(proxy7?.job_history?.[0]?.result).toBe("SUCCESS");
+    expect(proxy7?.job_history?.[0]?.duration_sec).toBe(123);
+
+    // pechka#55 (6段階の実行履歴)
+    const pechka55 = state.lanes.action_required.find(
+      (c) => c.repo === "k-wa-wa/pechka" && c.issue_number === 55,
+    );
+    expect(pechka55).toBeDefined();
+    expect(pechka55?.job_history?.length).toBe(6);
+    expect(pechka55?.job_history?.[0]?.result).toBe("BLOCKED");
+    expect(pechka55?.job_history?.[0]?.summary).toContain("3回連続失敗のためブロック");
+  });
 });

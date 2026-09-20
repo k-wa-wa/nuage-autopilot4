@@ -107,6 +107,8 @@ export function initClient(): void {
       '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"></path></svg>';
     const warnIcon =
       '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"></path></svg>';
+    const historyIcon =
+      '<svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M8.5 4.5a.5.5 0 0 0-1 0v3.793l-2.146 2.147a.5.5 0 0 0 .708.708l2.5-2.5A.5.5 0 0 0 8.5 8.5V4.5z"/><path d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14zm0 1A8 8 0 1 1 8 0a8 8 0 0 1 0 16z"/></svg>';
 
     el.innerHTML = cards
       .map((c) => {
@@ -128,7 +130,14 @@ export function initClient(): void {
         if (c.started_at) bits.push(`開始: ${ago(c.started_at)}`);
         const issueUrl = c.issue_url || c.url;
 
-        // サブ行（エラー行を上に、PR行を下にそれぞれ独立して描画）
+        // カード右上に固定配置するジョブ履歴ボタン（1回以上実行されているカードに表示）
+        let historyBtnHtml = "";
+        const historyCount = c.job_history?.length ?? 0;
+        if (historyCount > 0) {
+          historyBtnHtml = `<button type="button" class="card-history-btn card-history-trigger" data-key="${esc(cardKey)}" title="ジョブ実行履歴を表示 (${historyCount}回実行)">${historyIcon}<span>${historyCount}</span></button>`;
+        }
+
+        // エラー行（エラーがある場合のみ独立して描画）
         let errorSubHtml = "";
         if (hasError && c.error_detail) {
           const summaryPreview = c.error_detail.summary.split("\n")[0] || "エラー詳細";
@@ -141,6 +150,7 @@ export function initClient(): void {
             `</div>`;
         }
 
+        // PR サブ行（PR がある場合のみ独立して描画）
         let prSubHtml = "";
         if (c.pr_url) {
           prSubHtml =
@@ -154,6 +164,7 @@ export function initClient(): void {
 
         return (
           `<div class="card${hasError ? " has-error" : ""}">` +
+          historyBtnHtml +
           `<a class="card-main" href="${issueUrl}" target="_blank" rel="noreferrer" title="Issue を開く">` +
           `<div class="t">${esc(c.title || "(no title)")}</div>` +
           `<div class="s">${hintHtml}<span>${bits.map(esc).join(" · ")}</span></div>` +
@@ -233,6 +244,116 @@ export function initClient(): void {
     }
 
     errorModal.showModal();
+  }
+
+  function formatDuration(sec: number | null): string {
+    if (sec == null) return "--";
+    if (sec < 60) return `${sec}秒`;
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return s > 0 ? `${m}分${s}秒` : `${m}分`;
+  }
+
+  function openHistoryModal(c: Card): void {
+    const historyModal = document.getElementById("history-modal") as HTMLDialogElement | null;
+    if (!historyModal) return;
+
+    const titleEl = document.getElementById("history-modal-title");
+    if (titleEl) {
+      titleEl.textContent = `⏱️ ジョブ実行履歴 (${c.repo}#${c.issue_number})`;
+    }
+
+    const issueTitleEl = document.getElementById("history-modal-issue-title");
+    if (issueTitleEl) {
+      issueTitleEl.textContent = `${c.title || "(no title)"}`;
+    }
+
+    const badgesEl = document.getElementById("history-modal-badges");
+    if (badgesEl) {
+      let bHtml = `<span class="tag-badge">${esc(c.display_hint)}</span>`;
+      bHtml += `<span class="tag-badge">${esc(c.repo)}#${c.issue_number}</span>`;
+      if (c.pr_number > 0) {
+        bHtml += `<span class="tag-badge">PR #${c.pr_number}</span>`;
+      }
+      const count = c.job_history?.length ?? 0;
+      bHtml += `<span class="tag-badge">計 ${count} 回実行</span>`;
+      badgesEl.innerHTML = bHtml;
+    }
+
+    const timelineEl = document.getElementById("history-modal-timeline");
+    if (timelineEl) {
+      if (!c.job_history || c.job_history.length === 0) {
+        timelineEl.innerHTML = '<div class="timeline-empty">実行履歴がありません</div>';
+      } else {
+        timelineEl.innerHTML = c.job_history
+          .map((item) => {
+            const res = (item.result || "UNKNOWN").toLowerCase();
+            let markerClass = "timeline-marker";
+            let resClass = "timeline-result";
+            if (res === "success") {
+              markerClass += " success";
+              resClass += " success";
+            } else if (res === "fail" || res === "timeout") {
+              markerClass += " fail";
+              resClass += " fail";
+            } else if (res === "blocked") {
+              markerClass += " blocked";
+              resClass += " blocked";
+            } else if (res === "running") {
+              markerClass += " running";
+              resClass += " running";
+            }
+
+            const durationStr = formatDuration(item.duration_sec);
+            const timeStr = ago(item.started_at);
+
+            let bodyHtml = "";
+            if (item.summary) {
+              bodyHtml += `<div class="timeline-summary">${esc(item.summary)}</div>`;
+            }
+            if (item.next_context) {
+              bodyHtml += `<div class="timeline-next-context"><strong>次のコンテキスト:</strong> ${esc(item.next_context)}</div>`;
+            }
+
+            return (
+              `<div class="timeline-item">` +
+              `<div class="${markerClass}"></div>` +
+              `<div class="timeline-header">` +
+              `<div class="timeline-title-group">` +
+              `<span class="timeline-job-type">ジョブ: ${esc(item.job_type)}</span>` +
+              `<span class="${resClass}">${esc(item.result || "UNKNOWN")}</span>` +
+              `</div>` +
+              `<div class="timeline-time-group">` +
+              `<span>所要時間: <strong class="timeline-duration">${durationStr}</strong></span>` +
+              `<span class="timeline-time">${timeStr}</span>` +
+              `</div>` +
+              `</div>` +
+              (bodyHtml ? `<div class="timeline-body">${bodyHtml}</div>` : "") +
+              `</div>`
+            );
+          })
+          .join("");
+      }
+    }
+
+    const issueLink = document.getElementById(
+      "history-modal-issue-link",
+    ) as HTMLAnchorElement | null;
+    if (issueLink) {
+      issueLink.href = c.issue_url || c.url;
+    }
+
+    const prLink = document.getElementById("history-modal-pr-link") as HTMLAnchorElement | null;
+    if (prLink) {
+      if (c.pr_url) {
+        prLink.href = c.pr_url;
+        prLink.style.display = "inline-flex";
+      } else {
+        prLink.style.display = "none";
+      }
+    }
+
+    historyModal.showModal();
   }
 
   function updateModal(health: StateResponse["health"]): void {
@@ -390,18 +511,32 @@ export function initClient(): void {
     }
   }
 
-  // グローバルイベント委譲: カード内の「原因を見る」ボタンタップ
+  // グローバルイベント委譲: カード内のボタンタップ（エラー詳細 / 実行履歴）
   document.addEventListener("click", (e) => {
-    const target = (e.target as HTMLElement | null)?.closest(
+    const errorTarget = (e.target as HTMLElement | null)?.closest(
       ".card-error-trigger",
     ) as HTMLElement | null;
-    if (target) {
+    if (errorTarget) {
       e.preventDefault();
       e.stopPropagation();
-      const key = target.getAttribute("data-key");
+      const key = errorTarget.getAttribute("data-key");
       if (key && cardCache.has(key)) {
         openErrorModal(cardCache.get(key)!);
       }
+      return;
+    }
+
+    const historyTarget = (e.target as HTMLElement | null)?.closest(
+      ".card-history-trigger",
+    ) as HTMLElement | null;
+    if (historyTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = historyTarget.getAttribute("data-key");
+      if (key && cardCache.has(key)) {
+        openHistoryModal(cardCache.get(key)!);
+      }
+      return;
     }
   });
 
@@ -486,6 +621,24 @@ export function initClient(): void {
     sysErrorModal.addEventListener("click", (e) => {
       if (e.target === sysErrorModal) {
         sysErrorModal.close();
+      }
+    });
+  }
+
+  // ジョブ実行履歴モーダルの制御
+  const historyModal = document.getElementById("history-modal") as HTMLDialogElement | null;
+  const historyCloseBtn = document.getElementById("history-modal-close-btn");
+
+  if (historyCloseBtn && historyModal) {
+    historyCloseBtn.addEventListener("click", () => {
+      historyModal.close();
+    });
+  }
+
+  if (historyModal) {
+    historyModal.addEventListener("click", (e) => {
+      if (e.target === historyModal) {
+        historyModal.close();
       }
     });
   }
