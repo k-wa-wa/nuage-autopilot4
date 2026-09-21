@@ -1,7 +1,6 @@
 import { join } from "node:path";
 import { DEFAULTS, logDir, patrolIntervalMs, repoSlug } from "../config.ts";
 import * as cursors from "../store/cursors.ts";
-import { nowIso } from "../types.ts";
 import { runAgent } from "./agent.ts";
 import type { WorkerDeps } from "./worker.ts";
 import { ensureClone, prepare, readGate } from "./workspace.ts";
@@ -82,7 +81,7 @@ async function patrolRepo(
   const latest = before[0];
   if (latest && now - Date.parse(latest.created_at) < interval) return false;
 
-  cursors.setCursor(d.db, patrolCursorName(repo), nowIso());
+  cursors.setCursor(d.db, patrolCursorName(repo), new Date(now).toISOString());
   await ensureLabel(d, repo);
   d.log("info", `${repo}: patrol started`);
 
