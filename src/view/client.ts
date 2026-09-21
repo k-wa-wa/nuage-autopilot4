@@ -365,6 +365,144 @@ export function initClient(): void {
     historyModal.showModal();
   }
 
+  // 親子関係コネクタ線の描画と相互ハイライト
+  let activeHoverCard: HTMLElement | null = null;
+
+  function clearRelationConnectors(): void {
+    const layer =
+      document.getElementById("relation-connector-layer") ||
+      document.getElementById("relation-connector-canvas");
+    if (layer) layer.innerHTML = "";
+    const activeCards = document.querySelectorAll(
+      ".relation-active, .relation-target, .relation-parent, .relation-child",
+    );
+    for (const el of activeCards) {
+      el.classList.remove(
+        "relation-active",
+        "relation-target",
+        "relation-parent",
+        "relation-child",
+      );
+    }
+  }
+
+  function drawRelationConnectors(card: HTMLElement): void {
+    const layer =
+      document.getElementById("relation-connector-layer") ||
+      document.getElementById("relation-connector-canvas");
+    if (!layer) return;
+
+    clearRelationConnectors();
+
+    const cardKey = card.getAttribute("data-key");
+    const parentKey = card.getAttribute("data-parent-key");
+    if (!cardKey) return;
+
+    // 接続対象ペアの収集（親 ↔ 子）
+    const targetPairs: Array<{ parent: HTMLElement; child: HTMLElement }> = [];
+
+    if (parentKey) {
+      // 自身が子カードの場合: 親カードを探す
+      const parentEl = document.querySelector<HTMLElement>(`[data-key="${parentKey}"]`);
+      if (parentEl && parentEl.offsetParent !== null) {
+        targetPairs.push({ parent: parentEl, child: card });
+      }
+    }
+
+    // 自身が親カードの場合: 自身を親とする子カード群を探す
+    const childEls = document.querySelectorAll<HTMLElement>(`[data-parent-key="${cardKey}"]`);
+    for (const ch of childEls) {
+      if (ch.offsetParent !== null) {
+        targetPairs.push({ parent: card, child: ch });
+      }
+    }
+
+    if (targetPairs.length === 0) return;
+
+    card.classList.add("relation-active");
+
+    let svgInner = "";
+    for (const pair of targetPairs) {
+      const isTargetParent = pair.parent !== card;
+      const targetEl = isTargetParent ? pair.parent : pair.child;
+      targetEl.classList.add("relation-target");
+
+      // 親カードと子カードを明示的にクラス付与して区別
+      pair.parent.classList.add("relation-parent");
+      pair.child.classList.add("relation-child");
+
+      const rectP = pair.parent.getBoundingClientRect();
+      const rectC = pair.child.getBoundingClientRect();
+
+      let x1 = 0;
+      let y1 = 0;
+      let x2 = 0;
+      let y2 = 0;
+      let cx1 = 0;
+      let cy1 = 0;
+      let cx2 = 0;
+      let cy2 = 0;
+
+      // 常に親を始点 (x1, y1)、子を終点 (x2, y2) として幾何学配置を決定
+      if (rectP.right < rectC.left) {
+        // 親が左、子が右
+        x1 = rectP.right;
+        y1 = rectP.top + rectP.height * 0.5;
+        x2 = rectC.left;
+        y2 = rectC.top + rectC.height * 0.5;
+        const dx = (x2 - x1) * 0.5;
+        cx1 = x1 + dx;
+        cy1 = y1;
+        cx2 = x2 - dx;
+        cy2 = y2;
+      } else if (rectC.right < rectP.left) {
+        // 子が左、親が右（親の左端から子の右端へ向かう）
+        x1 = rectP.left;
+        y1 = rectP.top + rectP.height * 0.5;
+        x2 = rectC.right;
+        y2 = rectC.top + rectC.height * 0.5;
+        const dx = (x1 - x2) * 0.5;
+        cx1 = x1 - dx;
+        cy1 = y1;
+        cx2 = x2 + dx;
+        cy2 = y2;
+      } else {
+        // 横位置が重なっている場合（同一カラムなど）
+        if (rectP.bottom <= rectC.top) {
+          // 親が上、子が下
+          x1 = rectP.left + rectP.width * 0.5;
+          y1 = rectP.bottom;
+          x2 = rectC.left + rectC.width * 0.5;
+          y2 = rectC.top;
+          const dy = (y2 - y1) * 0.5;
+          cx1 = x1;
+          cy1 = y1 + dy;
+          cx2 = x2;
+          cy2 = y2 - dy;
+        } else {
+          // 親が下、子が上
+          x1 = rectP.left + rectP.width * 0.5;
+          y1 = rectP.top;
+          x2 = rectC.left + rectC.width * 0.5;
+          y2 = rectC.bottom;
+          const dy = (y1 - y2) * 0.5;
+          cx1 = x1;
+          cy1 = y1 - dy;
+          cx2 = x2;
+          cy2 = y2 + dy;
+        }
+      }
+
+      // 親から子に向かう破線パス（破線アニメーションで方向を表現）
+      svgInner += `<path class="relation-path" d="M ${x1} ${y1} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${x2} ${y2}" />`;
+      // 始点・終点両端の丸ドット（丸と丸）
+      svgInner += `<circle class="relation-dot" cx="${x1}" cy="${y1}" r="3.5" />`;
+      svgInner += `<circle class="relation-dot" cx="${x2}" cy="${y2}" r="3.5" />`;
+    }
+
+    layer.innerHTML = svgInner;
+  }
+
   async function refresh(): Promise<void> {
     try {
       const r = await fetch("/api/render/lanes");
@@ -391,6 +529,20 @@ export function initClient(): void {
       }
 
       updateInfoModal(d.state.health);
+
+      if (activeHoverCard) {
+        const currentKey = activeHoverCard.getAttribute("data-key");
+        const freshCard = currentKey
+          ? document.querySelector<HTMLElement>(`[data-key="${currentKey}"]`)
+          : null;
+        if (freshCard) {
+          activeHoverCard = freshCard;
+          drawRelationConnectors(freshCard);
+        } else {
+          activeHoverCard = null;
+          clearRelationConnectors();
+        }
+      }
     } catch {
       const banner = document.getElementById("banner");
       if (banner) banner.innerHTML = '<div class="banner">autopilot に接続できません</div>';
@@ -423,6 +575,40 @@ export function initClient(): void {
         void openHistoryModal(cardCache.get(key)!);
       }
       return;
+    }
+  });
+
+  // カードのホバーによる親子コネクタ線の制御
+  document.addEventListener("mouseover", (e) => {
+    const target = (e.target as HTMLElement | null)?.closest(".card") as HTMLElement | null;
+    if (target && target !== activeHoverCard) {
+      activeHoverCard = target;
+      drawRelationConnectors(target);
+    }
+  });
+
+  document.addEventListener("mouseout", (e) => {
+    const target = (e.target as HTMLElement | null)?.closest(".card") as HTMLElement | null;
+    const related = (e.relatedTarget as HTMLElement | null)?.closest(".card") as HTMLElement | null;
+    if (target && target === activeHoverCard && (!related || related !== activeHoverCard)) {
+      activeHoverCard = null;
+      clearRelationConnectors();
+    }
+  });
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (activeHoverCard) {
+        drawRelationConnectors(activeHoverCard);
+      }
+    },
+    { passive: true },
+  );
+
+  window.addEventListener("resize", () => {
+    if (activeHoverCard) {
+      drawRelationConnectors(activeHoverCard);
     }
   });
 

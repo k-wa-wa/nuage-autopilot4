@@ -109,6 +109,23 @@ section { min-width: 0; }
 .card.has-error:hover {
   border-color: var(--warn);
 }
+.card.relation-active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+.card.relation-target {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  animation: relation-pulse 1.2s infinite alternate ease-in-out;
+}
+@keyframes relation-pulse {
+  from {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+  to {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.55);
+  }
+}
 .card-main {
   display: block;
   padding: 11px 13px;
@@ -201,6 +218,38 @@ section { min-width: 0; }
 }
 .error-badge svg {
   flex-shrink: 0;
+}
+.relation-badge-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.relation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  cursor: default;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+.relation-badge svg {
+  flex-shrink: 0;
+}
+.relation-badge.parent-badge {
+  color: var(--fg);
+  border-color: rgba(120, 120, 120, 0.25);
+}
+.relation-badge.child-badge {
+  color: var(--muted);
 }
 .card-history-btn {
   position: absolute;
@@ -675,5 +724,36 @@ dialog.modal::backdrop {
   font-family: monospace;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.relation-connector-svg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 800;
+  overflow: visible;
+}
+.relation-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 5px rgba(59, 130, 246, 0.4));
+  stroke-dasharray: 6 3;
+  animation: relation-dash 1s linear infinite;
+}
+@keyframes relation-dash {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+.relation-dot {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 2px;
 }
 `;

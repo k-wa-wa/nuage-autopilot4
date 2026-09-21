@@ -50,6 +50,10 @@ export interface MockItemInput {
   started_at?: string;
   queue_position?: number;
   triaged?: number;
+  parent_repo?: string;
+  parent_issue_number?: number;
+  sub_issues_total?: number;
+  sub_issues_completed?: number;
 }
 
 function pastIso(minutesAgo: number): string {
@@ -105,9 +109,6 @@ export function loadScenario(db: DB, scenario: ScenarioName): void {
       limits: [
         { label: "Gemini (5h)", remainingPct: 60, resetAt: futureIso(119) },
         { label: "Gemini (Weekly)", remainingPct: 85, resetAt: futureIso(7199) },
-        // Claude/GPT 枠は現状 autopilot で不要のため除外
-        // { label: "Claude/GPT (5h)", remainingPct: 100, resetAt: futureIso(299) },
-        // { label: "Claude/GPT (Weekly)", remainingPct: 100, resetAt: futureIso(8599) },
       ],
     },
   ];
@@ -142,8 +143,8 @@ function insertItem(db: DB, it: MockItemInput): void {
     INSERT INTO items (
       repo, issue_number, title, state, display_hint, state_since,
       triaged, last_event_at, last_event_id, pr_number, branch, head_sha,
-      ci_since, parent_repo, parent_issue_number, version, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, '', 0, ?, '', '', NULL, '', 0, 0, ?)
+      ci_since, parent_repo, parent_issue_number, sub_issues_total, sub_issues_completed, version, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, '', 0, ?, '', '', NULL, ?, ?, ?, ?, 0, ?)
   `).run(
     it.repo,
     it.issue_number,
@@ -153,6 +154,10 @@ function insertItem(db: DB, it: MockItemInput): void {
     t,
     it.triaged ?? 1,
     it.pr_number ?? 0,
+    it.parent_repo ?? "",
+    it.parent_issue_number ?? 0,
+    it.sub_issues_total ?? 0,
+    it.sub_issues_completed ?? 0,
     t,
   );
 
@@ -422,6 +427,17 @@ function seedStandardScenario(db: DB): void {
     state_since: pastIso(15),
   });
 
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 97,
+    title: "テナント分離コンテキストの認可ミドルウェア",
+    state: "ActionRequired",
+    display_hint: "仕様確認待ち",
+    parent_repo: "k-wa-wa/nuage-autopilot4",
+    parent_issue_number: 95,
+    state_since: pastIso(12),
+  });
+
   // 6. [複数エラー履歴] リトライ上限超過
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
@@ -511,10 +527,23 @@ function seedStandardScenario(db: DB): void {
     title: "マルチテナント対応の基盤整備（DBスキーマ分離）",
     state: "Working",
     display_hint: "子タスク進行中 (2/5)",
+    sub_issues_total: 5,
+    sub_issues_completed: 2,
     state_since: pastIso(50),
   });
 
   // 📦 Queued
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 96,
+    title: "テナント別スキーママイグレーション自動化",
+    state: "Queued",
+    display_hint: "着手待ち",
+    job_type: "implement",
+    parent_repo: "k-wa-wa/nuage-autopilot4",
+    parent_issue_number: 95,
+    state_since: pastIso(18),
+  });
   insertItem(db, {
     repo: "k-wa-wa/nuage-autopilot4",
     issue_number: 115,

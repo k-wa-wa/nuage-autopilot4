@@ -243,4 +243,54 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(pechka55?.job_history?.[0]?.result).toBe("BLOCKED");
     expect(pechka55?.job_history?.[0]?.summary).toContain("3回連続失敗のためブロック");
   });
+
+  test("親子関係のデータおよびHTML属性（コネクタ線用）が正しく出力される", async () => {
+    const { app, db } = createDevApp("standard");
+    const state = buildState(db);
+
+    // 親カード #95 の検証
+    const parentCard = state.lanes.working.find((c) => c.issue_number === 95);
+    expect(parentCard).toBeDefined();
+    expect(parentCard?.sub_issues_total).toBe(5);
+    expect(parentCard?.sub_issues_completed).toBe(2);
+    expect(parentCard?.sub_issue_numbers).toBeDefined();
+    expect(parentCard?.sub_issue_numbers).toContain(96);
+    expect(parentCard?.sub_issue_numbers).toContain(97);
+
+    // 子カード #96 (Queued) の検証
+    const childQueued = state.lanes.queued.find((c) => c.issue_number === 96);
+    expect(childQueued).toBeDefined();
+    expect(childQueued?.parent_issue_number).toBe(95);
+    expect(childQueued?.parent_repo).toBe("k-wa-wa/nuage-autopilot4");
+
+    // 子カード #97 (ActionRequired) の検証
+    const childAr = state.lanes.action_required.find((c) => c.issue_number === 97);
+    expect(childAr).toBeDefined();
+    expect(childAr?.parent_issue_number).toBe(95);
+
+    // HTML の検証
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+
+    // SVG コネクタ要素が存在すること
+    expect(html).toContain('id="relation-connector-canvas"');
+    expect(html).toContain('class="relation-connector-svg"');
+    expect(html).toContain('id="relation-connector-layer"');
+
+    // 親カードの属性と子バッジ
+    expect(html).toContain('data-key="k-wa-wa/nuage-autopilot4#95"');
+    expect(html).toContain('data-is-parent="true"');
+    expect(html).toContain('class="relation-badge child-badge"');
+    expect(html).toContain('data-child-key="k-wa-wa/nuage-autopilot4#96"');
+    expect(html).toContain('data-child-key="k-wa-wa/nuage-autopilot4#97"');
+    expect(html).toContain("子: #96");
+    expect(html).toContain("子: #97");
+
+    // 子カードの属性と親バッジ
+    expect(html).toContain('data-key="k-wa-wa/nuage-autopilot4#96"');
+    expect(html).toContain('data-parent-key="k-wa-wa/nuage-autopilot4#95"');
+    expect(html).toContain('class="relation-badge parent-badge"');
+    expect(html).toContain("親: #95");
+  });
 });

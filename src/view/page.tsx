@@ -67,6 +67,10 @@ export const Page: FC<PageProps> = ({ initialState }) => {
           <LaneComponent id="backlog" title="📥 Backlog" cards={initialState?.lanes.backlog} />
         </main>
 
+        <svg id="relation-connector-canvas" class="relation-connector-svg" aria-hidden="true">
+          <g id="relation-connector-layer" />
+        </svg>
+
         <InfoModalDialog />
         <ErrorModalDialog />
         <SystemErrorModalDialog />

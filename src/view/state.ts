@@ -47,6 +47,11 @@ export interface Card {
   error_detail?: CardErrorItem | null;
   error_history?: CardErrorItem[];
   job_history?: JobHistoryItem[];
+  parent_repo?: string;
+  parent_issue_number?: number;
+  sub_issues_total?: number;
+  sub_issues_completed?: number;
+  sub_issue_numbers?: number[];
 }
 
 export interface FailedJobSummary {
@@ -97,6 +102,29 @@ export function buildState(db: DB): StateResponse {
   const running = new Map(jobs.runningJobs(db).map((j) => [key(j.repo, j.issue_number), j]));
   const pending = jobs.queuedItems(db);
   const position = new Map(pending.map((p, i) => [key(p.repo, p.issue_number), i + 1]));
+
+  // 親Issueに紐づく子Issue番号マップの集計
+  const childrenMap = new Map<string, number[]>();
+  try {
+    const childRows = db
+      .query(
+        "SELECT repo, issue_number, parent_repo, parent_issue_number FROM items WHERE parent_issue_number > 0 ORDER BY issue_number ASC",
+      )
+      .all() as Array<{
+      repo: string;
+      issue_number: number;
+      parent_repo: string;
+      parent_issue_number: number;
+    }>;
+    for (const cr of childRows) {
+      const pKey = key(cr.parent_repo || cr.repo, cr.parent_issue_number);
+      const list = childrenMap.get(pKey) || [];
+      list.push(cr.issue_number);
+      childrenMap.set(pKey, list);
+    }
+  } catch {
+    // 例外対策
+  }
 
   const card = (it: Item): Card => {
     const r = running.get(key(it.repo, it.issue_number));
@@ -245,6 +273,11 @@ export function buildState(db: DB): StateResponse {
       error_detail: errorHistory.length > 0 ? errorHistory[0]! : null,
       error_history: errorHistory,
       job_history: jobHistory,
+      parent_repo: it.parent_repo || undefined,
+      parent_issue_number: it.parent_issue_number > 0 ? it.parent_issue_number : undefined,
+      sub_issues_total: it.sub_issues_total > 0 ? it.sub_issues_total : undefined,
+      sub_issues_completed: it.sub_issues_total > 0 ? it.sub_issues_completed : undefined,
+      sub_issue_numbers: childrenMap.get(key(it.repo, it.issue_number)),
     };
   };
 

@@ -26,8 +26,18 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
     summaryPreview = firstLine.length > 35 ? `${firstLine.slice(0, 35)}…` : firstLine;
   }
 
+  const parentKey = c.parent_issue_number
+    ? `${c.parent_repo || c.repo}#${c.parent_issue_number}`
+    : undefined;
+  const isParent = Boolean(c.sub_issues_total && c.sub_issues_total > 0);
+
   return (
-    <div class={`card${hasError ? " has-error" : ""}`}>
+    <div
+      class={`card${hasError ? " has-error" : ""}`}
+      data-key={cardKey}
+      data-parent-key={parentKey}
+      data-is-parent={isParent ? "true" : undefined}
+    >
       {historyCount > 0 && (
         <button
           type="button"
@@ -70,6 +80,33 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
             <PrIcon />
             <span>#{c.pr_number}</span>
           </a>
+        </div>
+      )}
+
+      {c.parent_issue_number && (
+        <div class="card-sub">
+          <span class="sub-connector">└</span>
+          <span class="relation-badge parent-badge" title={`親 Issue #${c.parent_issue_number}`}>
+            親: #{c.parent_issue_number}
+          </span>
+        </div>
+      )}
+
+      {c.sub_issue_numbers && c.sub_issue_numbers.length > 0 && (
+        <div class="card-sub">
+          <span class="sub-connector">└</span>
+          <span class="relation-badge-group">
+            {c.sub_issue_numbers.map((n) => (
+              <span
+                key={n}
+                class="relation-badge child-badge"
+                data-child-key={`${c.repo}#${n}`}
+                title={`子 Issue #${n}`}
+              >
+                子: #{n}
+              </span>
+            ))}
+          </span>
         </div>
       )}
     </div>
