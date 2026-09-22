@@ -890,6 +890,11 @@ dialog.modal::backdrop {
   border: 1px solid rgba(59, 130, 246, 0.25);
   font-weight: 500;
 }
+.chat-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .chat-close-btn {
   background: transparent;
   border: none;
@@ -1295,24 +1300,29 @@ dialog.modal::backdrop {
   gap: 8px;
 }
 
-/* エンジン切り替えセレクト (Antigravity IDE Style) */
+/* モード・エンジン切り替えセレクト (Antigravity IDE Style) */
+.agy-mode-picker,
 .agy-engine-picker {
   position: relative;
   display: inline-flex;
   align-items: center;
+  height: 26px;
   background: rgba(120, 120, 120, 0.08);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 2px 22px 2px 8px;
+  padding: 0 24px 0 9px;
   cursor: pointer;
   transition: all 0.15s ease;
+  box-sizing: border-box;
 }
 
+.agy-mode-picker:hover,
 .agy-engine-picker:hover {
   background: var(--line);
   border-color: var(--muted);
 }
 
+.chat-mode-select,
 .agy-engine-select {
   appearance: none;
   -webkit-appearance: none;
@@ -1325,8 +1335,11 @@ dialog.modal::backdrop {
   cursor: pointer;
   outline: none;
   padding: 0;
+  height: 100%;
+  line-height: 24px;
 }
 
+.chat-mode-select option,
 .agy-engine-select option {
   background: var(--card);
   color: var(--fg);
@@ -1395,5 +1408,89 @@ dialog.modal::backdrop {
   color: var(--muted);
   margin-bottom: 4px;
   align-self: flex-start;
+}
+
+/* Issue ドラフトプレビューカード */
+.issue-draft-card {
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+.issue-draft-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.issue-draft-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.issue-draft-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--fg);
+}
+.issue-draft-repo {
+  font-size: 11px;
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+  margin-bottom: 12px;
+}
+.issue-create-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.issue-create-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.issue-create-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.issue-create-btn:active {
+  transform: translateY(0);
+}
+.issue-create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.issue-created-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.issue-created-badge:hover {
+  text-decoration: underline;
 }
 `;

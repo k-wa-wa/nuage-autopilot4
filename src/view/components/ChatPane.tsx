@@ -36,7 +36,7 @@ export const ChatPane: FC = () => {
             <div class="welcome-icon">
               <SparklesIcon />
             </div>
-            <div class="chat-quick-actions">
+            <div id="quick-actions-investigate" class="chat-quick-actions">
               <button
                 type="button"
                 class="quick-chip"
@@ -50,6 +50,26 @@ export const ChatPane: FC = () => {
                 data-prompt="直近で発生したエラーとリトライ失敗の状況を教えて"
               >
                 ⚠️ 直近のエラー調査
+              </button>
+            </div>
+            <div
+              id="quick-actions-brainstorm"
+              class="chat-quick-actions"
+              style={{ display: "none" }}
+            >
+              <button
+                type="button"
+                class="quick-chip"
+                data-prompt="新機能を追加したいので、既存設計に合わせた実装方針を相談したい"
+              >
+                💡 新機能の設計相談
+              </button>
+              <button
+                type="button"
+                class="quick-chip"
+                data-prompt="現状のコードベースで改善・リファクタリングできる箇所を整理したい"
+              >
+                🛠️ リファクタリング方針の相談
               </button>
             </div>
           </div>
@@ -71,6 +91,15 @@ export const ChatPane: FC = () => {
             {/* 下部ツールバー */}
             <div class="agy-toolbar">
               <div class="agy-toolbar-left">
+                <div class="agy-mode-picker" title="動作モードを選択">
+                  <select id="chat-mode-select" class="chat-mode-select">
+                    <option value="investigate">🔍 調査</option>
+                    <option value="brainstorm">💡 壁打ち</option>
+                  </select>
+                  <span class="agy-picker-arrow">
+                    <ChevronDownIcon size={10} />
+                  </span>
+                </div>
                 <div class="agy-engine-picker" title="使用するAIエンジンを選択">
                   <select id="chat-engine-select" class="agy-engine-select">
                     <option value="agy">Antigravity (Gemini)</option>

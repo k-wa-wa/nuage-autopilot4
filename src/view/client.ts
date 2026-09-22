@@ -740,10 +740,51 @@ export function initClient(): void {
   const chatEngineSelect = document.getElementById(
     "chat-engine-select",
   ) as HTMLSelectElement | null;
+  const chatModeSelect = document.getElementById("chat-mode-select") as HTMLSelectElement | null;
 
   let currentChatCard: Card | null = null;
   let currentConversationId: string | null = null;
   let isChatStreaming = false;
+
+  const updateChatModeUI = (mode: "investigate" | "brainstorm") => {
+    const investigateActions = document.getElementById("quick-actions-investigate");
+    const brainstormActions = document.getElementById("quick-actions-brainstorm");
+
+    if (investigateActions) {
+      investigateActions.style.display = mode === "investigate" ? "flex" : "none";
+    }
+    if (brainstormActions) {
+      brainstormActions.style.display = mode === "brainstorm" ? "flex" : "none";
+    }
+
+    if (chatInput) {
+      if (currentChatCard) {
+        chatInput.placeholder =
+          mode === "brainstorm"
+            ? `${currentChatCard.repo}#${currentChatCard.issue_number} について新機能やリファクタリングの相談を入力...`
+            : `${currentChatCard.repo}#${currentChatCard.issue_number} について指示を入力、またはこのまま送信...`;
+      } else {
+        chatInput.placeholder =
+          mode === "brainstorm"
+            ? "新機能のアイデアや設計の相談を入力... (Enterで送信, Shift+Enterで改行)"
+            : "質問や指示を入力... (Enterで送信, Shift+Enterで改行)";
+      }
+    }
+  };
+
+  // 保存されている動作モードの復元
+  if (chatModeSelect) {
+    const savedMode = localStorage.getItem("autopilot_chat_mode");
+    if (savedMode === "investigate" || savedMode === "brainstorm") {
+      chatModeSelect.value = savedMode;
+      updateChatModeUI(savedMode);
+    }
+    chatModeSelect.addEventListener("change", () => {
+      const mode = (chatModeSelect.value as "investigate" | "brainstorm") || "investigate";
+      localStorage.setItem("autopilot_chat_mode", mode);
+      updateChatModeUI(mode);
+    });
+  }
 
   // 保存されているエンジン選択の復元
   if (chatEngineSelect) {
@@ -771,6 +812,61 @@ export function initClient(): void {
       codeBlocks.push(`<pre><code>${e(code.trim())}</code></pre>`);
       return `%%CODEBLOCK_${idx}%%`;
     });
+
+    // Issue ドラフトプレビューカードの描画
+    processed = processed.replace(
+      /<!-- ISSUE_DRAFT_START -->([\s\S]*?)<!-- ISSUE_DRAFT_END -->/g,
+      (_match, content) => {
+        let title = "";
+        let repo = "";
+        const titleMatch = content.match(/\*\*タイトル\*\*:\s*([^\n]+)/);
+        if (titleMatch) title = titleMatch[1].trim();
+        const repoMatch = content.match(/\*\*対象リポジトリ\*\*:\s*([^\n]+)/);
+        if (repoMatch) repo = repoMatch[1].trim();
+
+        const bodyContent = content
+          .replace(/\*\*タイトル\*\*:\s*[^\n]+\n?/, "")
+          .replace(/\*\*対象リポジトリ\*\*:\s*[^\n]+\n?/, "")
+          .trim();
+
+        let bodyHtml = e(bodyContent);
+        bodyHtml = bodyHtml.replace(
+          /^#### (.*$)/gim,
+          '<div style="font-weight:600;margin-top:10px;margin-bottom:4px;color:var(--fg);">$1</div>',
+        );
+        bodyHtml = bodyHtml.replace(
+          /^### (.*$)/gim,
+          '<div style="font-weight:600;margin-top:10px;margin-bottom:4px;color:var(--fg);">$1</div>',
+        );
+        bodyHtml = bodyHtml.replace(
+          /^\s*[-*]\s+\[ \]\s+(.*$)/gim,
+          '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;"><span style="color:var(--muted)">☐</span><span>$1</span></div>',
+        );
+        bodyHtml = bodyHtml.replace(
+          /^\s*[-*]\s+\[x\]\s+(.*$)/gim,
+          '<div style="display:flex;align-items:center;gap:6px;margin:2px 0;"><span style="color:var(--accent)">☑</span><span>$1</span></div>',
+        );
+        bodyHtml = bodyHtml.replace(/^\s*[-*]\s+(.*$)/gim, '<li style="margin-left:14px;">$1</li>');
+        bodyHtml = bodyHtml.replace(/\n\n/g, "<br>");
+
+        const idx = codeBlocks.length;
+        codeBlocks.push(
+          `<div class="issue-draft-card" data-repo="${e(repo)}" data-title="${e(title)}">` +
+            `<div class="issue-draft-header">` +
+            `<span class="issue-draft-badge">📋 GitHub Issue ドラフト</span>` +
+            `</div>` +
+            `<div class="issue-draft-title">${e(title)}</div>` +
+            `<div class="issue-draft-repo">対象: <code>${e(repo)}</code></div>` +
+            `<div class="issue-draft-content" style="margin: 10px 0; font-size: 12px; line-height: 1.5; color: var(--fg); opacity: 0.9;">${bodyHtml}</div>` +
+            `<div class="issue-create-action">` +
+            `<button type="button" class="issue-create-btn" data-action="create-issue">🚀 GitHub Issue を起票</button>` +
+            `</div>` +
+            `<textarea class="issue-draft-raw-body" style="display: none;">${e(bodyContent)}</textarea>` +
+            `</div>`,
+        );
+        return `%%CODEBLOCK_${idx}%%`;
+      },
+    );
 
     processed = processed.replace(/^### (.*$)/gim, "<h3>$1</h3>");
     processed = processed.replace(/^## (.*$)/gim, "<h3>$1</h3>");
@@ -804,12 +900,16 @@ export function initClient(): void {
    */
   const renderContextChips = () => {
     if (!chatContextChips) return;
+    const mode = (chatModeSelect?.value as "investigate" | "brainstorm") || "investigate";
 
     if (!currentChatCard) {
       chatContextChips.innerHTML = "";
       chatContextChips.style.display = "none";
       if (chatInput) {
-        chatInput.placeholder = "質問や指示を入力... (Enterで送信, Shift+Enterで改行)";
+        chatInput.placeholder =
+          mode === "brainstorm"
+            ? "新機能のアイデアや設計の相談を入力... (Enterで送信, Shift+Enterで改行)"
+            : "質問や指示を入力... (Enterで送信, Shift+Enterで改行)";
       }
       return;
     }
@@ -847,7 +947,10 @@ export function initClient(): void {
     chatContextChips.style.display = "flex";
 
     if (chatInput) {
-      chatInput.placeholder = `${c.repo}#${c.issue_number} について指示を入力、またはこのまま送信...`;
+      chatInput.placeholder =
+        mode === "brainstorm"
+          ? `${c.repo}#${c.issue_number} について新機能やリファクタリングの相談を入力...`
+          : `${c.repo}#${c.issue_number} について指示を入力、またはこのまま送信...`;
     }
   };
 
@@ -864,9 +967,76 @@ export function initClient(): void {
     });
   }
 
-  const openChat = (card?: Card | null): void => {
+  // Issue ドラフト起票ボタンのクリックイベント（イベントデリゲーション）
+  if (chatMessages) {
+    chatMessages.addEventListener("click", async (e) => {
+      const target = e.target as HTMLElement | null;
+      const btn = target?.closest('button[data-action="create-issue"]') as HTMLButtonElement | null;
+      if (!btn) return;
+
+      const draftCard = btn.closest(".issue-draft-card") as HTMLElement | null;
+      if (!draftCard) return;
+
+      const repo = draftCard.getAttribute("data-repo") || "";
+      const title = draftCard.getAttribute("data-title") || "";
+      const bodyEl = draftCard.querySelector(".issue-draft-raw-body") as HTMLTextAreaElement | null;
+      const body = bodyEl?.value || "";
+
+      if (!repo || !title) return;
+
+      const actionArea = draftCard.querySelector(".issue-create-action") as HTMLElement | null;
+      if (!actionArea) return;
+
+      btn.disabled = true;
+      btn.textContent = "起票中...";
+
+      try {
+        const res = await fetch("/api/issue/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repo, title, body }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+
+        actionArea.innerHTML = `
+          <a href="${esc(data.url)}" target="_blank" rel="noopener noreferrer" class="issue-created-badge" title="GitHub で開く">
+            <span>✅ Issue #${esc(data.issue_number)} を起票しました</span>
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
+              <path d="M3.75 2h3.5a.75.75 0 0 1 0 1.5h-3.5a.25.25 0 0 0-.25.25v8.5c0 .138.112.25.25.25h8.5a.25.25 0 0 0 .25-.25v-3.5a.75.75 0 0 1 1.5 0v3.5A1.75 1.75 0 0 1 12.25 14h-8.5A1.75 1.75 0 0 1 2 12.25v-8.5C2 2.784 2.784 2 3.75 2zm6.75.75a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-1.5 0V3.56l-4.22 4.22a.75.75 0 0 1-1.06-1.06l4.22-4.22H11.25a.75.75 0 0 1-.75-.75z"/>
+            </svg>
+          </a>
+        `;
+      } catch (err) {
+        btn.disabled = false;
+        btn.textContent = "🚀 GitHub Issue を起票";
+        let errDiv = actionArea.querySelector(".issue-create-error") as HTMLElement | null;
+        if (!errDiv) {
+          errDiv = document.createElement("div");
+          errDiv.className = "issue-create-error";
+          errDiv.style.color = "var(--warn)";
+          errDiv.style.fontSize = "11px";
+          errDiv.style.marginTop = "4px";
+          actionArea.appendChild(errDiv);
+        }
+        errDiv.textContent = `起票エラー: ${String(err)}`;
+      }
+    });
+  }
+
+  const openChat = (card?: Card | null, mode?: "investigate" | "brainstorm"): void => {
     if (!chatPane || !paneResizer) return;
     currentChatCard = card || null;
+
+    if (mode && chatModeSelect) {
+      chatModeSelect.value = mode;
+      updateChatModeUI(mode);
+    } else if (card && chatModeSelect) {
+      chatModeSelect.value = "investigate";
+      updateChatModeUI("investigate");
+    }
 
     applySavedPaneWidth();
     chatPane.style.display = "flex";
@@ -918,13 +1088,18 @@ export function initClient(): void {
     renderContextChips();
     if (chatInput) chatInput.value = "";
 
+    const selectedMode = (chatModeSelect?.value as "investigate" | "brainstorm") || "investigate";
     const promptToSend =
       userPrompt.trim() ||
-      (snapshotCard?.error_detail
-        ? `直近のエラー「${snapshotCard.error_detail.summary}」の原因と対処法を調査してください。`
-        : snapshotCard
-          ? `このアイテムが現在「${snapshotCard.display_hint}」となっている原因と現在の状況を調査してください。`
-          : "システム全体の状況を調査してください。");
+      (selectedMode === "brainstorm"
+        ? snapshotCard
+          ? `${snapshotCard.repo}#${snapshotCard.issue_number} の新機能やリファクタリング方針について壁打ちさせてください。`
+          : "新機能の設計やリファクタリングについて壁打ちさせてください。"
+        : snapshotCard?.error_detail
+          ? `直近のエラー「${snapshotCard.error_detail.summary}」の原因と対処法を調査してください。`
+          : snapshotCard
+            ? `このアイテムが現在「${snapshotCard.display_hint}」となっている原因と現在の状況を調査してください。`
+            : "システム全体の状況を調査してください。");
 
     appendUserMessage(userPrompt.trim() || promptToSend, snapshotCard);
 
@@ -943,7 +1118,10 @@ export function initClient(): void {
 
     const bubbleDiv = document.createElement("div");
     bubbleDiv.className = "msg-bubble";
-    bubbleDiv.innerHTML = '<span class="meta">調査中...</span>';
+    bubbleDiv.innerHTML =
+      selectedMode === "brainstorm"
+        ? '<span class="meta">思考中... 設計・仕様を整理しています</span>'
+        : '<span class="meta">調査中...</span>';
 
     assistantDiv.appendChild(thinkingAccordion);
     assistantDiv.appendChild(toolContainer);
@@ -964,6 +1142,7 @@ export function initClient(): void {
           card: snapshotCard || undefined,
           conversation_id: currentConversationId || undefined,
           engine: selectedEngine,
+          mode: selectedMode,
         }),
       });
 
@@ -1077,7 +1256,7 @@ export function initClient(): void {
   if (chatCloseBtn) chatCloseBtn.addEventListener("click", closeChat);
   if (chatHeaderBtn) chatHeaderBtn.addEventListener("click", toggleChat);
 
-  // クイック質問チップスのクリック
+  // クイック質問チップスのクリック（入力欄にテンプレートを挿入し、即時送信は行わない）
   document.addEventListener("click", (e) => {
     const chip = (e.target as HTMLElement | null)?.closest(".quick-chip") as HTMLElement | null;
     if (chip) {
@@ -1086,7 +1265,11 @@ export function initClient(): void {
         if (chatPane?.style.display !== "flex") {
           openChat(null);
         }
-        void startChatInvestigation(prompt);
+        if (chatInput) {
+          chatInput.value = prompt;
+          chatInput.focus();
+          chatInput.setSelectionRange(prompt.length, prompt.length);
+        }
       }
     }
   });

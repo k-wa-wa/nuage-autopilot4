@@ -29,11 +29,14 @@ export interface CardContext {
   }>;
 }
 
+export type ChatMode = "investigate" | "brainstorm";
+
 export interface InvestigatePayload {
   message?: string;
   card?: CardContext;
   conversation_id?: string;
   engine?: "agy" | "claude";
+  mode?: ChatMode;
 }
 
 export interface AutopilotEnvironment {
@@ -103,6 +106,7 @@ export interface BuildInvestigatePromptOptions {
   card?: CardContext;
   userMessage?: string;
   env?: AutopilotEnvironment;
+  mode?: ChatMode;
 }
 
 export interface InvestigateOptions {
@@ -110,6 +114,7 @@ export interface InvestigateOptions {
   message?: string;
   conversationId?: string;
   engine?: "agy" | "claude";
+  mode?: ChatMode;
   cfg?: Config;
   env?: AutopilotEnvironment;
 }
@@ -198,12 +203,94 @@ export async function prepareInvestigateWorkspace(
 }
 
 /**
+ * 壁打ち・設計相談プロンプトの構築
+ */
+export function buildBrainstormPrompt(
+  cardOrOptions?: CardContext | BuildInvestigatePromptOptions,
+  legacyUserMessage?: string,
+): string {
+  let card: CardContext | undefined;
+  let userMessage: string | undefined;
+  let env: AutopilotEnvironment | undefined;
+
+  if (cardOrOptions && "repo" in cardOrOptions) {
+    card = cardOrOptions;
+    userMessage = legacyUserMessage;
+  } else if (cardOrOptions) {
+    card = cardOrOptions.card;
+    userMessage = cardOrOptions.userMessage ?? legacyUserMessage;
+    env = cardOrOptions.env;
+  }
+
+  const parts: string[] = [];
+
+  parts.push("【役割・ペルソナ】");
+  parts.push(
+    "あなたは Autopilot の要件壁打ち・設計相談アーキテクトです。ユーザーと対話し、新機能のアイデアやリファクタリング方針、タスク分割などの設計を具体化します。",
+  );
+  parts.push(
+    "対象リポジトリの既存コード構成や設計方針（ARCHITECTURE.md, docs/ 等）を前提知識として考慮し、複数の選択肢とトレードオフを客観的・論理的に提示してください。",
+  );
+
+  if (card) {
+    parts.push("\n【関連コンテキスト (Issue/PR)】");
+    parts.push(`- リポジトリ: ${card.repo}`);
+    parts.push(`- 関連番号: #${card.issue_number}`);
+    parts.push(`- タイトル: ${card.title}`);
+  }
+
+  const currentEnv = env ?? getAutopilotEnvironment();
+  parts.push("\n【Autopilot 実行環境・断面】");
+  parts.push(`- バージョン: autopilot ${currentEnv.version} (commit: ${currentEnv.commit})`);
+  if (currentEnv.sourceDir) {
+    parts.push(`- ソースコード配置パス: ${currentEnv.sourceDir}`);
+  }
+
+  parts.push("\n【Issue ドラフトの出力要件】");
+  parts.push(
+    "対話を通じて仕様・方針がまとまった場合、またはユーザーから仕様化や Issue 起票の指示があった場合は、",
+  );
+  parts.push(
+    "GitHub Issue としてそのまま起票できるよう、必ず以下のフォーマット（マーカータグ付き）で『GitHub Issue ドラフト』を出力してください：",
+  );
+  parts.push(`
+<!-- ISSUE_DRAFT_START -->
+**タイトル**: <簡潔で具体的なタイトル>
+**対象リポジトリ**: ${card?.repo || "<owner/repo>"}
+
+#### 背景・目的
+<なぜこの機能や変更が必要か、解決したい課題>
+
+#### 仕様・変更内容
+<設計方針、具体的な変更内容、スコープ>
+
+#### 受け入れ条件 (Acceptance Criteria)
+- [ ] <条件1>
+- [ ] <条件2>
+<!-- ISSUE_DRAFT_END -->
+`);
+
+  if (userMessage?.trim()) {
+    parts.push(`\n【ユーザーの相談・メッセージ】\n${userMessage.trim()}`);
+  } else {
+    parts.push("\n新機能や改修について、どのようなアイデアや設計をお考えですか？");
+  }
+
+  return parts.join("\n");
+}
+
+/**
  * 調査プロンプトの構築（agy / claude 共通）
  */
 export function buildInvestigatePrompt(
   cardOrOptions?: CardContext | BuildInvestigatePromptOptions,
   legacyUserMessage?: string,
 ): string {
+  const mode = (cardOrOptions && !("repo" in cardOrOptions) && cardOrOptions.mode) || "investigate";
+  if (mode === "brainstorm") {
+    return buildBrainstormPrompt(cardOrOptions, legacyUserMessage);
+  }
+
   let card: CardContext | undefined;
   let userMessage: string | undefined;
   let env: AutopilotEnvironment | undefined;
@@ -327,6 +414,7 @@ async function streamMockResponse(
   userMessage?: string,
   conversationId?: string,
   engine: "agy" | "claude" = "agy",
+  mode: ChatMode = "investigate",
 ): Promise<void> {
   const isTest = Boolean(process.env.BUN_TEST);
   const delay = (ms: number) => (isTest ? Bun.sleep(1) : Bun.sleep(ms));
@@ -338,6 +426,9 @@ async function streamMockResponse(
     card?.error_detail || (card?.error_history && card.error_history.length > 0),
   );
 
+  const isBrainstorm = mode === "brainstorm";
+  const targetRepo = card?.repo || "k-wa-wa/nuage-autopilot4";
+
   // 1. 初期化イベント
   await emit({
     event: "init",
@@ -346,7 +437,14 @@ async function streamMockResponse(
   await delay(150);
 
   // 2. 思考プロセス (Thinking)
-  if (isContinuation) {
+  if (isBrainstorm) {
+    await emit({
+      event: "thought",
+      data: {
+        delta: `リポジトリ構成 (${targetRepo}) と既存設計 (ARCHITECTURE.md 等) を確認中...\n`,
+      },
+    });
+  } else if (isContinuation) {
     await emit({
       event: "thought",
       data: {
@@ -362,20 +460,36 @@ async function streamMockResponse(
   await delay(300);
 
   // 3. ツール呼び出し 1
-  await emit({
-    event: "tool_start",
-    data: { id: "tool-1", name: "git_log", args: { target: issueKey, limit: 3 } },
-  });
-  await delay(400);
+  if (isBrainstorm) {
+    await emit({
+      event: "tool_start",
+      data: { id: "tool-1", name: "view_file", args: { path: "ARCHITECTURE.md", lines: "1-40" } },
+    });
+    await delay(350);
+    await emit({
+      event: "tool_end",
+      data: {
+        id: "tool-1",
+        name: "view_file",
+        result: "1: # 実装アーキテクチャ\n2: 1. GitHub が真実源...",
+      },
+    });
+  } else {
+    await emit({
+      event: "tool_start",
+      data: { id: "tool-1", name: "git_log", args: { target: issueKey, limit: 3 } },
+    });
+    await delay(400);
 
-  await emit({
-    event: "tool_end",
-    data: {
-      id: "tool-1",
-      name: "git_log",
-      result: "commit e39a1b (HEAD) - fix: retry limit handling",
-    },
-  });
+    await emit({
+      event: "tool_end",
+      data: {
+        id: "tool-1",
+        name: "git_log",
+        result: "commit e39a1b (HEAD) - fix: retry limit handling",
+      },
+    });
+  }
   await delay(250);
 
   // 4. 思考プロセス 段階 2
@@ -414,29 +528,53 @@ async function streamMockResponse(
   await delay(200);
 
   // 7. 回答本文のトークンストリーミング
-  const responseChunks = hasError
+  const responseChunks = isBrainstorm
     ? [
-        `### 🔍 調査結果: ${issueKey}\n\n`,
-        "**現象の要約**:\n",
-        "直近の実行において、以下のエラーが記録されています:\n",
-        `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
-        "**推定される原因**:\n",
-        "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
-        "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
-        "**推奨アクション**:\n",
-        "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
-        "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
+        `### 💡 壁打ち提案: 設計方針と Issue ドラフトの作成\n\n`,
+        `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
+        "**設計上の検討ポイント**:\n",
+        "1. **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
+        "2. **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
+        "以下の内容で GitHub Issue ドラフトを作成しました：\n\n",
+        "<!-- ISSUE_DRAFT_START -->\n",
+        `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
+        `**対象リポジトリ**: ${targetRepo}\n\n`,
+        "#### 背景・目的\n",
+        `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
+        "#### 仕様・変更内容\n",
+        "- 対象モジュールの設計見直しとインターフェース拡張\n",
+        "- 既存の SQLite ストアへの状態記録およびエラーハンドリングの追加\n",
+        "- CI パイプラインでの自動検証ステップの追加\n\n",
+        "#### 受け入れ条件 (Acceptance Criteria)\n",
+        "- [ ] 主要ロジックの単体テストがパスすること\n",
+        "- [ ] 既存機能にリグレッションが発生しないこと\n",
+        "- [ ] `bun run check` をパスすること\n",
+        "<!-- ISSUE_DRAFT_END -->\n\n",
+        "この内容でよろしければ、下の **「🚀 GitHub Issue を起票」** ボタンを押してください。起票後、Autopilot が自動で取り込み自律開発を開始します。",
       ]
-    : [
-        `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
-        `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
-        "**調査詳細**:\n",
-        "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
-        "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
-        userMessage
-          ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
-          : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
-      ];
+    : hasError
+      ? [
+          `### 🔍 調査結果: ${issueKey}\n\n`,
+          "**現象の要約**:\n",
+          "直近の実行において、以下のエラーが記録されています:\n",
+          `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
+          "**推定される原因**:\n",
+          "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
+          "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
+          "**推奨アクション**:\n",
+          "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
+          "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
+        ]
+      : [
+          `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
+          `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
+          "**調査詳細**:\n",
+          "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
+          "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
+          userMessage
+            ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
+            : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
+        ];
 
   for (const chunk of responseChunks) {
     for (const char of chunk) {
@@ -464,9 +602,10 @@ async function streamAgyResponse(
   conversationId?: string,
   cfg?: Config,
   env?: AutopilotEnvironment,
+  mode: ChatMode = "investigate",
 ): Promise<void> {
   const cwd = await prepareInvestigateWorkspace(card?.repo, cfg, emit);
-  const prompt = buildInvestigatePrompt({ card, userMessage, env });
+  const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
   const args = [
     "agy",
@@ -554,9 +693,10 @@ async function streamClaudeResponse(
   conversationId?: string,
   cfg?: Config,
   env?: AutopilotEnvironment,
+  mode: ChatMode = "investigate",
 ): Promise<void> {
   const cwd = await prepareInvestigateWorkspace(card?.repo, cfg, emit);
-  const prompt = buildInvestigatePrompt({ card, userMessage, env });
+  const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
   const args = [
     "claude",
@@ -645,6 +785,7 @@ export async function streamInvestigate(
   emit: EventCallback,
 ): Promise<void> {
   const selectedEngine = options.engine || "agy";
+  const selectedMode = options.mode || "investigate";
   const isAvailable = isCliAvailable(selectedEngine);
   const useMock = !isAvailable || process.env.MOCK_CHAT === "true";
 
@@ -655,6 +796,7 @@ export async function streamInvestigate(
       options.message,
       options.conversationId,
       selectedEngine,
+      selectedMode,
     );
   } else if (selectedEngine === "claude") {
     await streamClaudeResponse(
@@ -664,6 +806,7 @@ export async function streamInvestigate(
       options.conversationId,
       options.cfg,
       options.env,
+      selectedMode,
     );
   } else {
     await streamAgyResponse(
@@ -673,6 +816,7 @@ export async function streamInvestigate(
       options.conversationId,
       options.cfg,
       options.env,
+      selectedMode,
     );
   }
 }

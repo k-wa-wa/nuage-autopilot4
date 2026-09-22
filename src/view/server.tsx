@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { DB } from "../store/db.ts";
 import { handleChatStream } from "./chat.ts";
 import { DonePage } from "./done.tsx";
+import { handleCreateIssue } from "./issue.ts";
 import { Page } from "./page.tsx";
 import { renderErrorHistory, renderHistoryTimeline, renderLanes } from "./render.tsx";
 import { buildDoneState, buildState, getCard } from "./state.ts";
@@ -52,6 +53,9 @@ export function mountRoutes(app: Hono, db: DB): void {
       error_history_html: renderErrorHistory(target?.error_history),
     });
   });
+
+  // GitHub Issue 起票 API (壁打ちモード等からの連携)
+  app.post("/api/issue/create", handleCreateIssue);
 }
 
 export function startServer(db: DB, port: number, hostname = "127.0.0.1"): { stop: () => void } {

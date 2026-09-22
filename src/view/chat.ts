@@ -26,6 +26,7 @@ export async function handleChatStream(c: Context) {
         message: payload.message,
         conversationId: payload.conversation_id,
         engine: payload.engine,
+        mode: payload.mode,
       },
       async (ev) => {
         await stream.writeSSE({

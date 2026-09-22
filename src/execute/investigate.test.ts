@@ -77,6 +77,43 @@ describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () =
 
     golden("investigate_no_source_dir_fallback", prompt);
   });
+
+  it("brainstorm: 壁打ちモードでカード指定ありのプロンプト", () => {
+    const card: CardContext = {
+      repo: "k-wa-wa/pechka",
+      issue_number: 55,
+      title: "WebSocket 接続の切断検知と再接続バックオフの実装",
+      state_lane: "backlog",
+      display_hint: "要件確認中",
+    };
+
+    const prompt = buildInvestigatePrompt({
+      card,
+      userMessage:
+        "Exponential Backoff の再接続ロジックをクラス構造でどのように設計すべきか相談したい",
+      env: fixedEnv,
+      mode: "brainstorm",
+    });
+
+    golden("brainstorm_with_card_prompt", prompt);
+    expect(prompt).toContain("要件壁打ち・設計相談アーキテクト");
+    expect(prompt).toContain("k-wa-wa/pechka");
+    expect(prompt).toContain("<!-- ISSUE_DRAFT_START -->");
+    expect(prompt).toContain("<!-- ISSUE_DRAFT_END -->");
+  });
+
+  it("brainstorm: 壁打ちモードでカード未指定（全般的な設計相談）のプロンプト", () => {
+    const prompt = buildInvestigatePrompt({
+      userMessage: "新しく GitHub Issue 駆動で自動実行する CLI ツールを作りたい",
+      env: fixedEnv,
+      mode: "brainstorm",
+    });
+
+    golden("brainstorm_general_prompt", prompt);
+    expect(prompt).toContain("要件壁打ち・設計相談アーキテクト");
+    expect(prompt).not.toContain("【関連コンテキスト (Issue/PR)】");
+    expect(prompt).toContain("<!-- ISSUE_DRAFT_START -->");
+  });
 });
 
 describe("Agent Investigation Utilities (execute/investigate.ts)", () => {
