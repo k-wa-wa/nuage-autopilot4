@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
+import { handleChatStream } from "./chat.ts";
 import { DonePage } from "./done.tsx";
 import { createMockDb, loadScenario, SCENARIOS, type ScenarioName } from "./mock.ts";
 import { Page } from "./page.tsx";
@@ -131,12 +132,16 @@ const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, children }) => {
 };
 
 export function createDevApp(initialScenario: ScenarioName = "standard") {
+  process.env.MOCK_CHAT = "true";
   const { db, currentScenario: activeScenario } = createMockDb(initialScenario);
   let currentScenario = activeScenario;
 
   const app = new Hono();
 
   mountRoutes(app, db);
+
+  // AI 調査アシスタント (SSE ストリーミング)
+  app.post("/api/chat", handleChatStream);
 
   app.get("/api/dev/scenarios", (c) => {
     return c.json({

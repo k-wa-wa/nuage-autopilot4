@@ -576,6 +576,19 @@ export function initClient(): void {
       }
       return;
     }
+
+    const debugTarget = (e.target as HTMLElement | null)?.closest(
+      ".card-debug-trigger",
+    ) as HTMLElement | null;
+    if (debugTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+      const key = debugTarget.getAttribute("data-key");
+      if (key && cardCache.has(key)) {
+        openChat(cardCache.get(key)!);
+      }
+      return;
+    }
   });
 
   // カードのホバーによる親子コネクタ線の制御
@@ -714,6 +727,396 @@ export function initClient(): void {
       }
     });
   }
+
+  // ── AI 調査アシスタント（Antigravity IDE Style 画面分割パネル）の制御 ──
+  const chatPane = document.getElementById("chat-pane");
+  const paneResizer = document.getElementById("pane-resizer");
+  const chatCloseBtn = document.getElementById("chat-close-btn");
+  const chatHeaderBtn = document.getElementById("chat-header-btn");
+  const chatMessages = document.getElementById("chat-messages");
+  const chatContextChips = document.getElementById("chat-context-chips");
+  const chatInput = document.getElementById("chat-input") as HTMLTextAreaElement | null;
+  const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
+  const chatEngineSelect = document.getElementById(
+    "chat-engine-select",
+  ) as HTMLSelectElement | null;
+
+  let currentChatCard: Card | null = null;
+  let currentConversationId: string | null = null;
+  let isChatStreaming = false;
+
+  // 保存されているエンジン選択の復元
+  if (chatEngineSelect) {
+    const savedEngine = localStorage.getItem("autopilot_chat_engine");
+    if (savedEngine === "agy" || savedEngine === "claude") {
+      chatEngineSelect.value = savedEngine;
+    }
+    chatEngineSelect.addEventListener("change", () => {
+      localStorage.setItem("autopilot_chat_engine", chatEngineSelect.value);
+      // エンジンを切り替えた場合はセッションIDをリセット
+      currentConversationId = null;
+    });
+  }
+
+  const renderSimpleMarkdown = (text: string): string => {
+    const e = (str: string) =>
+      str.replace(
+        /[&<>"]/g,
+        (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] || c,
+      );
+
+    const codeBlocks: string[] = [];
+    let processed = text.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push(`<pre><code>${e(code.trim())}</code></pre>`);
+      return `%%CODEBLOCK_${idx}%%`;
+    });
+
+    processed = processed.replace(/^### (.*$)/gim, "<h3>$1</h3>");
+    processed = processed.replace(/^## (.*$)/gim, "<h3>$1</h3>");
+    processed = processed.replace(/^> (.*$)/gim, "<blockquote>$1</blockquote>");
+    processed = processed.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    processed = processed.replace(/`([^`]+)`/g, (_match, code) => `<code>${e(code)}</code>`);
+    processed = processed.replace(/^\s*[-*]\s+(.*$)/gim, "<li>$1</li>");
+    processed = processed.replace(/\n\n/g, "<br><br>");
+
+    processed = processed.replace(
+      /%%CODEBLOCK_(\d+)%%/g,
+      (_match, idx) => codeBlocks[Number(idx)] || "",
+    );
+
+    return processed;
+  };
+
+  const applySavedPaneWidth = (): void => {
+    if (!chatPane) return;
+    const saved = localStorage.getItem("autopilot_chat_pane_width");
+    if (saved) {
+      const w = Number.parseInt(saved, 10);
+      if (!Number.isNaN(w) && w >= 280 && w <= window.innerWidth * 0.8) {
+        chatPane.style.width = `${w}px`;
+      }
+    }
+  };
+
+  /**
+   * Antigravity IDE 風のコンテキストチップ（メンションタグ）を描画
+   */
+  const renderContextChips = () => {
+    if (!chatContextChips) return;
+
+    if (!currentChatCard) {
+      chatContextChips.innerHTML = "";
+      chatContextChips.style.display = "none";
+      if (chatInput) {
+        chatInput.placeholder = "質問や指示を入力... (Enterで送信, Shift+Enterで改行)";
+      }
+      return;
+    }
+
+    const c = currentChatCard;
+    const cardKey = `${c.repo}#${c.issue_number}`;
+    let html = "";
+
+    // 1. Issue / PR コンテキストチップ (Antigravity IDE の [M↓ AGENTS.md #L58] スタイル)
+    html += `
+      <div class="agy-chip issue-chip" title="アタッチされたコンテキスト">
+        <span class="chip-icon">
+          <svg viewBox="0 0 16 16" width="12" height="12" fill="currentColor"><path d="M14.85 3H1.15C.52 3 0 3.52 0 4.15v7.69C0 12.48.52 13 1.15 13h13.69c.64 0 1.15-.52 1.15-1.15V4.15C16 3.52 15.48 3 14.85 3zM9 11H7V8L5.5 9.9 4 8v3H2V5h2l1.5 2L7 5h2v6zm2.99.5L9.5 8H11V5h2v3h1.5l-2.51 3.5z"/></svg>
+        </span>
+        <span class="chip-text">${esc(cardKey)}</span>
+        <button type="button" class="chip-close" data-remove="card" title="コンテキストを解除">×</button>
+      </div>
+    `;
+
+    // 2. エラーコンテキストチップ（エラーがある場合）
+    if (c.error_detail) {
+      const summaryShort =
+        c.error_detail.summary.length > 28
+          ? `${c.error_detail.summary.slice(0, 28)}…`
+          : c.error_detail.summary;
+      html += `
+        <div class="agy-chip error-chip" title="直近のエラー情報">
+          <span class="chip-icon">⚠️</span>
+          <span class="chip-text">Error: ${esc(summaryShort)}</span>
+        </div>
+      `;
+    }
+
+    chatContextChips.innerHTML = html;
+    chatContextChips.style.display = "flex";
+
+    if (chatInput) {
+      chatInput.placeholder = `${c.repo}#${c.issue_number} について指示を入力、またはこのまま送信...`;
+    }
+  };
+
+  // チップの解除イベント
+  if (chatContextChips) {
+    chatContextChips.addEventListener("click", (e) => {
+      const target = e.target as HTMLElement;
+      const removeBtn = target.closest(".chip-close");
+      if (removeBtn) {
+        e.stopPropagation();
+        currentChatCard = null;
+        renderContextChips();
+      }
+    });
+  }
+
+  const openChat = (card?: Card | null): void => {
+    if (!chatPane || !paneResizer) return;
+    currentChatCard = card || null;
+
+    applySavedPaneWidth();
+    chatPane.style.display = "flex";
+    paneResizer.style.display = "block";
+    chatPane.setAttribute("aria-hidden", "false");
+
+    renderContextChips();
+    chatInput?.focus();
+  };
+
+  const closeChat = (): void => {
+    if (!chatPane || !paneResizer) return;
+    chatPane.style.display = "none";
+    paneResizer.style.display = "none";
+    chatPane.setAttribute("aria-hidden", "true");
+  };
+
+  const toggleChat = (): void => {
+    if (chatPane && chatPane.style.display === "flex") {
+      closeChat();
+    } else {
+      openChat(currentChatCard);
+    }
+  };
+
+  const appendUserMessage = (msg: string, card: Card | null) => {
+    if (!chatMessages) return;
+    const div = document.createElement("div");
+    div.className = "chat-msg user";
+
+    let pinHtml = "";
+    if (card) {
+      pinHtml = `<div class="msg-context-pin">📎 ${esc(card.repo)}#${card.issue_number}</div>`;
+    }
+
+    div.innerHTML = `${pinHtml}<div class="msg-bubble">${esc(msg)}</div>`;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  };
+
+  const startChatInvestigation = async (userPrompt: string) => {
+    if (isChatStreaming || !chatMessages) return;
+    isChatStreaming = true;
+    if (chatSendBtn) chatSendBtn.disabled = true;
+
+    const snapshotCard = currentChatCard;
+    // 送信後、ピン留めされたコンテキストチップと入力欄をクリア
+    currentChatCard = null;
+    renderContextChips();
+    if (chatInput) chatInput.value = "";
+
+    const promptToSend =
+      userPrompt.trim() ||
+      (snapshotCard?.error_detail
+        ? `直近のエラー「${snapshotCard.error_detail.summary}」の原因と対処法を調査してください。`
+        : snapshotCard
+          ? `このアイテムが現在「${snapshotCard.display_hint}」となっている原因と現在の状況を調査してください。`
+          : "システム全体の状況を調査してください。");
+
+    appendUserMessage(userPrompt.trim() || promptToSend, snapshotCard);
+
+    const assistantDiv = document.createElement("div");
+    assistantDiv.className = "chat-msg assistant";
+
+    const thinkingAccordion = document.createElement("details");
+    thinkingAccordion.className = "thinking-accordion";
+    thinkingAccordion.open = true;
+    thinkingAccordion.innerHTML =
+      '<summary>💭 Thinking (思考中...)</summary><pre class="thinking-content"></pre>';
+    const thinkingPre = thinkingAccordion.querySelector(".thinking-content") as HTMLPreElement;
+
+    const toolContainer = document.createElement("div");
+    toolContainer.className = "tool-call-container";
+
+    const bubbleDiv = document.createElement("div");
+    bubbleDiv.className = "msg-bubble";
+    bubbleDiv.innerHTML = '<span class="meta">調査中...</span>';
+
+    assistantDiv.appendChild(thinkingAccordion);
+    assistantDiv.appendChild(toolContainer);
+    assistantDiv.appendChild(bubbleDiv);
+    chatMessages.appendChild(assistantDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    let rawText = "";
+    let rawThinking = "";
+
+    try {
+      const selectedEngine = (chatEngineSelect?.value as "agy" | "claude") || "agy";
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: promptToSend,
+          card: snapshotCard || undefined,
+          conversation_id: currentConversationId || undefined,
+          engine: selectedEngine,
+        }),
+      });
+
+      if (!response.ok || !response.body) {
+        throw new Error(`HTTP ${response.status}: チャット接続に失敗しました`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        let currentEvent = "message";
+        for (const line of lines) {
+          if (line.startsWith("event: ")) {
+            currentEvent = line.slice(7).trim();
+          } else if (line.startsWith("data: ")) {
+            const dataStr = line.slice(6).trim();
+            if (!dataStr) continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (currentEvent === "init" && data.conversation_id) {
+                currentConversationId = data.conversation_id;
+              } else if (currentEvent === "thought" && data.delta) {
+                rawThinking += data.delta;
+                thinkingPre.textContent = rawThinking;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              } else if (currentEvent === "tool_start") {
+                const badge = document.createElement("div");
+                badge.className = "tool-call-badge";
+                badge.id = `tool-${data.id || data.name}`;
+                badge.innerHTML = `<span class="tool-icon">🛠️</span> <span><code>${esc(data.name)}</code></span> <span class="tool-status running">実行中...</span>`;
+                toolContainer.appendChild(badge);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              } else if (currentEvent === "tool_end") {
+                const badge = document.getElementById(`tool-${data.id || data.name}`);
+                if (badge) {
+                  const status = badge.querySelector(".tool-status");
+                  if (status) {
+                    status.className = "tool-status done";
+                    status.textContent = "完了";
+                  }
+                }
+              } else if (currentEvent === "text" && data.delta) {
+                rawText += data.delta;
+                bubbleDiv.innerHTML = renderSimpleMarkdown(rawText);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+              } else if (currentEvent === "done") {
+                const summary = thinkingAccordion.querySelector("summary");
+                if (summary) summary.innerHTML = "💭 Thinking (完了)";
+              } else if (currentEvent === "error") {
+                bubbleDiv.innerHTML += `<div style="color: var(--warn); margin-top: 8px;">⚠️ エラー: ${esc(data.message)}</div>`;
+              }
+            } catch {
+              // json パースエラー無視
+            }
+          }
+        }
+      }
+    } catch (err) {
+      bubbleDiv.innerHTML = `<div style="color: var(--warn);">⚠️ 調査中にエラーが発生しました: ${esc(String(err))}</div>`;
+    } finally {
+      isChatStreaming = false;
+      if (chatSendBtn) chatSendBtn.disabled = false;
+      chatInput?.focus();
+    }
+  };
+
+  // ── スプリッター（ドラッグによる画面分割比率の調整） ──
+  if (paneResizer && chatPane) {
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    paneResizer.addEventListener("mousedown", (e) => {
+      isResizing = true;
+      startX = e.clientX;
+      startWidth = chatPane.getBoundingClientRect().width;
+      paneResizer.classList.add("resizing");
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isResizing) return;
+      const dx = startX - e.clientX;
+      const minW = 280;
+      const maxW = Math.max(minW, Math.floor(window.innerWidth * 0.75));
+      const newWidth = Math.max(minW, Math.min(maxW, startWidth + dx));
+      chatPane.style.width = `${newWidth}px`;
+      localStorage.setItem("autopilot_chat_pane_width", String(Math.round(newWidth)));
+    });
+
+    document.addEventListener("mouseup", () => {
+      if (!isResizing) return;
+      isResizing = false;
+      paneResizer.classList.remove("resizing");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    });
+  }
+
+  // パネル開閉イベント登録
+  if (chatCloseBtn) chatCloseBtn.addEventListener("click", closeChat);
+  if (chatHeaderBtn) chatHeaderBtn.addEventListener("click", toggleChat);
+
+  // クイック質問チップスのクリック
+  document.addEventListener("click", (e) => {
+    const chip = (e.target as HTMLElement | null)?.closest(".quick-chip") as HTMLElement | null;
+    if (chip) {
+      const prompt = chip.getAttribute("data-prompt");
+      if (prompt) {
+        if (chatPane?.style.display !== "flex") {
+          openChat(null);
+        }
+        void startChatInvestigation(prompt);
+      }
+    }
+  });
+
+  // Antigravity IDE 風送信ハンドラー
+  const handleComposerSubmit = () => {
+    if (!chatInput || isChatStreaming) return;
+    const val = chatInput.value;
+    chatInput.value = "";
+    void startChatInvestigation(val);
+  };
+
+  if (chatSendBtn) {
+    chatSendBtn.addEventListener("click", handleComposerSubmit);
+  }
+
+  if (chatInput) {
+    chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleComposerSubmit();
+      }
+    });
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && chatPane && chatPane.style.display === "flex") {
+      closeChat();
+    }
+  });
 
   // 初期化：SSR データがあれば即座に反映
   if (doneCards) {

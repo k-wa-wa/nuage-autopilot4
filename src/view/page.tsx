@@ -2,10 +2,11 @@ import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
 import { initClient } from "./client.ts";
 import { BannerComponent } from "./components/Banner.tsx";
+import { ChatPane } from "./components/ChatPane.tsx";
 import { ErrorModalDialog } from "./components/ErrorModal.tsx";
 import { HistoryModalDialog } from "./components/HistoryModal.tsx";
 import { InfoModalDialog } from "./components/InfoModal.tsx";
-import { InfoIcon } from "./components/icons.tsx";
+import { InfoIcon, SparklesIcon } from "./components/icons.tsx";
 import { LaneComponent } from "./components/Lane.tsx";
 import { SystemErrorModalDialog } from "./components/SystemErrorModal.tsx";
 import type { StateResponse } from "./state.ts";
@@ -33,37 +34,62 @@ export const Page: FC<PageProps> = ({ initialState }) => {
         <style>{raw(styles)}</style>
       </head>
       <body>
-        <header>
-          <h1>Autopilot</h1>
-          <button
-            type="button"
-            id="info-btn"
-            class="icon-btn"
-            aria-label="システム・API情報"
-            title="システム・API情報"
-          >
-            <InfoIcon />
-          </button>
-          <a class="header-link" href="/done">
-            完了タスクを見る
-          </a>
-        </header>
+        <div id="app-layout" class="app-layout">
+          <div id="main-pane" class="main-pane">
+            <header>
+              <h1>Autopilot</h1>
+              <button
+                type="button"
+                id="info-btn"
+                class="icon-btn"
+                aria-label="システム・API情報"
+                title="システム・API情報"
+              >
+                <InfoIcon />
+              </button>
+              <button
+                type="button"
+                id="chat-header-btn"
+                class="icon-btn header-chat-btn"
+                aria-label="Autopilot Chat を開閉"
+                title="Autopilot Chat を開閉"
+              >
+                <SparklesIcon size={14} />
+              </button>
+              <a class="header-link" href="/done">
+                完了タスクを見る
+              </a>
+            </header>
 
-        <div id="banner">
-          <BannerComponent degraded={initialState?.health.degraded} />
+            <div id="banner">
+              <BannerComponent degraded={initialState?.health.degraded} />
+            </div>
+
+            <main>
+              <LaneComponent
+                id="action_required"
+                title="🧑 Action Required"
+                cards={initialState?.lanes.action_required}
+                open
+              />
+              <LaneComponent
+                id="working"
+                title="🤖 Working"
+                cards={initialState?.lanes.working}
+                open
+              />
+              <LaneComponent
+                id="queued"
+                title="📦 Queued"
+                cards={initialState?.lanes.queued}
+                open
+              />
+              <LaneComponent id="backlog" title="📥 Backlog" cards={initialState?.lanes.backlog} />
+            </main>
+          </div>
+
+          <ChatPane />
         </div>
-
-        <main>
-          <LaneComponent
-            id="action_required"
-            title="🧑 Action Required"
-            cards={initialState?.lanes.action_required}
-            open
-          />
-          <LaneComponent id="working" title="🤖 Working" cards={initialState?.lanes.working} open />
-          <LaneComponent id="queued" title="📦 Queued" cards={initialState?.lanes.queued} open />
-          <LaneComponent id="backlog" title="📥 Backlog" cards={initialState?.lanes.backlog} />
-        </main>
 
         <svg id="relation-connector-canvas" class="relation-connector-svg" aria-hidden="true">
           <g id="relation-connector-layer" />

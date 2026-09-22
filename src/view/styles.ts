@@ -152,8 +152,11 @@ section { min-width: 0; }
   font-weight: 500;
   margin-bottom: 4px;
   overflow-wrap: anywhere;
-  padding-right: 38px;
+  padding-right: 32px;
   transition: color 0.15s ease;
+}
+.card:has(.card-history-btn) .t {
+  padding-right: 72px;
 }
 .s {
   color: var(--muted);
@@ -264,33 +267,59 @@ section { min-width: 0; }
 .relation-badge.child-badge {
   color: var(--muted);
 }
-.card-history-btn {
+.card-actions {
   position: absolute;
-  top: 9px;
-  right: 9px;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+.card-action-btn {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   font-size: 11px;
   font-weight: 500;
-  color: var(--muted);
-  background: rgba(120, 120, 120, 0.08);
-  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 2px 7px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-  z-index: 2;
+  transition: all 0.15s ease;
   line-height: 1.2;
+  border: 1px solid var(--line);
+}
+.card-action-btn svg {
+  flex-shrink: 0;
+}
+.card-history-btn {
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
 }
 .card-history-btn:hover {
   background: var(--line);
   color: var(--fg);
   border-color: var(--muted);
 }
-.card-history-btn svg {
-  flex-shrink: 0;
+.card-debug-btn {
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+  padding: 3px 5px;
+  border-radius: 6px;
+}
+.card-debug-btn:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.header-chat-btn {
+  color: var(--accent);
+}
+.header-chat-btn:hover {
+  color: var(--fg);
+  transform: scale(1.1);
 }
 .empty {
   color: var(--muted);
@@ -768,5 +797,603 @@ dialog.modal::backdrop {
   fill: var(--accent);
   stroke: var(--card);
   stroke-width: 2px;
+}
+
+/* ============================================================
+ * Split Layout & AI Debug Chat Pane (Antigravity IDE Style)
+ * ============================================================ */
+.app-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.main-pane {
+  flex: 1;
+  min-width: 320px;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 分割リサイザー（スプリッター） */
+.pane-resizer {
+  width: 2px;
+  height: 100vh;
+  background: var(--line);
+  cursor: col-resize;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 50;
+  transition: background 0.15s ease;
+  user-select: none;
+}
+.pane-resizer:hover,
+.pane-resizer.resizing {
+  background: var(--accent);
+}
+.pane-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+}
+
+/* 右ペイン: チャットサイドパネル */
+.chat-pane {
+  width: 460px;
+  min-width: 300px;
+  max-width: 75vw;
+  height: 100vh;
+  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  z-index: 40;
+  font-size: 13px;
+}
+
+.chat-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.chat-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+}
+.chat-bot-icon {
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+}
+.chat-target-badge {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  font-weight: 500;
+}
+.chat-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.chat-close-btn:hover {
+  color: var(--fg);
+  background: var(--line);
+}
+
+.chat-context-bar {
+  padding: 8px 16px;
+  background: rgba(120, 120, 120, 0.05);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.context-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.context-label {
+  color: var(--muted);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.context-desc {
+  color: var(--fg);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.context-refresh-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+.context-refresh-btn:hover {
+  color: var(--fg);
+  border-color: var(--muted);
+  background: var(--line);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chat-welcome-msg {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--muted);
+}
+.chat-welcome-msg .welcome-icon {
+  display: inline-flex;
+  padding: 12px;
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--accent);
+  border-radius: 50%;
+  margin-bottom: 16px;
+}
+.chat-welcome-msg h4 {
+  margin: 0 0 8px;
+  color: var(--fg);
+  font-size: 15px;
+}
+.chat-welcome-msg p {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.chat-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 100%;
+}
+.chat-msg.user {
+  align-self: flex-end;
+}
+.chat-msg.assistant {
+  align-self: flex-start;
+  width: 100%;
+}
+
+.msg-bubble {
+  padding: 10px 14px;
+  border-radius: 10px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.chat-msg.user .msg-bubble {
+  background: var(--accent);
+  color: #fff;
+  border-bottom-right-radius: 2px;
+  max-width: 85%;
+}
+.chat-msg.assistant .msg-bubble {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-bottom-left-radius: 2px;
+}
+.msg-bubble pre {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+}
+.msg-bubble code {
+  font-family: ui-monospace, monospace;
+  background: rgba(120, 120, 120, 0.12);
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.msg-bubble blockquote {
+  margin: 8px 0;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+.msg-bubble h3 {
+  margin: 6px 0 10px;
+  font-size: 14px;
+}
+.msg-bubble ul, .msg-bubble ol {
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.msg-bubble p {
+  margin: 6px 0;
+}
+
+/* 思考プロセス (Thinking / CoT) */
+.thinking-accordion {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  background: rgba(120, 120, 120, 0.04);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.thinking-accordion summary {
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  outline: none;
+}
+.thinking-accordion summary:hover {
+  color: var(--fg);
+}
+.thinking-content {
+  margin: 8px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px dotted var(--line);
+  white-space: pre-wrap;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+/* ツール呼び出しログ (Tool Calls) */
+.tool-call-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+.tool-call-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+.tool-call-badge .tool-icon {
+  font-size: 12px;
+}
+.tool-call-badge .tool-status {
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: auto;
+  font-weight: 600;
+}
+.tool-call-badge .tool-status.running {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--accent);
+}
+.tool-call-badge .tool-status.done {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+/* クイックチップス */
+.chat-quick-bar {
+  padding: 8px 16px;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+.quick-chip {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+.quick-chip:hover {
+  background: var(--line);
+  border-color: var(--muted);
+  transform: translateY(-1px);
+}
+
+/* Antigravity IDE 風 Composer (入力エリア) */
+.chat-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  flex-shrink: 0;
+}
+
+.agy-composer {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.agy-composer:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+
+/* アタッチされたコンテキストチップ (Mention Chips) */
+.agy-context-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.agy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-family: ui-monospace, monospace;
+  color: var(--fg);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s ease;
+}
+
+.agy-chip:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--accent);
+}
+
+.agy-chip.error-chip {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+.agy-chip.error-chip:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: #ef4444;
+}
+
+.agy-chip .chip-icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.agy-chip.error-chip .chip-icon {
+  color: #ef4444;
+}
+
+.agy-chip .chip-text {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.agy-chip .chip-close {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  cursor: pointer;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  transition: color 0.15s ease;
+}
+
+.agy-chip .chip-close:hover {
+  color: var(--fg);
+}
+
+/* テキストエリア */
+.agy-textarea {
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+  width: 100%;
+  min-height: 26px;
+  max-height: 140px;
+  padding: 0;
+}
+
+.agy-textarea::placeholder {
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* 下部ツールバー */
+.agy-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 2px;
+}
+
+.agy-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* エンジン切り替えセレクト (Antigravity IDE Style) */
+.agy-engine-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  background: rgba(120, 120, 120, 0.08);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 22px 2px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.agy-engine-picker:hover {
+  background: var(--line);
+  border-color: var(--muted);
+}
+
+.agy-engine-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 11px;
+  font-family: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+}
+
+.agy-engine-select option {
+  background: var(--card);
+  color: var(--fg);
+}
+
+.agy-picker-arrow {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+
+.agy-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Antigravity IDE 風の丸型送信ボタン */
+.agy-send-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #007acc;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease, opacity 0.15s ease;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 122, 204, 0.3);
+}
+
+.agy-send-btn:hover {
+  background: #0088e0;
+  transform: scale(1.05);
+}
+
+.agy-send-btn:active {
+  transform: scale(0.95);
+}
+
+.agy-send-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* メッセージ内のコンテキストピン */
+.msg-context-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-family: ui-monospace, monospace;
+  background: rgba(120, 120, 120, 0.1);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  align-self: flex-start;
 }
 `;

@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import type { Card } from "../state.ts";
 import { formatAgo, isErrorHint } from "../utils.ts";
-import { HistoryIcon, PrIcon, WarnIcon } from "./icons.tsx";
+import { HistoryIcon, PrIcon, SparklesIcon, WarnIcon } from "./icons.tsx";
 
 export interface CardProps {
   card: Card;
@@ -41,17 +41,28 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
       data-parent-key={parentKey}
       data-is-parent={isParent ? "true" : undefined}
     >
-      {historyCount > 0 && (
+      <div class="card-actions">
         <button
           type="button"
-          class="card-history-btn card-history-trigger"
+          class="card-action-btn card-debug-btn card-debug-trigger"
           data-key={cardKey}
-          title={`ジョブ実行履歴を表示 (${historyCount}回実行)`}
+          title="Autopilot Chat で調査"
+          aria-label="Autopilot Chat で調査"
         >
-          <HistoryIcon />
-          <span>{historyCount}</span>
+          <SparklesIcon size={12} />
         </button>
-      )}
+        {historyCount > 0 && (
+          <button
+            type="button"
+            class="card-action-btn card-history-btn card-history-trigger"
+            data-key={cardKey}
+            title={`ジョブ実行履歴を表示 (${historyCount}回実行)`}
+          >
+            <HistoryIcon />
+            <span>{historyCount}</span>
+          </button>
+        )}
+      </div>
 
       <a class="card-main" href={issueUrl} target="_blank" rel="noreferrer" title="Issue を開く">
         <div class="t">{c.title || "(no title)"}</div>

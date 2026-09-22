@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { DB } from "../store/db.ts";
+import { handleChatStream } from "./chat.ts";
 import { DonePage } from "./done.tsx";
 import { Page } from "./page.tsx";
 import { renderErrorHistory, renderHistoryTimeline, renderLanes } from "./render.tsx";
@@ -63,6 +64,9 @@ export function startServer(db: DB, port: number, hostname = "127.0.0.1"): { sto
       `<!doctype html>${<DonePage state={buildDoneState(db)} health={buildState(db).health} />}`,
     ),
   );
+
+  // AI 調査アシスタント (SSE ストリーミング)
+  app.post("/api/chat", handleChatStream);
 
   // 初期ロード（SSR: サーバーサイドで初期カードを展開して返す）
   app.get("/", (c) => {

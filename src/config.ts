@@ -115,3 +115,4 @@ export const lockPath = (c: Config) => join(c.home, "autopilot.lock");
 export const runDir = (c: Config) => join(c.home, "run");
 export const logDir = (c: Config) => join(c.home, "logs");
 export const workspaceDir = (c: Config, repo: string) => join(c.home, "workspaces", repo);
+export const chatWorkspaceDir = (c: Config, repo: string) => join(c.home, "chat-workspaces", repo);

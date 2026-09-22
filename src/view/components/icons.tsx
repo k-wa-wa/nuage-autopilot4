@@ -36,3 +36,49 @@ export const InfoIcon: FC<{ size?: number }> = ({ size = 14 }) => (
     />
   </svg>
 );
+
+export const CloseIcon: FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+  </svg>
+);
+
+export const SparklesIcon: FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M7.53 1.282a.5.5 0 0 1 .94 0l.972 2.915a3.5 3.5 0 0 0 2.213 2.213l2.915.972a.5.5 0 0 1 0 .94l-2.915.972a3.5 3.5 0 0 0-2.213 2.213l-.972 2.915a.5.5 0 0 1-.94 0l-.972-2.915a3.5 3.5 0 0 0-2.213-2.213L.43 8.322a.5.5 0 0 1 0-.94l2.915-.972a3.5 3.5 0 0 0 2.213-2.213l.972-2.915Z" />
+  </svg>
+);
+
+export const BugIcon: FC<{ size?: number }> = ({ size = 12 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M4.72 3.22a.75.75 0 0 1 1.06 1.06L4.81 5.25h6.38l-.97-.97a.75.75 0 0 1 1.06-1.06l2 2a.75.75 0 0 1 0 1.06l-2 2a.75.75 0 1 1-1.06-1.06l.47-.47H5.31l.47.47a.75.75 0 0 1-1.06 1.06l-2-2a.75.75 0 0 1 0-1.06l2-2ZM3 10.5a5 5 0 0 0 10 0V9H3v1.5ZM8 1a3 3 0 0 0-3 3v1h6V4a3 3 0 0 0-3-3Z" />
+  </svg>
+);
+
+export const PlusIcon: FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" />
+  </svg>
+);
+
+export const ChevronDownIcon: FC<{ size?: number }> = ({ size = 12 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M4.427 6.427a.75.75 0 0 1 1.06 0L8 8.939l2.513-2.512a.75.75 0 1 1 1.06 1.061l-3.043 3.043a.75.75 0 0 1-1.06 0L4.427 7.488a.75.75 0 0 1 0-1.061Z" />
+  </svg>
+);
+
+export const ArrowRightIcon: FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path
+      fill-rule="evenodd"
+      d="M8.22 2.97a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042l2.97-2.97H2.75a.75.75 0 0 1 0-1.5h8.44L8.22 4.03a.75.75 0 0 1 0-1.06Z"
+      clip-rule="evenodd"
+    />
+  </svg>
+);
+
+export const MarkdownIcon: FC<{ size?: number }> = ({ size = 14 }) => (
+  <svg viewBox="0 0 16 16" width={size} height={size} fill="currentColor" aria-hidden="true">
+    <path d="M14.85 3H1.15C.52 3 0 3.52 0 4.15v7.69C0 12.48.52 13 1.15 13h13.69c.64 0 1.15-.52 1.15-1.15V4.15C16 3.52 15.48 3 14.85 3zM9 11H7V8L5.5 9.9 4 8v3H2V5h2l1.5 2L7 5h2v6zm2.99.5L9.5 8H11V5h2v3h1.5l-2.51 3.5z" />
+  </svg>
+);

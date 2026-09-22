@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { Config } from "../config.ts";
-import { workspaceDir } from "../config.ts";
+import { chatWorkspaceDir, workspaceDir } from "../config.ts";
 import type { JobType } from "../types.ts";
 
 /**
@@ -66,6 +66,50 @@ export async function ensureClone(
   );
   if (r.code !== 0) throw new Error(`clone failed: ${r.stderr}`);
   await configureCredentials(dir, git);
+  return dir;
+}
+
+/**
+ * Autopilot Chat 専用の調査用ワークスペースを準備する。
+ *
+ * メインワーカー（workspaceDir）とは完全に分離された chatWorkspaceDir にクローンする。
+ * これにより、メインワーカーのジョブ実行（ブランチ作成・コミット・リセット）との競合や破壊を防ぐ。
+ *
+ * - ディレクトリが存在しない場合: git clone を実行
+ * - 既に存在する場合: git fetch --prune origin を行い、安全に HEAD または指定ブランチを clean 状態にする
+ */
+export async function ensureChatWorkspace(
+  cfg: Config,
+  repo: string,
+  branch?: string,
+  git: GitRunner = realGit,
+): Promise<string> {
+  const dir = chatWorkspaceDir(cfg, repo);
+  if (!existsSync(`${dir}/.git`)) {
+    mkdirSync(dirname(dir), { recursive: true });
+    const url = `https://github.com/${repo}.git`;
+    const r = await git(
+      ["-c", `credential.helper=${CREDENTIAL_HELPER}`, "clone", url, dir],
+      dirname(dir),
+    );
+    if (r.code !== 0) throw new Error(`chat workspace clone failed: ${r.stderr}`);
+    await configureCredentials(dir, git);
+  } else {
+    await configureCredentials(dir, git);
+    await git(["fetch", "--prune", "origin"], dir);
+  }
+
+  // 調査エージェントが安全にファイルを読めるようクリーンアップ
+  await git(["reset", "--hard", "HEAD"], dir);
+  await git(["clean", "-fd"], dir);
+
+  if (branch) {
+    const r = await git(["checkout", branch], dir);
+    if (r.code !== 0) {
+      await git(["checkout", "-B", branch, `origin/${branch}`], dir);
+    }
+  }
+
   return dir;
 }
 
