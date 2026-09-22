@@ -1,14 +1,12 @@
-import type { FC } from "hono/jsx";
-import type { Card } from "../state.ts";
-import { formatAgo, isErrorHint } from "../utils.ts";
-import { HistoryIcon, PrIcon, WarnIcon } from "./icons.tsx";
+import { useContext } from "preact/hooks";
+import type { Card } from "../../api/state.ts";
+import { cardKeyOf, formatAgo, isErrorHint, parentKeyOf } from "../utils.ts";
+import { CardActionsContext } from "./cardActions.ts";
+import { HistoryIcon, PrIcon, SparklesIcon, WarnIcon } from "./icons.tsx";
 
-export interface CardProps {
-  card: Card;
-}
-
-export const CardComponent: FC<CardProps> = ({ card: c }) => {
-  const cardKey = `${c.repo}#${c.issue_number}`;
+export function CardView({ card: c }: { card: Card }) {
+  const actions = useContext(CardActionsContext);
+  const cardKey = cardKeyOf(c);
   const hasError = isErrorHint(c.display_hint);
   // Done は display_hint を持たない（types.ts hintMatchesState）。state_since は Done になった時刻。
   const isDone = c.display_hint === "";
@@ -22,36 +20,55 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
 
   const historyCount = c.job_history?.length ?? 0;
 
-  // エラープレビューの生成
   let summaryPreview = "";
   if (hasError && c.error_detail) {
     const firstLine = c.error_detail.summary.split("\n")[0] || "エラー詳細";
     summaryPreview = firstLine.length > 35 ? `${firstLine.slice(0, 35)}…` : firstLine;
   }
 
-  const parentKey = c.parent_issue_number
-    ? `${c.parent_repo || c.repo}#${c.parent_issue_number}`
-    : undefined;
   const isParent = Boolean(c.sub_issues_total && c.sub_issues_total > 0);
+  const { openChat, openError, openHistory, hover, registerElement, relationOf } = actions;
+  const relation = relationOf?.(cardKey);
+  const classes = ["card"];
+  if (hasError) classes.push("has-error");
+  if (isDone) classes.push("done");
+  if (relation) classes.push(`relation-${relation}`);
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: ホバーは親子コネクタ線の見た目だけに使う
     <div
-      class={`card${hasError ? " has-error" : ""}${isDone ? " done" : ""}`}
+      class={classes.join(" ")}
       data-key={cardKey}
-      data-parent-key={parentKey}
+      data-parent-key={parentKeyOf(c) ?? undefined}
       data-is-parent={isParent ? "true" : undefined}
+      ref={registerElement ? (el) => registerElement(cardKey, el) : undefined}
+      onMouseEnter={hover ? () => hover(cardKey) : undefined}
+      onMouseLeave={hover ? () => hover(null) : undefined}
     >
-      {historyCount > 0 && (
-        <button
-          type="button"
-          class="card-history-btn card-history-trigger"
-          data-key={cardKey}
-          title={`ジョブ実行履歴を表示 (${historyCount}回実行)`}
-        >
-          <HistoryIcon />
-          <span>{historyCount}</span>
-        </button>
-      )}
+      <div class="card-actions">
+        {openChat && (
+          <button
+            type="button"
+            class="card-action-btn card-debug-btn"
+            title="Autopilot Chat で調査"
+            aria-label="Autopilot Chat で調査"
+            onClick={() => openChat(c)}
+          >
+            <SparklesIcon size={12} />
+          </button>
+        )}
+        {openHistory && historyCount > 0 && (
+          <button
+            type="button"
+            class="card-action-btn card-history-btn"
+            title={`ジョブ実行履歴を表示 (${historyCount}回実行)`}
+            onClick={() => openHistory(c)}
+          >
+            <HistoryIcon />
+            <span>{historyCount}</span>
+          </button>
+        )}
+      </div>
 
       <a class="card-main" href={issueUrl} target="_blank" rel="noreferrer" title="Issue を開く">
         <div class="t">{c.title || "(no title)"}</div>
@@ -66,9 +83,9 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
           <span class="sub-connector">└</span>
           <button
             type="button"
-            class="error-badge card-error-trigger"
-            data-key={cardKey}
+            class="error-badge"
             title={`クリックしてエラー詳細を表示: ${c.error_detail.summary}`}
+            onClick={() => openError?.(c)}
           >
             <WarnIcon />
             <span>エラー: {summaryPreview}</span>
@@ -100,12 +117,7 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
           <span class="sub-connector">└</span>
           <span class="relation-badge-group">
             {c.sub_issue_numbers.map((n) => (
-              <span
-                key={n}
-                class="relation-badge child-badge"
-                data-child-key={`${c.repo}#${n}`}
-                title={`子 Issue #${n}`}
-              >
+              <span key={n} class="relation-badge child-badge" title={`子 Issue #${n}`}>
                 子: #{n}
               </span>
             ))}
@@ -114,4 +126,4 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
       )}
     </div>
   );
-};
+}

@@ -1,0 +1,23 @@
+
+【Autopilot 実行環境・断面】
+- バージョン: autopilot 0.1.0 (commit: a1b2c3d)
+- ソースコード配置パス: /Users/test/nuage-autopilot4
+- 主な仕様・実装ファイル:
+  - 仕様定義: /Users/test/nuage-autopilot4/docs/spec.md
+  - 設計方針: /Users/test/nuage-autopilot4/ARCHITECTURE.md
+  - 判定ロジック: /Users/test/nuage-autopilot4/src/decide/
+  - 実行エンジン: /Users/test/nuage-autopilot4/src/execute/
+  - 収集ポーラー: /Users/test/nuage-autopilot4/src/collect/
+  - 状態・キュー管理: /Users/test/nuage-autopilot4/src/store/
+
+【作業ディレクトリ】
+カレントディレクトリは Chat 専用のチェックアウトで、新しい会話の開始時に既定ブランチの最新へ更新されます。他の会話と共有しているため、会話の途中で更新されている可能性があります。
+コードを読んだりコマンドを実行したりする前に、毎回 `git log -1 --format='%h %ad %s' --date=iso` と `git status -sb` で HEAD の位置を確認し、回答にはどのコミット時点のコードを前提にしたかを明記してください。
+
+【調査のガイドライン】
+アイテムの滞留やエラー原因は、対象リポジトリ固有の不備（コード・CI設定など）だけでなく、
+Autopilot 自身の判定（Triage 判定、リトライ上限到達、FastPass 条件、直列化制御など）に起因する場合があります。
+必要に応じて上記 Autopilot のソースコードや仕様書も参照し、両面から根本原因と推奨アクションを報告してください。
+
+【指示・質問】
+現在キューに入っているタスクとレートリミットの状況を要約して

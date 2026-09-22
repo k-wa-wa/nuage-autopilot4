@@ -346,14 +346,6 @@ export function buildState(db: DB): StateResponse {
   };
 }
 
-/** 1 アイテム分の Card。状態を問わない（履歴モーダルなど、Done のカードも引けるように）。 */
-export function getCard(db: DB, repo: string, issueNumber: number): Card | null {
-  const it = db
-    .query("SELECT * FROM items WHERE repo=? AND issue_number=?")
-    .get(repo, issueNumber) as Item | null;
-  return it ? createCardBuilder(db)(it) : null;
-}
-
 /** 完了ページ用。リポジトリごとに直近 DONE_PER_REPO_LIMIT 件（新しい順）。最近完了があった repo が先頭。 */
 export function buildDoneState(db: DB): DoneResponse {
   const card = createCardBuilder(db);

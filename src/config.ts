@@ -93,7 +93,7 @@ export function loadConfig(configPath?: string): Config {
     queue: { max_parallel: raw?.queue?.max_parallel ?? 2 },
     dashboard: {
       // 既定はループバック。認証を持たないため、0.0.0.0 にするのは
-      // 信頼できるネットワークに限ること（読み取り専用だが Issue の題名と状態が見える）。
+      // 信頼できるネットワークに限ること。
       host: raw?.dashboard?.host ?? "127.0.0.1",
       port: raw?.dashboard?.port ?? 8787,
     },
@@ -115,3 +115,4 @@ export const lockPath = (c: Config) => join(c.home, "autopilot.lock");
 export const runDir = (c: Config) => join(c.home, "run");
 export const logDir = (c: Config) => join(c.home, "logs");
 export const workspaceDir = (c: Config, repo: string) => join(c.home, "workspaces", repo);
+export const chatWorkspaceDir = (c: Config, repo: string) => join(c.home, "chat-workspaces", repo);

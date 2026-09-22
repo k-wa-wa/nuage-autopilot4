@@ -88,8 +88,7 @@ in
 
         Dashboard は認証を持たないため既定では 127.0.0.1 にしか bind しない。
         開放する場合は {option}`services.autopilot.settings.dashboard.host` も
-        `0.0.0.0` にすること。書き込み API は無いので、影響は
-        「Issue の題名と状態が読まれる」までに閉じている。
+        `0.0.0.0` にすること。
 
         開放せずにリモートから見るなら SSH ポートフォワードを使う:
 

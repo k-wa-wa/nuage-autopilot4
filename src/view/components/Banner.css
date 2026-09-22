@@ -1,0 +1,34 @@
+.banner {
+  background: var(--warn);
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 13px;
+}
+.banner {
+  background: var(--warn);
+  color: #fff;
+  padding: 8px 20px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.banner:hover {
+  filter: brightness(0.95);
+}
+.banner-tap-hint {
+  font-size: 11px;
+  opacity: 0.85;
+  text-decoration: underline;
+}
+button.banner {
+  width: 100%;
+  border: none;
+  font: inherit;
+  text-align: left;
+  color: #fff;
+}
+.banner-static {
+  cursor: default;
+}

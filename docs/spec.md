@@ -289,14 +289,15 @@ flowchart TD
 
 ## 10. Dashboard
 
-- `autopilot run` 内に Hono を同居させる。**書き込み API を持たない。**
+- `autopilot run` 内に Hono を同居させる。
   待ち受けは `dashboard.host`（既定 `127.0.0.1`）と `dashboard.port`。
-  認証は持たないので、`0.0.0.0` にするのは信頼できるネットワークに限る
-  （読み取り専用なので影響は Issue の題名と状態の開示まで）。
+  認証は持たないので、`0.0.0.0` にするのは信頼できるネットワークに限る。
 - `GET /api/state` が `action_required` / `working` / `queued` / `backlog` の各レーンと `health` を返す（`Done` は含めない）。
 - 完了ページ `GET /done`（JSON は `GET /api/done`）は `Done` をリポジトリごとのレーンで表示する。
   レーン内は `state_since` 降順で、リポジトリごとに直近 30 件に限る（終端で増え続けるため）。
-  ポーリングはしない。履歴モーダル（`/api/render/history`）はメインと共通で、状態を問わずアイテムを引く。フロントは 3〜5 秒間隔でポーリング。
+  ポーリングはしない。履歴モーダルはメインと共通で、カードに含まれる `job_history` をそのまま描画する。フロントは 3〜5 秒間隔でポーリング。
+- 画面は Preact コンポーネントで構成し、サーバーが SSR した HTML をクライアントが同じ初期データでハイドレートする。
+  サーバーは JSON だけを返し、HTML 片を返す API は持たない。
 - レーンは `items.state` をそのまま使う。`display_hint` は保存済みの文字列をそのまま描画する
   （Dashboard 側で状態を再解釈しない）。`title` は `items.title` を使い `payload_json` をパースしない。
 - 並び順は `ActionRequired` が `state_since` 昇順、他は `job_queue.id` 昇順。**`updated_at` で並べない。**

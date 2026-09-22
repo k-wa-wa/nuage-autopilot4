@@ -16,7 +16,7 @@
     "noEmit": true,
     "verbatimModuleSyntax": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx"
+    "jsxImportSource": "preact"
   },
   "include": ["src"]
 }

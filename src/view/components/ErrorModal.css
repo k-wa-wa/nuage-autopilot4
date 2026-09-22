@@ -1,0 +1,42 @@
+.error-detail-box {
+  background: var(--bg);
+  border: 1px solid rgba(168, 68, 42, 0.3);
+  border-left: 4px solid var(--warn);
+  border-radius: 6px;
+  padding: 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+}
+.error-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.error-history-item {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.error-history-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+.error-history-reason {
+  color: var(--fg);
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

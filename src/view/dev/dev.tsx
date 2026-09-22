@@ -1,33 +1,43 @@
+import { networkInterfaces } from "node:os";
 import { Hono } from "hono";
-import { raw } from "hono/html";
-import type { FC } from "hono/jsx";
-import { DonePage } from "./done.tsx";
+import qrcodeTerminal from "qrcode-terminal";
+import { buildDoneState, buildState } from "../../api/state.ts";
+import { renderDocument } from "../document.tsx";
+import type { DevOptions } from "../pageData.ts";
+import { mountRoutes } from "../server.tsx";
 import { createMockDb, loadScenario, SCENARIOS, type ScenarioName } from "./mock.ts";
-import { Page } from "./page.tsx";
-import { mountRoutes } from "./server.tsx";
-import { buildDoneState, buildState } from "./state.ts";
+
+/** LAN からスマホ等でアクセスするための IPv4 アドレス（見つからなければ null）。 */
+function getLanIp(): string | null {
+  for (const iface of Object.values(networkInterfaces())) {
+    for (const addr of iface ?? []) {
+      if (addr.family === "IPv4" && !addr.internal) return addr.address;
+    }
+  }
+  return null;
+}
 
 const devBarStyles = `
-#dev-toolbar {
+.dev-toolbar {
   background: var(--card);
   color: var(--fg);
   border-bottom: 1px solid var(--line);
   padding: 8px 20px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 8px 16px;
   font: 12px ui-sans-serif, -apple-system, sans-serif;
 }
-#dev-toolbar .control-group {
+.dev-toolbar .control-group {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-#dev-toolbar label {
+  min-width: 0;
   color: var(--muted);
   font-weight: 500;
 }
-#dev-toolbar select {
+.dev-toolbar select {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line);
@@ -36,101 +46,15 @@ const devBarStyles = `
   font-size: 12px;
   cursor: pointer;
   outline: none;
+  max-width: 100%;
 }
-#dev-toolbar select:hover {
+.dev-toolbar select:hover {
   border-color: var(--muted);
 }
 `;
 
-const devClientScript = `
-(function() {
-  const scenarioSelect = document.getElementById("dev-scenario-select");
-  const themeSelect = document.getElementById("dev-theme-select");
-
-  async function switchScenario(name) {
-    try {
-      const res = await fetch('/api/dev/scenario/' + encodeURIComponent(name), { method: 'POST' });
-      if (!res.ok) return;
-      const url = new URL(window.location);
-      url.searchParams.set('scenario', name);
-      window.history.replaceState({}, '', url);
-      window.dispatchEvent(new CustomEvent('autopilot:refresh'));
-    } catch (e) {
-      console.error('failed to switch scenario:', e);
-    }
-  }
-
-  function switchTheme(theme) {
-    const root = document.documentElement;
-    if (theme === 'dark' || theme === 'light') {
-      root.setAttribute('data-theme', theme);
-    } else {
-      root.removeAttribute('data-theme');
-    }
-    localStorage.setItem('autopilot_dev_theme', theme);
-  }
-
-  if (scenarioSelect) {
-    scenarioSelect.addEventListener('change', (e) => {
-      switchScenario(e.target.value);
-    });
-  }
-
-  if (themeSelect) {
-    const savedTheme = localStorage.getItem('autopilot_dev_theme') || 'system';
-    themeSelect.value = savedTheme;
-    switchTheme(savedTheme);
-
-    themeSelect.addEventListener('change', (e) => {
-      switchTheme(e.target.value);
-    });
-  }
-
-  // クエリパラメータの初期同期
-  const params = new URLSearchParams(window.location.search);
-  const qScenario = params.get('scenario');
-  if (qScenario && scenarioSelect && scenarioSelect.value !== qScenario) {
-    scenarioSelect.value = qScenario;
-  }
-})();
-`;
-
-interface DevWrapperProps {
-  currentScenario: ScenarioName;
-  children?: unknown;
-}
-
-const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, children }) => {
-  return (
-    <>
-      <div id="dev-toolbar">
-        <div class="control-group">
-          <label for="dev-scenario-select">Scenario:</label>
-          <select id="dev-scenario-select">
-            {SCENARIOS.map((s) => (
-              <option value={s.name} selected={s.name === currentScenario}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div class="control-group">
-          <label for="dev-theme-select">Theme:</label>
-          <select id="dev-theme-select">
-            <option value="system">🌓 System (OS追従)</option>
-            <option value="light">☀️ Light</option>
-            <option value="dark">🌙 Dark</option>
-          </select>
-        </div>
-      </div>
-      <style>{raw(devBarStyles)}</style>
-      {children}
-      <script>{raw(devClientScript)}</script>
-    </>
-  );
-};
-
 export function createDevApp(initialScenario: ScenarioName = "standard") {
+  process.env.MOCK_CHAT = "true";
   const { db, currentScenario: activeScenario } = createMockDb(initialScenario);
   let currentScenario = activeScenario;
 
@@ -160,30 +84,37 @@ export function createDevApp(initialScenario: ScenarioName = "standard") {
     });
   });
 
+  const dev = (): DevOptions => ({
+    scenarios: SCENARIOS.map((sc) => ({ name: sc.name, title: sc.title })),
+    current: currentScenario,
+  });
+
   app.get("/", (c) => {
     const q = c.req.query("scenario") as ScenarioName | undefined;
     if (q && SCENARIOS.some((s) => s.name === q) && q !== currentScenario) {
       loadScenario(db, q);
       currentScenario = q;
     }
-    const state = buildState(db);
     return c.html(
-      `<!doctype html>${(
-        <DevWrapper currentScenario={currentScenario}>
-          <Page initialState={state} />
-        </DevWrapper>
-      )}`,
+      renderDocument(
+        { page: "dashboard", state: buildState(db), dev: dev() },
+        { extraStyles: devBarStyles },
+      ),
     );
   });
 
   // 完了ページにもシナリオ切替のツールバーを付ける
   app.get("/done", (c) =>
     c.html(
-      `<!doctype html>${(
-        <DevWrapper currentScenario={currentScenario}>
-          <DonePage state={buildDoneState(db)} health={buildState(db).health} />
-        </DevWrapper>
-      )}`,
+      renderDocument(
+        {
+          page: "done",
+          done: buildDoneState(db),
+          health: buildState(db).health,
+          dev: dev(),
+        },
+        { extraStyles: devBarStyles },
+      ),
     ),
   );
 
@@ -194,7 +125,9 @@ export function startDevServer(
   options: { port?: number; hostname?: string; scenario?: ScenarioName } = {},
 ) {
   const port = options.port ?? Number(process.env.PORT || 4000);
-  const hostname = options.hostname ?? (process.env.HOST || "127.0.0.1");
+  // LAN 上の他端末（スマホ等）からもアクセスできるよう既定で全インターフェースを待ち受ける。
+  // 認証機構はないため、信頼できないネットワークでは HOST=127.0.0.1 を指定すること。
+  const hostname = options.hostname ?? (process.env.HOST || "0.0.0.0");
   const scenario = options.scenario ?? "standard";
 
   const { app, getScenario } = createDevApp(scenario);
@@ -205,12 +138,15 @@ export function startDevServer(
     fetch: app.fetch,
   });
 
+  const lanIp = getLanIp();
+  const lanUrl = lanIp ? `http://${lanIp}:${port}` : null;
+
   console.log(`
 ┌────────────────────────────────────────────────────────────┐
 │  Autopilot Dashboard (Local Dev Server)                    │
 │                                                            │
-│  • URL:           http://${hostname}:${port}                  │
-│  • Scenario:      ${getScenario()}                             │
+│  • URL:           http://localhost:${port}                    │
+${lanUrl ? `│  • LAN URL:       ${lanUrl}${" ".repeat(Math.max(0, 41 - lanUrl.length))}│\n` : ""}│  • Scenario:      ${getScenario()}                             │
 │                                                            │
 │  Available Scenarios (?scenario=<name>):                   │
 ${SCENARIOS.map((s) => `│    - ${s.name.padEnd(10)}: ${s.title}`).join("\n")}
@@ -219,14 +155,18 @@ ${SCENARIOS.map((s) => `│    - ${s.name.padEnd(10)}: ${s.title}`).join("\n")}
 └────────────────────────────────────────────────────────────┘
 `);
 
+  if (lanUrl) {
+    console.log("スマホでスキャンしてアクセス:");
+    qrcodeTerminal.generate(lanUrl, { small: true }, (qr) => console.log(qr));
+  }
+
   return {
     server,
     stop: () => server.stop(true),
   };
 }
 
-// スクリプトとして直接実行された場合にサーバーを起動
-if (import.meta.main) {
+export function runFromCli(): void {
   const args = process.argv.slice(2);
   let port: number | undefined;
   let scenario: ScenarioName | undefined;
@@ -245,4 +185,8 @@ if (import.meta.main) {
   }
 
   startDevServer({ port, scenario });
+}
+
+if (import.meta.main) {
+  runFromCli();
 }
