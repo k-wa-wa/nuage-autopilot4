@@ -32,8 +32,21 @@ export interface AgentUsage {
   error?: string;
 }
 
+export interface ChatInvocationOptions {
+  /** エージェントに渡すプロンプト全文。 */
+  prompt: string;
+  /** 会話を継続する場合の会話 ID（省略時は新規会話）。 */
+  conversationId?: string;
+}
+
+export interface ChatInvocation {
+  argv: string[];
+}
+
 export interface AgentAdapter {
   readonly kind: AdapterKind;
   buildInvocation(agent: AgentConfig, o: AdapterOptions): Invocation;
   fetchUsage?(command: string): Promise<AgentUsage | null>;
+  /** Chat 画面（investigate.ts）向けのストリーミング呼び出し引数を組み立てる。 */
+  buildChatInvocation?(agent: AgentConfig, o: ChatInvocationOptions): ChatInvocation;
 }

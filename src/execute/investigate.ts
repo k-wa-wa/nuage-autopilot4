@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { getVersionInfo } from "../cli/version.ts";
 import type { Config } from "../config.ts";
+import { buildChatInvocation } from "./adapters/index.ts";
 import { ensureChatWorkspace, type GitRunner } from "./workspace.ts";
 
 export interface CardContext {
@@ -110,23 +111,23 @@ export interface InvestigateOptions {
 
 export type InvestigateEvent =
   | {
-      event: "init";
-      data: {
-        status?: string;
-        mode?: string;
-        engine?: string;
-        conversation_id?: string;
-        tools?: unknown;
-      };
-    }
+    event: "init";
+    data: {
+      status?: string;
+      mode?: string;
+      engine?: string;
+      conversation_id?: string;
+      tools?: unknown;
+    };
+  }
   | { event: "thought"; data: { delta: string } }
   | { event: "tool_start"; data: { id?: string; name: string; args?: unknown } }
   | { event: "tool_end"; data: { id?: string; name: string; result?: unknown } }
   | { event: "text"; data: { delta: string } }
   | {
-      event: "done";
-      data: { status?: string; conversation_id?: string; usage?: unknown };
-    }
+    event: "done";
+    data: { status?: string; conversation_id?: string; usage?: unknown };
+  }
   | { event: "error"; data: { message: string } };
 
 export type EventCallback = (event: InvestigateEvent) => Promise<void> | void;
@@ -531,49 +532,49 @@ async function streamMockResponse(
 
   const responseChunks = isBrainstorm
     ? [
-        `### 💡 壁打ち提案: 設計方針と Issue 案\n\n`,
-        `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
-        "**設計上の検討ポイント**:\n",
-        "- **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
-        "- **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
-        "#### Issue 案\n",
-        `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
-        `**対象リポジトリ**: \`${targetRepo}\`\n\n`,
-        "#### 背景・目的\n",
-        `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
-        "#### 仕様・変更内容\n",
-        "- 対象モジュールの設計見直しとインターフェース拡張\n",
-        "- 既存の SQLite ストアへの状態記録およびエラーハンドリングの追加\n",
-        "- CI パイプラインでの自動検証ステップの追加\n\n",
-        "#### 受け入れ条件 (Acceptance Criteria)\n",
-        "- [ ] 主要ロジックの単体テストがパスすること\n",
-        "- [ ] 既存機能にリグレッションが発生しないこと\n",
-        "- [ ] `bun run check` をパスすること\n\n",
-        "この内容で起票してよければ「**起票して**」と返信してください。",
-      ]
+      `### 💡 壁打ち提案: 設計方針と Issue 案\n\n`,
+      `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
+      "**設計上の検討ポイント**:\n",
+      "- **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
+      "- **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
+      "#### Issue 案\n",
+      `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
+      `**対象リポジトリ**: \`${targetRepo}\`\n\n`,
+      "#### 背景・目的\n",
+      `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
+      "#### 仕様・変更内容\n",
+      "- 対象モジュールの設計見直しとインターフェース拡張\n",
+      "- 既存の SQLite ストアへの状態記録およびエラーハンドリングの追加\n",
+      "- CI パイプラインでの自動検証ステップの追加\n\n",
+      "#### 受け入れ条件 (Acceptance Criteria)\n",
+      "- [ ] 主要ロジックの単体テストがパスすること\n",
+      "- [ ] 既存機能にリグレッションが発生しないこと\n",
+      "- [ ] `bun run check` をパスすること\n\n",
+      "この内容で起票してよければ「**起票して**」と返信してください。",
+    ]
     : hasError
       ? [
-          `### 🔍 調査結果: ${issueKey}\n\n`,
-          "**現象の要約**:\n",
-          "直近の実行において、以下のエラーが記録されています:\n",
-          `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
-          "**推定される原因**:\n",
-          "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
-          "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
-          "**推奨アクション**:\n",
-          "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
-          "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
-        ]
+        `### 🔍 調査結果: ${issueKey}\n\n`,
+        "**現象の要約**:\n",
+        "直近の実行において、以下のエラーが記録されています:\n",
+        `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
+        "**推定される原因**:\n",
+        "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
+        "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
+        "**推奨アクション**:\n",
+        "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
+        "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
+      ]
       : [
-          `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
-          `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
-          "**調査詳細**:\n",
-          "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
-          "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
-          userMessage
-            ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
-            : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
-        ];
+        `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
+        `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
+        "**調査詳細**:\n",
+        "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
+        "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
+        userMessage
+          ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
+          : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
+      ];
 
   await streamMockText(emit, responseChunks.join(""), delay);
 
@@ -608,24 +609,16 @@ async function streamAgyResponse(
   }
   const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
-  const args = [
-    "agy",
-    "-p",
-    prompt,
-    "--output-format",
-    "stream-json",
-    "--approval-mode",
-    "auto-approve",
-    "--model",
-    "gemini-3.8-flash",
-  ];
-
-  if (conversationId && !conversationId.startsWith("mock-")) {
-    args.push("--conversation", conversationId);
-  }
+  const { argv } = buildChatInvocation(
+    { command: "agy", timeout_sec: 0 },
+    {
+      prompt,
+      conversationId: conversationId && !conversationId.startsWith("mock-") ? conversationId : undefined,
+    },
+  );
 
   try {
-    const proc = Bun.spawn(args, {
+    const proc = Bun.spawn(argv, {
       stdout: "pipe",
       stderr: "pipe",
       cwd,
@@ -649,11 +642,11 @@ async function streamAgyResponse(
       } else if (parsed.event === "step_update") {
         const step = parsed.step_update as
           | {
-              step_type?: string;
-              text_delta?: string;
-              thought?: string;
-              tool_call?: { id?: string; name: string; args?: unknown };
-            }
+            step_type?: string;
+            text_delta?: string;
+            thought?: string;
+            tool_call?: { id?: string; name: string; args?: unknown };
+          }
           | undefined;
 
         if (step?.step_type === "agent_response" && step.text_delta) {
@@ -708,24 +701,16 @@ async function streamClaudeResponse(
   }
   const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
-  const args = [
-    "claude",
-    "-p",
-    prompt,
-    "--output-format",
-    "stream-json",
-    "--verbose",
-    "--include-partial-messages",
-    "--permission-mode",
-    "bypassPermissions",
-  ];
-
-  if (conversationId && !conversationId.startsWith("mock-")) {
-    args.push("--resume", conversationId);
-  }
+  const { argv } = buildChatInvocation(
+    { command: "claude", timeout_sec: 0 },
+    {
+      prompt,
+      conversationId: conversationId && !conversationId.startsWith("mock-") ? conversationId : undefined,
+    },
+  );
 
   try {
-    const proc = Bun.spawn(args, {
+    const proc = Bun.spawn(argv, {
       stdout: "pipe",
       stderr: "pipe",
       cwd,
@@ -747,10 +732,10 @@ async function streamClaudeResponse(
       } else if (parsed.type === "stream_event") {
         const ev = parsed.event as
           | {
-              type?: string;
-              content_block?: { type?: string; id?: string; name?: string; input?: unknown };
-              delta?: { type?: string; thinking?: string; text?: string };
-            }
+            type?: string;
+            content_block?: { type?: string; id?: string; name?: string; input?: unknown };
+            delta?: { type?: string; thinking?: string; text?: string };
+          }
           | undefined;
 
         if (ev?.type === "content_block_start") {

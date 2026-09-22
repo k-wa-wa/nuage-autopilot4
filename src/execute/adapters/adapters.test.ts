@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { agyAdapter, parseAgyUsage } from "./agy.ts";
 import { claudeAdapter, parseClaudeResetDate, parseClaudeUsage } from "./claude.ts";
 import { execAdapter } from "./exec.ts";
-import { buildInvocation, getAdapter, resolveAdapter } from "./index.ts";
+import { buildChatInvocation, buildInvocation, getAdapter, resolveAdapter } from "./index.ts";
 
 describe("adapters", () => {
   describe("resolveAdapter & getAdapter", () => {
@@ -182,6 +182,66 @@ Claude and GPT models\tFive Hour Limit Remaining\t100%\t2026-08-29T18:31:29Z`;
         argv: ["my-agent", "--flag", "value"],
         channel: "stdin",
       });
+    });
+  });
+
+  describe("Chat invocation (investigate.ts 用)", () => {
+    test("claude: 新規会話", () => {
+      const inv = buildChatInvocation(
+        { command: "claude", timeout_sec: 0 },
+        { prompt: "hi" },
+      );
+      expect(inv).toEqual({
+        argv: [
+          "claude",
+          "-p",
+          "hi",
+          "--output-format",
+          "stream-json",
+          "--verbose",
+          "--include-partial-messages",
+          "--permission-mode",
+          "bypassPermissions",
+        ],
+      });
+    });
+
+    test("claude: 会話継続時は --resume を付与", () => {
+      const inv = buildChatInvocation(
+        { command: "claude", timeout_sec: 0 },
+        { prompt: "続き", conversationId: "conv-1" },
+      );
+      expect(inv.argv).toContain("--resume");
+      expect(inv.argv.at(-1)).toBe("conv-1");
+    });
+
+    test("agy: 新規会話", () => {
+      const inv = buildChatInvocation({ command: "agy", timeout_sec: 0 }, { prompt: "hi" });
+      expect(inv).toEqual({
+        argv: [
+          "agy",
+          "-p",
+          "hi",
+          "--output-format",
+          "stream-json",
+          "--dangerously-skip-permissions",
+        ],
+      });
+    });
+
+    test("agy: 会話継続時は --conversation を付与", () => {
+      const inv = buildChatInvocation(
+        { command: "agy", timeout_sec: 0 },
+        { prompt: "続き", conversationId: "conv-2" },
+      );
+      expect(inv.argv).toContain("--conversation");
+      expect(inv.argv.at(-1)).toBe("conv-2");
+    });
+
+    test("exec アダプタは Chat 呼び出し未対応でエラー", () => {
+      expect(() =>
+        buildChatInvocation({ command: "my-agent", timeout_sec: 0 }, { prompt: "hi" }),
+      ).toThrow();
     });
   });
 });

@@ -5,6 +5,8 @@ import type {
   AgentAdapter,
   AgentUsage,
   AgentUsageLimit,
+  ChatInvocation,
+  ChatInvocationOptions,
   Invocation,
 } from "./types.ts";
 
@@ -124,6 +126,23 @@ export const claudeAdapter: AgentAdapter = {
     if (o.elevated) argv.push("--permission-mode", "bypassPermissions");
     if (agent.model) argv.push("--model", agent.model);
     return { argv, channel: "stdin" };
+  },
+
+  buildChatInvocation(agent: AgentConfig, o: ChatInvocationOptions): ChatInvocation {
+    const argv = [
+      agent.command,
+      "-p",
+      o.prompt,
+      "--output-format",
+      "stream-json",
+      "--verbose",
+      "--include-partial-messages",
+      "--permission-mode",
+      "bypassPermissions",
+    ];
+    if (o.conversationId) argv.push("--resume", o.conversationId);
+    if (agent.model) argv.push("--model", agent.model);
+    return { argv };
   },
 
   async fetchUsage(command: string): Promise<AgentUsage | null> {

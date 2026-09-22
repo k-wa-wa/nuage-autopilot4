@@ -5,6 +5,8 @@ import type {
   AgentAdapter,
   AgentUsage,
   AgentUsageLimit,
+  ChatInvocation,
+  ChatInvocationOptions,
   Invocation,
 } from "./types.ts";
 
@@ -87,6 +89,20 @@ export const agyAdapter: AgentAdapter = {
     argv.push("--disable-slash-commands", "--print-timeout", `${printTimeout}s`);
     if (agent.model) argv.push("--model", agent.model);
     return { argv, channel: "file" };
+  },
+
+  buildChatInvocation(agent: AgentConfig, o: ChatInvocationOptions): ChatInvocation {
+    const argv = [
+      agent.command,
+      "-p",
+      o.prompt,
+      "--output-format",
+      "stream-json",
+      "--dangerously-skip-permissions",
+    ];
+    if (o.conversationId) argv.push("--conversation", o.conversationId);
+    if (agent.model) argv.push("--model", agent.model);
+    return { argv };
   },
 
   async fetchUsage(command: string): Promise<AgentUsage | null> {

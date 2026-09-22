@@ -7,7 +7,15 @@ import type { AgentConfig } from "../../config.ts";
 import { agyAdapter } from "./agy.ts";
 import { claudeAdapter } from "./claude.ts";
 import { execAdapter } from "./exec.ts";
-import type { AdapterKind, AdapterOptions, AgentAdapter, AgentUsage, Invocation } from "./types.ts";
+import type {
+  AdapterKind,
+  AdapterOptions,
+  AgentAdapter,
+  AgentUsage,
+  ChatInvocation,
+  ChatInvocationOptions,
+  Invocation,
+} from "./types.ts";
 
 export type {
   AdapterKind,
@@ -15,6 +23,8 @@ export type {
   AgentAdapter,
   AgentUsage,
   AgentUsageLimit,
+  ChatInvocation,
+  ChatInvocationOptions,
   Invocation,
   PromptChannel,
 } from "./types.ts";
@@ -49,6 +59,18 @@ export function getAdapter(cmd: string): AgentAdapter {
 export function buildInvocation(agent: AgentConfig, o: AdapterOptions): Invocation {
   const adapter = getAdapter(agent.command);
   return adapter.buildInvocation(agent, o);
+}
+
+/**
+ * Chat 画面（investigate.ts）向けのストリーミング呼び出し引数を、エンジンごとの
+ * アダプタ実装（agy.ts / claude.ts）から組み立てる。
+ */
+export function buildChatInvocation(agent: AgentConfig, o: ChatInvocationOptions): ChatInvocation {
+  const adapter = getAdapter(agent.command);
+  if (!adapter.buildChatInvocation) {
+    throw new Error(`${adapter.kind} アダプタは Chat 呼び出しに対応していません`);
+  }
+  return adapter.buildChatInvocation(agent, o);
 }
 
 /**
