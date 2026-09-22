@@ -10,7 +10,6 @@ export interface RenderedLanes {
   queued: string;
   backlog: string;
   banner: string;
-  meta: string;
   state: StateResponse;
 }
 
@@ -30,7 +29,6 @@ export function renderLanes(state: StateResponse): RenderedLanes {
     queued: renderCards(state.lanes.queued),
     backlog: renderCards(state.lanes.backlog),
     banner: bannerHtml,
-    meta: `実行中 ${state.health.running_jobs}`,
     state,
   };
 }

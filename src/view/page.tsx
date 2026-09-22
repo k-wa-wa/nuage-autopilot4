@@ -24,8 +24,6 @@ export interface PageProps {
 }
 
 export const Page: FC<PageProps> = ({ initialState }) => {
-  const metaText = initialState ? `実行中 ${initialState.health.running_jobs}` : "";
-
   return (
     <html lang="ja">
       <head>
@@ -37,9 +35,6 @@ export const Page: FC<PageProps> = ({ initialState }) => {
       <body>
         <header>
           <h1>Autopilot</h1>
-          <span class="meta" id="meta">
-            {metaText}
-          </span>
           <button
             type="button"
             id="info-btn"
@@ -49,6 +44,9 @@ export const Page: FC<PageProps> = ({ initialState }) => {
           >
             <InfoIcon />
           </button>
+          <a class="header-link" href="/done">
+            完了タスクを見る
+          </a>
         </header>
 
         <div id="banner">

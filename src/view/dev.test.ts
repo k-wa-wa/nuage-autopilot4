@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createDevApp } from "./dev.ts";
 import { createMockDb, loadScenario, SCENARIOS } from "./mock.ts";
-import { buildState } from "./state.ts";
+import { buildDoneState, buildState, DONE_PER_REPO_LIMIT } from "./state.ts";
 
 describe("Dashboard Dev & Mock Environment", () => {
   test("各シナリオが正常に初期化され、buildState を正しく生成できる", () => {
@@ -292,5 +292,102 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(html).toContain('data-parent-key="k-wa-wa/nuage-autopilot4#95"');
     expect(html).toContain('class="relation-badge parent-badge"');
     expect(html).toContain("親: #95");
+  });
+
+  test("クローズ済み (Done) はメインに載らず、/done にリポジトリごとのレーンで新しい順に載る", async () => {
+    const { app, db } = createDevApp("standard");
+    const state = buildState(db);
+    const done = buildDoneState(db);
+
+    // メインの /api/state に Done は含まれず、ヘルス値にも影響しない
+    expect(Object.keys(state.lanes).sort()).toEqual([
+      "action_required",
+      "backlog",
+      "queued",
+      "working",
+    ]);
+    expect(state.health.running_jobs).toBe(2);
+
+    // リポジトリごとにまとまり、他リポジトリのカードが混ざらない
+    const repos = done.repos.map((g) => g.repo);
+    expect(new Set(repos).size).toBe(repos.length);
+    expect(repos).toContain("k-wa-wa/nuage-autopilot4");
+    for (const g of done.repos) {
+      expect(g.cards.length).toBeGreaterThan(0);
+      for (const c of g.cards) expect(c.repo).toBe(g.repo);
+      // レーン内は state_since 降順
+      for (let i = 1; i < g.cards.length; i++) {
+        expect(
+          g.cards[i - 1]!.state_since.localeCompare(g.cards[i]!.state_since),
+        ).toBeGreaterThanOrEqual(0);
+      }
+    }
+    // 最近完了があったリポジトリが先頭
+    for (let i = 1; i < done.repos.length; i++) {
+      const prev = done.repos[i - 1]!.cards[0]!.state_since;
+      const curr = done.repos[i]!.cards[0]!.state_since;
+      expect(prev.localeCompare(curr)).toBeGreaterThanOrEqual(0);
+    }
+
+    // Done は他レーンに混ざらない
+    const doneKeys = done.repos.flatMap((g) => g.cards.map((c) => `${g.repo}#${c.issue_number}`));
+    for (const c of Object.values(state.lanes).flat()) {
+      expect(doneKeys).not.toContain(`${c.repo}#${c.issue_number}`);
+    }
+
+    // 親 (#95) の子として Done の子 Issue が参照され、実行履歴も持つ
+    const parent = state.lanes.working.find((c) => c.issue_number === 95);
+    expect(parent?.sub_issue_numbers).toContain(98);
+    const doneChild = done.repos
+      .flatMap((g) => g.cards)
+      .find((c) => c.repo === "k-wa-wa/nuage-autopilot4" && c.issue_number === 98);
+    expect(doneChild?.parent_issue_number).toBe(95);
+    expect(doneChild?.job_history?.length).toBe(1);
+
+    // GET /api/done
+    const apiDone = (await (await app.request("/api/done")).json()) as typeof done;
+    expect(apiDone.repos.length).toBe(done.repos.length);
+
+    // GET /done (HTML): リポジトリ名のレーンと Done カード。ヒント欄は出さず「クローズ」時刻を出す
+    const html = await (await app.request("/done")).text();
+    expect(html).toContain("k-wa-wa/nuage-autopilot4 (");
+    expect(html).toContain('class="card done"');
+    expect(html).toContain("クローズ: ");
+    expect(html).toContain("テナント識別子のリクエストコンテキスト伝播");
+    expect(html).toContain("dev-scenario-select"); // dev ではツールバー付き
+    expect(html).not.toContain('class="hint"');
+
+    // ヘッダーはメインと揃える：info アイコンはあるが件数表示はしない
+    expect(html).toContain('id="info-btn"');
+    expect(html).toContain('id="info-modal"');
+    expect(html).not.toMatch(/完了\s*\d/);
+
+    // メインページは Done を出さず、/done へのリンクを持つ
+    const mainHtml = await (await app.request("/")).text();
+    expect(mainHtml).toContain('href="/done"');
+    expect(mainHtml).not.toContain("テナント識別子のリクエストコンテキスト伝播");
+
+    // 履歴 API は Done のカードも引ける
+    const hist = (await (
+      await app.request("/api/render/history?repo=k-wa-wa/nuage-autopilot4&issue=98")
+    ).json()) as { timeline_html: string };
+    expect(hist.timeline_html).toContain("AsyncLocalStorage");
+  });
+
+  test("Done はリポジトリごとの上限で打ち切られ、empty では空ページになる", async () => {
+    const { app, db } = createDevApp("dense");
+    const done = buildDoneState(db);
+    const counts = done.repos.map((g) => g.cards.length);
+    expect(Math.max(...counts)).toBe(DONE_PER_REPO_LIMIT);
+    expect(done.repos.length).toBeGreaterThan(1);
+    // 打ち切りは新しい方を残す
+    const capped = done.repos.find((g) => g.cards.length === DONE_PER_REPO_LIMIT)!;
+    expect(capped.cards.some((c) => c.issue_number === 700)).toBe(true);
+    expect(capped.cards.some((c) => c.issue_number === 700 + DONE_PER_REPO_LIMIT + 4)).toBe(false);
+
+    await app.request("/api/dev/scenario/empty", { method: "POST" });
+    expect(buildDoneState(db).repos).toEqual([]);
+    const html = await (await app.request("/done")).text();
+    expect(html).toContain("完了したタスクはありません");
   });
 });

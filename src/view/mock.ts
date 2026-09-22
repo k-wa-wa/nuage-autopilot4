@@ -1,6 +1,6 @@
 import { type DB, openDb } from "../store/db.ts";
 import { type DisplayHint, type JobType, nowIso, type State } from "../types.ts";
-import { runtime } from "./state.ts";
+import { DONE_PER_REPO_LIMIT, runtime } from "./state.ts";
 
 export type ScenarioName = "standard" | "alerts" | "empty" | "dense" | "errors";
 
@@ -580,6 +580,66 @@ function seedStandardScenario(db: DB): void {
     display_hint: "未着手",
     state_since: pastIso(4320), // 3日前
   });
+
+  // ✅ Done（クローズ済み。新しい順）
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 98,
+    title: "テナント識別子のリクエストコンテキスト伝播",
+    state: "Done",
+    display_hint: "",
+    pr_number: 101,
+    parent_repo: "k-wa-wa/nuage-autopilot4",
+    parent_issue_number: 95,
+    state_since: pastIso(35),
+  });
+  insertMockRun(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 98,
+    job_type: "implement",
+    result: "SUCCESS",
+    summary:
+      "テナント識別子をミドルウェアで解決し、AsyncLocalStorage 経由で伝播するよう実装しました。",
+    started_at: pastIsoSec(120 * 60),
+    ended_at: pastIsoSec(120 * 60 - 412),
+  });
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-autopilot4",
+    issue_number: 99,
+    title: "テナント別接続プールの分離",
+    state: "Done",
+    display_hint: "",
+    pr_number: 102,
+    parent_repo: "k-wa-wa/nuage-autopilot4",
+    parent_issue_number: 95,
+    state_since: pastIso(95),
+  });
+  insertItem(db, {
+    repo: "k-wa-wa/pechka",
+    issue_number: 50,
+    title: "動画メタデータ取得のタイムアウト設定を追加",
+    state: "Done",
+    display_hint: "",
+    pr_number: 52,
+    state_since: pastIso(60 * 26),
+  });
+  insertItem(db, {
+    repo: "org/backend-service",
+    issue_number: 38,
+    title: "ヘルスチェックエンドポイントの追加",
+    state: "Done",
+    display_hint: "",
+    pr_number: 39,
+    state_since: pastIso(60 * 24 * 3),
+  });
+  insertItem(db, {
+    repo: "k-wa-wa/nuage-cluster",
+    issue_number: 35,
+    title: "旧 Ingress 設定の廃止（取り下げ）",
+    state: "Done",
+    display_hint: "",
+    state_since: pastIso(60 * 24 * 6),
+  });
 }
 
 function seedAlertsScenario(db: DB): void {
@@ -746,6 +806,30 @@ function seedDenseScenario(db: DB): void {
       state: "ActionRequired",
       display_hint: "未着手",
       state_since: pastIso((i + 1) * 1440),
+    });
+  }
+
+  // Done はリポジトリごとの上限（DONE_PER_REPO_LIMIT）を超える件数を 1 つの repo に入れ、
+  // 打ち切りを確認できるようにする。他の repo は少数
+  for (let i = 0; i < DONE_PER_REPO_LIMIT + 5; i++) {
+    insertItem(db, {
+      repo: repos[0]!,
+      issue_number: 700 + i,
+      title: `Doneアイテム ${i + 1}: クローズ済みのタスク（リポジトリごとに直近${DONE_PER_REPO_LIMIT}件のみ表示）`,
+      state: "Done",
+      display_hint: "",
+      pr_number: i % 2 === 0 ? 800 + i : 0,
+      state_since: pastIso(60 + i * 240),
+    });
+  }
+  for (let i = 0; i < 6; i++) {
+    insertItem(db, {
+      repo: repos[1 + (i % (repos.length - 1))]!,
+      issue_number: 760 + i,
+      title: `Doneアイテム（他リポジトリ）${i + 1}: 長いリポジトリ名でのレイアウト確認`,
+      state: "Done",
+      display_hint: "",
+      state_since: pastIso(30 + i * 500),
     });
   }
 }

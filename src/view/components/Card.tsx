@@ -10,9 +10,12 @@ export interface CardProps {
 export const CardComponent: FC<CardProps> = ({ card: c }) => {
   const cardKey = `${c.repo}#${c.issue_number}`;
   const hasError = isErrorHint(c.display_hint);
+  // Done は display_hint を持たない（types.ts hintMatchesState）。state_since は Done になった時刻。
+  const isDone = c.display_hint === "";
   const issueUrl = c.issue_url || c.url;
 
   const bits: string[] = [c.repo, `#${c.issue_number}`];
+  if (isDone) bits.push(`クローズ: ${formatAgo(c.state_since)}`);
   if (c.queue_position) bits.push(`待ち順位 #${c.queue_position}`);
   if (c.job_type) bits.push(`ジョブ: ${c.job_type}`);
   if (c.started_at) bits.push(`開始: ${formatAgo(c.started_at)}`);
@@ -33,7 +36,7 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
 
   return (
     <div
-      class={`card${hasError ? " has-error" : ""}`}
+      class={`card${hasError ? " has-error" : ""}${isDone ? " done" : ""}`}
       data-key={cardKey}
       data-parent-key={parentKey}
       data-is-parent={isParent ? "true" : undefined}
@@ -53,7 +56,7 @@ export const CardComponent: FC<CardProps> = ({ card: c }) => {
       <a class="card-main" href={issueUrl} target="_blank" rel="noreferrer" title="Issue を開く">
         <div class="t">{c.title || "(no title)"}</div>
         <div class="s">
-          <span class="hint">{c.display_hint}</span>
+          {!isDone && <span class="hint">{c.display_hint}</span>}
           <span>{bits.join(" · ")}</span>
         </div>
       </a>

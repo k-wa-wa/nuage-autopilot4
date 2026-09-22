@@ -60,9 +60,14 @@ h1 {
   font-weight: 600;
   letter-spacing: .02em;
 }
-.meta {
+.header-link {
+  margin-left: auto;
   color: var(--muted);
   font-size: 12px;
+  text-decoration: none;
+}
+.header-link:hover {
+  color: var(--fg);
 }
 .icon-btn {
   display: inline-flex;
@@ -103,6 +108,14 @@ section { min-width: 0; }
   transition: border-color 0.15s ease;
 }
 .card:hover { border-color: var(--muted); }
+.by-repo details summary {
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.card.done .t {
+  color: var(--muted);
+}
 .card.has-error {
   border-color: rgba(168, 68, 42, 0.35);
 }

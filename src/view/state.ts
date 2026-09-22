@@ -84,6 +84,20 @@ export interface StateResponse {
   health: Health;
 }
 
+export interface DoneRepoGroup {
+  repo: string;
+  cards: Card[];
+}
+
+/** 完了ページ（/done）用。クローズ済み（Done）のアイテムをリポジトリごとにまとめたもの。 */
+export interface DoneResponse {
+  generated_at: string;
+  repos: DoneRepoGroup[];
+}
+
+/** リポジトリごとの表示件数の上限。Done は終端で増え続けるので、直近のものだけを返す。 */
+export const DONE_PER_REPO_LIMIT = 30;
+
 /** プロセス内メモリ。DB に置くと、プロセスが死んでいるのに古い健全値が表示される。 */
 export const runtime = {
   graphqlRemaining: 5000,
@@ -97,8 +111,11 @@ export const runtime = {
   degraded: new Set<string>(),
 };
 
-export function buildState(db: DB): StateResponse {
-  const all = db.query("SELECT * FROM items WHERE state != 'Done'").all() as Item[];
+/**
+ * Card の組み立て。実行中ジョブ・待ち順位・親子関係は 1 回だけ集計し、アイテムごとに使い回す。
+ * items と job_queue / runs だけを読む（github_cache.payload_json はパースしない）。
+ */
+function createCardBuilder(db: DB): (it: Item) => Card {
   const running = new Map(jobs.runningJobs(db).map((j) => [key(j.repo, j.issue_number), j]));
   const pending = jobs.queuedItems(db);
   const position = new Map(pending.map((p, i) => [key(p.repo, p.issue_number), i + 1]));
@@ -126,7 +143,7 @@ export function buildState(db: DB): StateResponse {
     // 例外対策
   }
 
-  const card = (it: Item): Card => {
+  return (it: Item): Card => {
     const r = running.get(key(it.repo, it.issue_number));
     const issueUrl = `https://github.com/${it.repo}/issues/${it.issue_number}`;
     const prUrl = it.pr_number > 0 ? `https://github.com/${it.repo}/pull/${it.pr_number}` : null;
@@ -280,6 +297,11 @@ export function buildState(db: DB): StateResponse {
       sub_issue_numbers: childrenMap.get(key(it.repo, it.issue_number)),
     };
   };
+}
+
+export function buildState(db: DB): StateResponse {
+  const all = db.query("SELECT * FROM items WHERE state != 'Done'").all() as Item[];
+  const card = createCardBuilder(db);
 
   const byStateSinceDesc = (a: Card, b: Card) => b.state_since.localeCompare(a.state_since);
   const byWorkingDesc = (a: Card, b: Card) =>
@@ -316,12 +338,38 @@ export function buildState(db: DB): StateResponse {
       rest_limit: runtime.restLimit,
       rest_reset_at: runtime.restResetAt,
       agent_usages: runtime.agentUsages,
-      running_jobs: running.size,
+      running_jobs: jobs.runningJobs(db).length,
       last_poll_at: runtime.lastPollAt,
       degraded: degraded(db),
       failed_jobs: getRecentFailedJobs(db),
     },
   };
+}
+
+/** 1 アイテム分の Card。状態を問わない（履歴モーダルなど、Done のカードも引けるように）。 */
+export function getCard(db: DB, repo: string, issueNumber: number): Card | null {
+  const it = db
+    .query("SELECT * FROM items WHERE repo=? AND issue_number=?")
+    .get(repo, issueNumber) as Item | null;
+  return it ? createCardBuilder(db)(it) : null;
+}
+
+/** 完了ページ用。リポジトリごとに直近 DONE_PER_REPO_LIMIT 件（新しい順）。最近完了があった repo が先頭。 */
+export function buildDoneState(db: DB): DoneResponse {
+  const card = createCardBuilder(db);
+  const repos = db.query("SELECT DISTINCT repo FROM items WHERE state = 'Done'").all() as Array<{
+    repo: string;
+  }>;
+  const groups = repos.map(({ repo }): DoneRepoGroup => {
+    const items = db
+      .query(
+        "SELECT * FROM items WHERE state = 'Done' AND repo = ? ORDER BY state_since DESC LIMIT ?",
+      )
+      .all(repo, DONE_PER_REPO_LIMIT) as Item[];
+    return { repo, cards: items.map(card) };
+  });
+  groups.sort((a, b) => b.cards[0]!.state_since.localeCompare(a.cards[0]!.state_since));
+  return { generated_at: nowIso(), repos: groups };
 }
 
 function getRecentFailedJobs(db: DB): FailedJobSummary[] {

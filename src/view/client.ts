@@ -1,5 +1,5 @@
 import type { RenderedLanes } from "./render.tsx";
-import type { Card, StateResponse } from "./state.ts";
+import type { Card, Health, StateResponse } from "./state.ts";
 
 /**
  * ブラウザ側で実行されるダッシュボードのクライアントロジック。
@@ -10,8 +10,13 @@ import type { Card, StateResponse } from "./state.ts";
 export function initClient(): void {
   const win = window as unknown as {
     __AUTOPILOT_INITIAL_STATE__?: StateResponse;
+    __AUTOPILOT_DONE_CARDS__?: Card[];
+    __AUTOPILOT_HEALTH__?: Health;
   };
   const initialData: StateResponse | null = win.__AUTOPILOT_INITIAL_STATE__ || null;
+  // 完了ページ（/done）。ポーリングは行わず、カードと health のスナップショットは SSR 済みのものをそのまま使う。
+  const doneCards = win.__AUTOPILOT_DONE_CARDS__ || null;
+  const doneHealth = win.__AUTOPILOT_HEALTH__ || null;
 
   const ago = (t: string | null): string => {
     if (!t) return "";
@@ -518,11 +523,6 @@ export function initClient(): void {
         }
       }
 
-      const meta = document.getElementById("meta");
-      if (meta && d.meta !== undefined) {
-        meta.textContent = d.meta;
-      }
-
       const banner = document.getElementById("banner");
       if (banner && d.banner !== undefined) {
         banner.innerHTML = d.banner;
@@ -716,6 +716,21 @@ export function initClient(): void {
   }
 
   // 初期化：SSR データがあれば即座に反映
+  if (doneCards) {
+    for (const card of doneCards) {
+      cardCache.set(`${card.repo}#${card.issue_number}`, card);
+    }
+    if (doneHealth) {
+      latestHealth = doneHealth;
+      updateInfoModal(doneHealth);
+    }
+    // dev のシナリオ切替など、外部からの更新要求はリロードで反映する
+    window.addEventListener("autopilot:refresh", () => {
+      window.location.reload();
+    });
+    return;
+  }
+
   if (initialData) {
     latestHealth = initialData.health;
     registerCards(initialData.lanes);

@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
+import { DonePage } from "./done.tsx";
 import { createMockDb, loadScenario, SCENARIOS, type ScenarioName } from "./mock.ts";
 import { Page } from "./page.tsx";
-import { renderErrorHistory, renderHistoryTimeline, renderLanes } from "./render.tsx";
-import { buildState } from "./state.ts";
+import { mountRoutes } from "./server.tsx";
+import { buildDoneState, buildState } from "./state.ts";
 
 const devBarStyles = `
 #dev-toolbar {
@@ -96,10 +97,10 @@ const devClientScript = `
 
 interface DevWrapperProps {
   currentScenario: ScenarioName;
-  initialState?: ReturnType<typeof buildState>;
+  children?: unknown;
 }
 
-const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, initialState }) => {
+const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, children }) => {
   return (
     <>
       <div id="dev-toolbar">
@@ -123,7 +124,7 @@ const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, initialState }) => {
         </div>
       </div>
       <style>{raw(devBarStyles)}</style>
-      <Page initialState={initialState} />
+      {children}
       <script>{raw(devClientScript)}</script>
     </>
   );
@@ -135,52 +136,7 @@ export function createDevApp(initialScenario: ScenarioName = "standard") {
 
   const app = new Hono();
 
-  // 既存 API
-  app.get("/api/state", (c) => c.json(buildState(db)));
-  app.get("/api/health", (c) => c.json(buildState(db).health));
-
-  // HTML 片レンダリング API
-  app.get("/api/render/lanes", (c) => c.json(renderLanes(buildState(db))));
-
-  app.get("/api/render/history", (c) => {
-    const repo = c.req.query("repo");
-    const issueStr = c.req.query("issue");
-    if (!repo || !issueStr) {
-      return c.json({ error: "repo and issue are required" }, 400);
-    }
-    const issueNumber = Number.parseInt(issueStr, 10);
-    const state = buildState(db);
-    const allCards = [
-      ...state.lanes.action_required,
-      ...state.lanes.working,
-      ...state.lanes.queued,
-      ...state.lanes.backlog,
-    ];
-    const target = allCards.find((it) => it.repo === repo && it.issue_number === issueNumber);
-    return c.json({
-      timeline_html: renderHistoryTimeline(target?.job_history),
-    });
-  });
-
-  app.get("/api/render/error", (c) => {
-    const repo = c.req.query("repo");
-    const issueStr = c.req.query("issue");
-    if (!repo || !issueStr) {
-      return c.json({ error: "repo and issue are required" }, 400);
-    }
-    const issueNumber = Number.parseInt(issueStr, 10);
-    const state = buildState(db);
-    const allCards = [
-      ...state.lanes.action_required,
-      ...state.lanes.working,
-      ...state.lanes.queued,
-      ...state.lanes.backlog,
-    ];
-    const target = allCards.find((it) => it.repo === repo && it.issue_number === issueNumber);
-    return c.json({
-      error_history_html: renderErrorHistory(target?.error_history),
-    });
-  });
+  mountRoutes(app, db);
 
   app.get("/api/dev/scenarios", (c) => {
     return c.json({
@@ -212,9 +168,24 @@ export function createDevApp(initialScenario: ScenarioName = "standard") {
     }
     const state = buildState(db);
     return c.html(
-      `<!doctype html>${<DevWrapper currentScenario={currentScenario} initialState={state} />}`,
+      `<!doctype html>${(
+        <DevWrapper currentScenario={currentScenario}>
+          <Page initialState={state} />
+        </DevWrapper>
+      )}`,
     );
   });
+
+  // 完了ページにもシナリオ切替のツールバーを付ける
+  app.get("/done", (c) =>
+    c.html(
+      `<!doctype html>${(
+        <DevWrapper currentScenario={currentScenario}>
+          <DonePage state={buildDoneState(db)} health={buildState(db).health} />
+        </DevWrapper>
+      )}`,
+    ),
+  );
 
   return { app, db, getScenario: () => currentScenario };
 }

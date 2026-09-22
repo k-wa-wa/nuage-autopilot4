@@ -26,7 +26,7 @@
 | `ActionRequired` | 🧑 | `仕様確認待ち` `マージ待ち` `助言待ち` `エラー対応待ち` `CI 停滞` `CI 失敗（要判断）` `Issue クローズ確認待ち` `取り下げ確認待ち` `完了確認待ち` `親 Issue の承認待ち` `未着手` `Triage 失敗（要判断）` `中止済み` |
 | `Working` | 🤖 | `精緻化中` `実装中` `評価中` `CI 待ち` `CI 未反映` `子タスク進行中 (x/N)` |
 | `Queued` | 📦 | `着手待ち` |
-| `Done` | ✅ | （終端・既定では非表示） |
+| `Done` | ✅ | （終端。`display_hint` は空。メインには出さず、完了ページ `/done` にリポジトリごとで表示） |
 
 - `job_queue` の `pending` が `Queued`、`running` が `Working`。INSERT 直後は必ず `Queued`。
 - `blocked_from`（`refine`/`implement`/`evaluate`/空）に `ActionRequired` へ落ちた直前のジョブ種別を記録。
@@ -293,7 +293,10 @@ flowchart TD
   待ち受けは `dashboard.host`（既定 `127.0.0.1`）と `dashboard.port`。
   認証は持たないので、`0.0.0.0` にするのは信頼できるネットワークに限る
   （読み取り専用なので影響は Issue の題名と状態の開示まで）。
-- `GET /api/state` が 3 レーンと `health` を返す。フロントは 3〜5 秒間隔でポーリング。
+- `GET /api/state` が `action_required` / `working` / `queued` / `backlog` の各レーンと `health` を返す（`Done` は含めない）。
+- 完了ページ `GET /done`（JSON は `GET /api/done`）は `Done` をリポジトリごとのレーンで表示する。
+  レーン内は `state_since` 降順で、リポジトリごとに直近 30 件に限る（終端で増え続けるため）。
+  ポーリングはしない。履歴モーダル（`/api/render/history`）はメインと共通で、状態を問わずアイテムを引く。フロントは 3〜5 秒間隔でポーリング。
 - レーンは `items.state` をそのまま使う。`display_hint` は保存済みの文字列をそのまま描画する
   （Dashboard 側で状態を再解釈しない）。`title` は `items.title` を使い `payload_json` をパースしない。
 - 並び順は `ActionRequired` が `state_since` 昇順、他は `job_queue.id` 昇順。**`updated_at` で並べない。**
