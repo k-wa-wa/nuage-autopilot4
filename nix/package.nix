@@ -62,7 +62,7 @@ let
     dontFixup = true;
     outputHashAlgo = "sha256";
     outputHashMode = "recursive";
-    outputHash = "sha256-Wy2SbyZ9U7g1dGskMDofT3Ko2tiUK2mK1sDeBS4mCfM=";
+    outputHash = "sha256-Y6E2Oxz7UUEBjPLyWCih5ZvZS3OKUM14t7cUd1zpgOA=";
   };
 in
 stdenv.mkDerivation {
@@ -90,7 +90,9 @@ stdenv.mkDerivation {
     chmod -R u+w node_modules
 
     # 不変条件のテスト。GitHub にもエージェントにも触らないので sandbox 内で走る。
-    bun test
+    # src/view/dev 配下はローカル確認用ダッシュボードで devDependencies に依存しており、
+    # node_modules を --production で構築するこのビルドには含まれないため対象外にする。
+    bun test --path-ignore-patterns 'src/view/dev/**'
 
     # SPA 資産も含めて単一バイナリに埋め込む。別途のファイル配置は要らない。
     bun build --compile --outfile autopilot src/main.ts
