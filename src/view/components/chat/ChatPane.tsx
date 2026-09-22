@@ -297,12 +297,18 @@ export function ChatPane({ chat }: { chat: ChatController }) {
         style={{ display: hidden }}
         onMouseDown={startResize}
       />
+      <div
+        class={chat.open ? "chat-pane-backdrop chat-pane-backdrop-open" : "chat-pane-backdrop"}
+        aria-hidden="true"
+        onClick={chat.close}
+      />
       <aside
         ref={paneRef}
-        class="chat-pane"
+        class={chat.open ? "chat-pane chat-pane-open" : "chat-pane"}
         aria-hidden={!chat.open}
-        style={{ display: hidden, width: width ? `${width}px` : undefined }}
+        style={{ width: width ? `${width}px` : undefined }}
       >
+        <div class="chat-drag-handle" aria-hidden="true" onClick={chat.close} />
         <header class="chat-header">
           <div class="chat-header-title">
             <span class="chat-bot-icon">

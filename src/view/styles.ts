@@ -376,6 +376,9 @@ dialog.modal::backdrop {
   padding: 20px 24px;
   width: 440px;
   max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
 }
 .modal-header {
@@ -383,6 +386,11 @@ dialog.modal::backdrop {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 18px;
+  flex-shrink: 0;
+}
+.modal-body {
+  overflow-y: auto;
+  min-height: 0;
 }
 .modal-header h2 {
   font-size: 15px;
@@ -853,11 +861,118 @@ dialog.modal::backdrop {
   max-width: 75vw;
   height: 100vh;
   background: var(--card);
-  display: flex;
+  display: none;
   flex-direction: column;
   flex-shrink: 0;
   z-index: 40;
   font-size: 13px;
+}
+.chat-pane.chat-pane-open {
+  display: flex;
+}
+
+.chat-pane-backdrop {
+  display: none;
+}
+
+.chat-drag-handle {
+  display: none;
+}
+
+/* モバイル: サイドパネルではなく下からせり上がるボトムシートにする */
+@media (max-width: 768px) {
+  .pane-resizer {
+    display: none !important;
+  }
+
+  .chat-pane-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 55;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+  .chat-pane-backdrop.chat-pane-backdrop-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .chat-pane {
+    display: flex;
+    position: fixed;
+    inset: auto 0 0 0;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    height: 90dvh;
+    max-height: 90dvh;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+    z-index: 60;
+    overflow-x: hidden;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    pointer-events: none;
+  }
+  .chat-pane.chat-pane-open {
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  /* ヘッダーはラベルを隠してアイコンのみにし、幅を確保する */
+  .chat-header-action-btn .btn-label {
+    display: none;
+  }
+  .chat-header-action-btn {
+    padding: 5px 7px;
+  }
+
+  /* 入力欄下のツールバーはセレクトが縮み、はみ出さないようにする */
+  .agy-toolbar-left {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .agy-engine-picker {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .chat-mode-select,
+  .agy-engine-select {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-drag-handle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 8px 0 4px;
+    cursor: pointer;
+  }
+  .chat-drag-handle::before {
+    content: "";
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+  }
+
+  .chat-footer {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-pane,
+  .chat-pane-backdrop {
+    transition: none;
+  }
 }
 
 .chat-history-popover {
@@ -1443,6 +1558,15 @@ dialog.modal::backdrop {
 .agy-engine-select option {
   background: var(--card);
   color: var(--fg);
+}
+
+/* iOS Safari は font-size が 16px 未満の入力欄にフォーカスすると自動ズームしてレイアウトが崩れる */
+@media (max-width: 768px) {
+  .agy-textarea,
+  .chat-mode-select,
+  .agy-engine-select {
+    font-size: 16px;
+  }
 }
 
 .agy-picker-arrow {
