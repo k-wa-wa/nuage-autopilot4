@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { runtime } from "../api/state.ts";
 import { pollRepo } from "../collect/poller.ts";
 import type { Config } from "../config.ts";
 import { DEFAULTS, dbPath, loadConfig, lockPath, logDir, repoSlug, runDir } from "../config.ts";
@@ -15,7 +16,6 @@ import { log } from "../log.ts";
 import { openDb } from "../store/db.ts";
 import { nowIso } from "../types.ts";
 import { startServer } from "../view/server.tsx";
-import { runtime } from "../view/state.ts";
 import { doctor, printChecks } from "./doctor.ts";
 import { acquireLock } from "./utils/lock.ts";
 

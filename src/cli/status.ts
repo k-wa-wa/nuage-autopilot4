@@ -1,5 +1,5 @@
+import type { buildState } from "../api/state.ts";
 import { loadConfig } from "../config.ts";
-import type { buildState } from "../view/state.ts";
 
 export type StateData = ReturnType<typeof buildState>;
 

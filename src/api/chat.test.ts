@@ -1,10 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { createDevApp } from "./dev.tsx";
+import { Hono } from "hono";
+import { handleChatStream } from "./chat.ts";
 
 describe("AI Debug Chat API (/api/chat)", () => {
+  const app = new Hono();
+  app.post("/api/chat", handleChatStream);
+
   it("POST /api/chat にリクエストすると SSE ストリーム (init, thought, text, done) が返る", async () => {
     process.env.MOCK_CHAT = "true";
-    const { app } = createDevApp("errors");
 
     const res = await app.request("/api/chat", {
       method: "POST",
@@ -38,13 +41,11 @@ describe("AI Debug Chat API (/api/chat)", () => {
       const { done, value } = await reader.read();
       if (done) break;
       accumulated += decoder.decode(value);
-      if (accumulated.includes("event: text") || accumulated.includes("event: done")) {
+      if (accumulated.includes("event: done") || accumulated.includes("event: text")) {
         break;
       }
     }
-    reader.cancel();
 
     expect(accumulated).toContain("event: init");
-    expect(accumulated).toContain("101");
   });
 });

@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { Card } from "../state.ts";
+import type { Card } from "../../api/state.ts";
 import { formatAgo, isErrorHint } from "../utils.ts";
 import { HistoryIcon, PrIcon, SparklesIcon, WarnIcon } from "./icons.tsx";
 

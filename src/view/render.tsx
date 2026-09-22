@@ -1,8 +1,8 @@
+import type { Card, CardErrorItem, JobHistoryItem, StateResponse } from "../api/state.ts";
 import { BannerComponent } from "./components/Banner.tsx";
 import { CardComponent } from "./components/Card.tsx";
 import { ErrorHistoryListComponent } from "./components/ErrorModal.tsx";
 import { HistoryTimelineComponent } from "./components/HistoryModal.tsx";
-import type { Card, CardErrorItem, JobHistoryItem, StateResponse } from "./state.ts";
 
 export interface RenderedLanes {
   action_required: string;

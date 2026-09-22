@@ -1,6 +1,6 @@
 import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
-import { initClient } from "./client.ts";
+import type { StateResponse } from "../api/state.ts";
 import { BannerComponent } from "./components/Banner.tsx";
 import { ChatPane } from "./components/ChatPane.tsx";
 import { ErrorModalDialog } from "./components/ErrorModal.tsx";
@@ -9,7 +9,6 @@ import { InfoModalDialog } from "./components/InfoModal.tsx";
 import { InfoIcon, SparklesIcon } from "./components/icons.tsx";
 import { LaneComponent } from "./components/Lane.tsx";
 import { SystemErrorModalDialog } from "./components/SystemErrorModal.tsx";
-import type { StateResponse } from "./state.ts";
 import { styles } from "./styles.ts";
 
 /**
@@ -101,10 +100,9 @@ export const Page: FC<PageProps> = ({ initialState }) => {
         <HistoryModalDialog />
 
         <script>
-          {raw(
-            `window.__AUTOPILOT_INITIAL_STATE__ = ${JSON.stringify(initialState || null)};\n(${initClient.toString()})();`,
-          )}
+          {raw(`window.__AUTOPILOT_INITIAL_STATE__ = ${JSON.stringify(initialState || null)};`)}
         </script>
+        <script type="module" src="/client.js"></script>
       </body>
     </html>
   );

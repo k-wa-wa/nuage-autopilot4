@@ -1,10 +1,13 @@
 import { describe, expect, it } from "bun:test";
-import { createDevApp } from "./dev.tsx";
+import { Hono } from "hono";
+import { handleCreateIssue } from "./issue.ts";
 
 describe("GitHub Issue Create API (/api/issue/create)", () => {
-  it("正常系: モック環境で Issue 起票リクエストを送ると issue_number と url が返る", async () => {
-    const { app } = createDevApp("standard");
+  const app = new Hono();
+  app.post("/api/issue/create", handleCreateIssue);
 
+  it("正常系: モック環境で Issue 起票リクエストを送ると issue_number と url が返る", async () => {
+    process.env.MOCK_CHAT = "true";
     const res = await app.request("/api/issue/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -29,8 +32,7 @@ describe("GitHub Issue Create API (/api/issue/create)", () => {
   });
 
   it("異常系: repo または title が不足している場合は 400 エラーを返す", async () => {
-    const { app } = createDevApp("standard");
-
+    process.env.MOCK_CHAT = "true";
     const res1 = await app.request("/api/issue/create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -44,5 +46,12 @@ describe("GitHub Issue Create API (/api/issue/create)", () => {
       body: JSON.stringify({ repo: "k-wa-wa/nuage-cluster" }),
     });
     expect(res2.status).toBe(400);
+
+    const res3 = await app.request("/api/issue/create", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: "not json",
+    });
+    expect(res3.status).toBe(400);
   });
 });

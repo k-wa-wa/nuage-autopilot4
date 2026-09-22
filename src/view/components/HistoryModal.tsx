@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { JobHistoryItem } from "../state.ts";
+import type { JobHistoryItem } from "../../api/state.ts";
 import { formatAgo, formatDuration } from "../utils.ts";
 
 export interface HistoryTimelineProps {

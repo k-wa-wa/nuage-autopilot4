@@ -1,11 +1,10 @@
 import { raw } from "hono/html";
 import type { FC } from "hono/jsx";
-import { initClient } from "./client.ts";
+import type { DoneResponse, Health } from "../api/state.ts";
 import { HistoryModalDialog } from "./components/HistoryModal.tsx";
 import { InfoModalDialog } from "./components/InfoModal.tsx";
 import { InfoIcon } from "./components/icons.tsx";
 import { LaneComponent } from "./components/Lane.tsx";
-import type { DoneResponse, Health } from "./state.ts";
 import { styles } from "./styles.ts";
 
 /**
@@ -67,9 +66,10 @@ export const DonePage: FC<DonePageProps> = ({ state, health }) => {
 
         <script>
           {raw(
-            `window.__AUTOPILOT_DONE_CARDS__ = ${JSON.stringify(state.repos.flatMap((g) => g.cards))};\nwindow.__AUTOPILOT_HEALTH__ = ${JSON.stringify(health)};\n(${initClient.toString()})();`,
+            `window.__AUTOPILOT_DONE_CARDS__ = ${JSON.stringify(state.repos.flatMap((g) => g.cards))};\nwindow.__AUTOPILOT_HEALTH__ = ${JSON.stringify(health)};`,
           )}
         </script>
+        <script type="module" src="/client.js"></script>
       </body>
     </html>
   );

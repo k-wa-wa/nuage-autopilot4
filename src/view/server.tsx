@@ -1,11 +1,10 @@
 import { Hono } from "hono";
+import { mountApiRoutes } from "../api/routes.ts";
+import { buildDoneState, buildState } from "../api/state.ts";
 import type { DB } from "../store/db.ts";
-import { handleChatStream } from "./chat.ts";
+import { getClientBundle } from "./bundle.ts";
 import { DonePage } from "./done.tsx";
-import { handleCreateIssue } from "./issue.ts";
 import { Page } from "./page.tsx";
-import { renderErrorHistory, renderHistoryTimeline, renderLanes } from "./render.tsx";
-import { buildDoneState, buildState, getCard } from "./state.ts";
 
 /**
  * Dashboard（spec.md §10）。
@@ -16,46 +15,21 @@ import { buildDoneState, buildState, getCard } from "./state.ts";
  * 認証は持たない。既定は 127.0.0.1 で、host を広げる場合は信頼できるネットワークに限ること。
  * 書き込み経路は無いので影響は「Issue の題名と状態が読まれる」までに閉じている。
  */
+
 /**
- * 本番と dev（モック）で共通の読み取り API。
- * ページ（`/` と `/done`）は呼び出し側が持つ（dev はツールバーで包むため）。
+ * 本番と dev（モック）で共通のルーティング（API およびクライアント配信）を登録する。
  */
 export function mountRoutes(app: Hono, db: DB): void {
-  // 既存 JSON API（互換性維持・CLI / テスト用）
-  app.get("/api/state", (c) => c.json(buildState(db)));
-  app.get("/api/health", (c) => c.json(buildState(db).health));
-  app.get("/api/done", (c) => c.json(buildDoneState(db)));
+  // 1. API ルート群 (/api/*)
+  mountApiRoutes(app, db);
 
-  // HTML 片レンダリング API（Hono JSX 主導フロントエンド用）
-  app.get("/api/render/lanes", (c) => c.json(renderLanes(buildState(db))));
-
-  // 履歴・エラーは状態を問わず引く（完了ページのカードでも使う）
-  app.get("/api/render/history", (c) => {
-    const repo = c.req.query("repo");
-    const issueStr = c.req.query("issue");
-    if (!repo || !issueStr) {
-      return c.json({ error: "repo and issue are required" }, 400);
-    }
-    const target = getCard(db, repo, Number.parseInt(issueStr, 10));
-    return c.json({
-      timeline_html: renderHistoryTimeline(target?.job_history),
+  // 2. クライアントスクリプト配信 (JS バンドル)
+  app.get("/client.js", async (c) => {
+    const bundle = await getClientBundle();
+    return c.text(bundle, 200, {
+      "Content-Type": "application/javascript; charset=utf-8",
     });
   });
-
-  app.get("/api/render/error", (c) => {
-    const repo = c.req.query("repo");
-    const issueStr = c.req.query("issue");
-    if (!repo || !issueStr) {
-      return c.json({ error: "repo and issue are required" }, 400);
-    }
-    const target = getCard(db, repo, Number.parseInt(issueStr, 10));
-    return c.json({
-      error_history_html: renderErrorHistory(target?.error_history),
-    });
-  });
-
-  // GitHub Issue 起票 API (壁打ちモード等からの連携)
-  app.post("/api/issue/create", handleCreateIssue);
 }
 
 export function startServer(db: DB, port: number, hostname = "127.0.0.1"): { stop: () => void } {
@@ -68,9 +42,6 @@ export function startServer(db: DB, port: number, hostname = "127.0.0.1"): { sto
       `<!doctype html>${<DonePage state={buildDoneState(db)} health={buildState(db).health} />}`,
     ),
   );
-
-  // AI 調査アシスタント (SSE ストリーミング)
-  app.post("/api/chat", handleChatStream);
 
   // 初期ロード（SSR: サーバーサイドで初期カードを展開して返す）
   app.get("/", (c) => {

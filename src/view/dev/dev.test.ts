@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { createDevApp } from "./dev.ts";
+import { buildDoneState, buildState, DONE_PER_REPO_LIMIT } from "../../api/state.ts";
+import { createDevApp } from "./dev.tsx";
 import { createMockDb, loadScenario, SCENARIOS } from "./mock.ts";
-import { buildDoneState, buildState, DONE_PER_REPO_LIMIT } from "./state.ts";
 
 describe("Dashboard Dev & Mock Environment", () => {
   test("各シナリオが正常に初期化され、buildState を正しく生成できる", () => {

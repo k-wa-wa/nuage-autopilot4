@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { Card } from "../state.ts";
+import type { Card } from "../../api/state.ts";
 import { CardComponent } from "./Card.tsx";
 
 export interface LaneProps {

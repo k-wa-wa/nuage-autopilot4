@@ -1,5 +1,5 @@
 import type { FC } from "hono/jsx";
-import type { CardErrorItem } from "../state.ts";
+import type { CardErrorItem } from "../../api/state.ts";
 import { formatAgo } from "../utils.ts";
 
 export interface ErrorHistoryListProps {
