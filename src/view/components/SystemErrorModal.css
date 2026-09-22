@@ -1,0 +1,29 @@
+.failed-jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.failed-job-card {
+  background: var(--bg);
+  border: 1px solid rgba(168, 68, 42, 0.3);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 11px;
+}
+.failed-job-header {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.failed-job-reason {
+  color: var(--muted);
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.system-degraded-list {
+  margin-bottom: 14px;
+}

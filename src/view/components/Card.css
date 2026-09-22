@@ -1,0 +1,225 @@
+.card {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+.card:hover {
+  border-color: var(--muted);
+}
+.by-repo details summary {
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.card.done .t {
+  color: var(--muted);
+}
+.card.has-error {
+  border-color: rgba(168, 68, 42, 0.35);
+}
+.card.has-error:hover {
+  border-color: var(--warn);
+}
+.card.relation-active {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+.card.relation-target {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  animation: relation-pulse 1.2s infinite alternate ease-in-out;
+}
+@keyframes relation-pulse {
+  from {
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  }
+  to {
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.55);
+  }
+}
+.card-main {
+  display: block;
+  padding: 11px 13px;
+  text-decoration: none;
+  color: inherit;
+}
+.card-main:hover .t {
+  color: var(--accent);
+}
+.t {
+  font-weight: 500;
+  margin-bottom: 4px;
+  overflow-wrap: anywhere;
+  padding-right: 32px;
+  transition: color 0.15s ease;
+}
+.card:has(.card-history-btn) .t {
+  padding-right: 72px;
+}
+.s {
+  color: var(--muted);
+  font-size: 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.hint {
+  font-weight: 500;
+  color: var(--fg);
+}
+.card-sub {
+  border-top: 1px dashed var(--line);
+  padding: 6px 13px;
+  background: rgba(120, 120, 120, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  overflow: hidden;
+}
+.sub-connector {
+  color: var(--muted);
+  font-family: monospace;
+  font-size: 12px;
+  user-select: none;
+  flex-shrink: 0;
+}
+.pr-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  flex-shrink: 0;
+}
+.pr-badge:hover {
+  background: rgba(59, 130, 246, 0.18);
+  text-decoration: underline;
+}
+.pr-badge svg {
+  flex-shrink: 0;
+}
+.error-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--warn);
+  text-decoration: none;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(168, 68, 42, 0.08);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.error-badge:hover {
+  background: rgba(168, 68, 42, 0.18);
+  text-decoration: underline;
+}
+.error-badge svg {
+  flex-shrink: 0;
+}
+.relation-badge-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.relation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  cursor: default;
+  user-select: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+  flex-shrink: 0;
+}
+.relation-badge svg {
+  flex-shrink: 0;
+}
+.relation-badge.parent-badge {
+  color: var(--fg);
+  border-color: rgba(120, 120, 120, 0.25);
+}
+.relation-badge.child-badge {
+  color: var(--muted);
+}
+.card-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  z-index: 2;
+}
+.card-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 12px;
+  padding: 2px 7px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+  line-height: 1.2;
+  border: 1px solid var(--line);
+}
+.card-action-btn svg {
+  flex-shrink: 0;
+}
+.card-history-btn {
+  color: var(--muted);
+  background: rgba(120, 120, 120, 0.08);
+}
+.card-history-btn:hover {
+  background: var(--line);
+  color: var(--fg);
+  border-color: var(--muted);
+}
+.card-debug-btn {
+  color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+  padding: 3px 5px;
+  border-radius: 6px;
+}
+.card-debug-btn:hover {
+  background: rgba(59, 130, 246, 0.18);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}

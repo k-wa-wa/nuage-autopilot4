@@ -1,0 +1,123 @@
+:root {
+  --bg: #fbfbfa;
+  --fg: #26241f;
+  --muted: #7a756c;
+  --line: #e6e3dd;
+  --card: #fff;
+  --warn: #a8442a;
+  --accent: #3b82f6;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #191816;
+    --fg: #e8e4dc;
+    --muted: #98928a;
+    --line: #2f2d29;
+    --card: #211f1c;
+    --warn: #e0a08a;
+    --accent: #60a5fa;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #191816;
+  --fg: #e8e4dc;
+  --muted: #98928a;
+  --line: #2f2d29;
+  --card: #211f1c;
+  --warn: #e0a08a;
+  --accent: #60a5fa;
+}
+:root[data-theme="light"] {
+  --bg: #fbfbfa;
+  --fg: #26241f;
+  --muted: #7a756c;
+  --line: #e6e3dd;
+  --card: #fff;
+  --warn: #a8442a;
+  --accent: #3b82f6;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font:
+    14px / 1.6 ui-sans-serif,
+    -apple-system,
+    "Hiragino Sans",
+    sans-serif;
+}
+header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+h1 {
+  font-size: 15px;
+  margin: 0;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.header-link {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}
+.header-link:hover {
+  color: var(--fg);
+}
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+}
+.icon-btn:hover {
+  color: var(--fg);
+}
+.header-chat-btn {
+  color: var(--accent);
+}
+.header-chat-btn:hover {
+  color: var(--fg);
+  transform: scale(1.1);
+}
+main {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  align-items: start;
+}
+section {
+  min-width: 0;
+}
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  padding: 6px 0;
+}
+details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  user-select: none;
+}
+details summary:hover {
+  color: var(--fg);
+}

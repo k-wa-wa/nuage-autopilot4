@@ -1,0 +1,31 @@
+.relation-connector-svg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 800;
+  overflow: visible;
+}
+.relation-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 5px rgba(59, 130, 246, 0.4));
+  stroke-dasharray: 6 3;
+  animation: relation-dash 1s linear infinite;
+}
+@keyframes relation-dash {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+.relation-dot {
+  fill: var(--accent);
+  stroke: var(--card);
+  stroke-width: 2px;
+}

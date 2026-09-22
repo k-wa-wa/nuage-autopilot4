@@ -1,0 +1,13 @@
+.md-task {
+  list-style: none;
+  margin-left: -16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-task-box {
+  color: var(--muted);
+}
+.md-task-box.checked {
+  color: var(--accent);
+}

@@ -1,7 +1,7 @@
 import { renderToString } from "preact-render-to-string";
 import { App } from "./App.tsx";
 import { APP_ROOT_ELEMENT_ID, PAGE_DATA_ELEMENT_ID, type PageData } from "./pageData.ts";
-import { styles } from "./styles.ts";
+import { styles } from "./styles/index.ts";
 
 // </script> や <!-- を含むタイトルで script 要素が途中で閉じられないようにする
 function serializeForScript(data: unknown): string {
