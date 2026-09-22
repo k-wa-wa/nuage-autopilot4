@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import type { Config } from "../config.ts";
 import { goldenIn } from "../testing/golden.ts";
-import type { AutopilotEnvironment, CardContext } from "./investigate.ts";
-import { buildInvestigatePrompt, prepareInvestigateWorkspace } from "./investigate.ts";
+import type { AutopilotEnvironment, CardContext } from "./chat.ts";
+import { buildInvestigatePrompt, prepareChatWorkspace } from "./chat.ts";
 import type { GitRunner } from "./workspace.ts";
 
 const golden = goldenIn(import.meta.url);
@@ -14,7 +14,7 @@ const fixedEnv: AutopilotEnvironment = {
   sourceDir: "/Users/test/nuage-autopilot4",
 };
 
-describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () => {
+describe("Agent Investigation Logic Golden Tests (execute/chat.ts)", () => {
   it("investigate: エラー詳細ありカードとユーザー質問のプロンプト", () => {
     const card: CardContext = {
       repo: "k-wa-wa/pechka",
@@ -116,7 +116,7 @@ describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () =
   });
 });
 
-describe("Agent Investigation Utilities (execute/investigate.ts)", () => {
+describe("Agent Investigation Utilities (execute/chat.ts)", () => {
   const cfg = { home: `/tmp/mock-autopilot-${Date.now()}` } as unknown as Config;
   const recordingGit = (cwds: string[]): GitRunner => {
     return async (_args, cwd) => {
@@ -125,9 +125,9 @@ describe("Agent Investigation Utilities (execute/investigate.ts)", () => {
     };
   };
 
-  it("prepareInvestigateWorkspace は chat-workspaces だけを使い、workspaces には触れない", async () => {
+  it("prepareChatWorkspace は chat-workspaces だけを使い、workspaces には触れない", async () => {
     const cwds: string[] = [];
-    const dir = await prepareInvestigateWorkspace(
+    const dir = await prepareChatWorkspace(
       "k-wa-wa/test-repo",
       cfg,
       true,
@@ -139,22 +139,14 @@ describe("Agent Investigation Utilities (execute/investigate.ts)", () => {
     expect(cwds.every((c) => !c.startsWith(join(cfg.home, "workspaces")))).toBe(true);
   });
 
-  it("prepareInvestigateWorkspace は設定が無ければフォールバックせず失敗する", async () => {
-    await expect(
-      prepareInvestigateWorkspace("k-wa-wa/test-repo", undefined, true),
-    ).rejects.toThrow();
+  it("prepareChatWorkspace は設定が無ければフォールバックせず失敗する", async () => {
+    await expect(prepareChatWorkspace("k-wa-wa/test-repo", undefined, true)).rejects.toThrow();
   });
 
-  it("prepareInvestigateWorkspace は repo でメインワーカーのワークスペースを指させない", async () => {
+  it("prepareChatWorkspace は repo でメインワーカーのワークスペースを指させない", async () => {
     const cwds: string[] = [];
     await expect(
-      prepareInvestigateWorkspace(
-        "../workspaces/k-wa-wa",
-        cfg,
-        true,
-        undefined,
-        recordingGit(cwds),
-      ),
+      prepareChatWorkspace("../workspaces/k-wa-wa", cfg, true, undefined, recordingGit(cwds)),
     ).rejects.toThrow("invalid repo");
     expect(cwds).toEqual([]);
   });

@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Config } from "../config.ts";
-import type { CardContext, InvestigatePayload } from "../execute/investigate.ts";
-import { streamInvestigate } from "../execute/investigate.ts";
+import type { CardContext, ChatPayload } from "../execute/chat.ts";
+import { streamChat } from "../execute/chat.ts";
 import {
   addChatMessage,
   getConversation,
@@ -13,7 +13,7 @@ import {
 } from "../store/chat.ts";
 import type { DB } from "../store/db.ts";
 
-export type { CardContext, InvestigatePayload };
+export type { CardContext, ChatPayload };
 
 /**
  * Hono ハンドラ: POST /api/chat (SSE ストリーミング & 会話永続化)
@@ -24,9 +24,9 @@ export type { CardContext, InvestigatePayload };
  */
 export function createChatStreamHandler(db: DB, cfg?: Config) {
   return async (c: Context) => {
-    let payload: InvestigatePayload = {};
+    let payload: ChatPayload = {};
     try {
-      payload = await c.req.json<InvestigatePayload>();
+      payload = await c.req.json<ChatPayload>();
     } catch {
       // 空ボディ許容
     }
@@ -44,7 +44,7 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
     let accumulatedAssistantText = "";
 
     return streamSSE(c, async (stream) => {
-      await streamInvestigate(
+      await streamChat(
         {
           card,
           message: payload.message,

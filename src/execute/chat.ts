@@ -31,7 +31,7 @@ export interface CardContext {
 
 export type ChatMode = "investigate" | "brainstorm";
 
-export interface InvestigatePayload {
+export interface ChatPayload {
   message?: string;
   card?: CardContext;
   conversation_id?: string;
@@ -99,7 +99,7 @@ export interface BuildInvestigatePromptOptions {
   mode?: ChatMode;
 }
 
-export interface InvestigateOptions {
+export interface ChatOptions {
   card?: CardContext;
   message?: string;
   conversationId?: string;
@@ -109,7 +109,7 @@ export interface InvestigateOptions {
   env?: AutopilotEnvironment;
 }
 
-export type InvestigateEvent =
+export type ChatEvent =
   | {
       event: "init";
       data: {
@@ -130,7 +130,7 @@ export type InvestigateEvent =
     }
   | { event: "error"; data: { message: string } };
 
-export type EventCallback = (event: InvestigateEvent) => Promise<void> | void;
+export type EventCallback = (event: ChatEvent) => Promise<void> | void;
 
 /**
  * 実機エージェント実行前に Chat 専用ワークスペース（chat-workspaces/<repo>）を準備する。
@@ -138,7 +138,7 @@ export type EventCallback = (event: InvestigateEvent) => Promise<void> | void;
  * エージェントは権限確認なしで動くため、メインワーカーの workspaces/<repo> や
  * プロセスの cwd へは決してフォールバックしない。準備できなければ例外を投げる。
  */
-export async function prepareInvestigateWorkspace(
+export async function prepareChatWorkspace(
   repo: string | undefined,
   cfg: Config | undefined,
   refresh: boolean,
@@ -435,24 +435,33 @@ async function streamMockResponse(
   await delay(300);
 
   // 3. ツール呼び出し 1
+  // ツール名・引数のキーは実際の claude/agy 実行時（Bash の command, Read の file_path 等）に
+  // 合わせてあり、tool-call-badge の内容表示（実行中/完了ステータスは追跡しない）を確認できる。
   if (isBrainstorm) {
     await emit({
       event: "tool_start",
-      data: { id: "tool-1", name: "view_file", args: { path: "ARCHITECTURE.md", lines: "1-40" } },
+      data: { id: "tool-1", name: "Read", args: { file_path: "ARCHITECTURE.md" } },
     });
     await delay(350);
     await emit({
       event: "tool_end",
       data: {
         id: "tool-1",
-        name: "view_file",
+        name: "Read",
         result: "1: # 実装アーキテクチャ\n2: 1. GitHub が真実源...",
       },
     });
   } else {
     await emit({
       event: "tool_start",
-      data: { id: "tool-1", name: "git_log", args: { target: issueKey, limit: 3 } },
+      data: {
+        id: "tool-1",
+        name: "Bash",
+        args: {
+          command: `gh pr view ${issueKey} --json state,mergeable`,
+          description: "PR状態の確認",
+        },
+      },
     });
     await delay(400);
 
@@ -460,7 +469,7 @@ async function streamMockResponse(
       event: "tool_end",
       data: {
         id: "tool-1",
-        name: "git_log",
+        name: "Bash",
         result: "commit e39a1b (HEAD) - fix: retry limit handling",
       },
     });
@@ -479,8 +488,8 @@ async function streamMockResponse(
     event: "tool_start",
     data: {
       id: "tool-2",
-      name: "view_file",
-      args: { path: `${card?.repo || "repo"}/src/collect/poller.ts`, lines: "40-65" },
+      name: "Read",
+      args: { file_path: `${card?.repo || "repo"}/src/collect/poller.ts` },
     },
   });
   await delay(350);
@@ -489,7 +498,7 @@ async function streamMockResponse(
     event: "tool_end",
     data: {
       id: "tool-2",
-      name: "view_file",
+      name: "Read",
       result: "40: export const DEFAULTS = { pollIntervalMs: 60_000, ciGraceMs: 600_000 ... };",
     },
   });
@@ -510,7 +519,7 @@ async function streamMockResponse(
       event: "tool_start",
       data: {
         id: "tool-3",
-        name: "run_shell_command",
+        name: "Bash",
         args: { command: `gh issue create -R ${targetRepo} --title "..." --body-file issue.md` },
       },
     });
@@ -519,7 +528,7 @@ async function streamMockResponse(
       event: "tool_end",
       data: {
         id: "tool-3",
-        name: "run_shell_command",
+        name: "Bash",
         result: `https://github.com/${targetRepo}/issues/${mockIssueNumber}`,
       },
     });
@@ -561,6 +570,12 @@ async function streamMockResponse(
           "**推定される原因**:\n",
           "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
           "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
+          "**原因の切り分け**:\n\n",
+          "| 観点 | 状況 | 対応 |\n",
+          "|---|---|---|\n",
+          "| リトライ回数 | 上限（3回）に到達 | 人間の判断が必要 |\n",
+          "| CI ログ | GitHub Actions で確認可能 | ログを確認し原因を特定 |\n",
+          "| 影響範囲 | 単一 PR のみ | 他タスクへの影響なし |\n\n",
           "**推奨アクション**:\n",
           "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
           "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
@@ -599,7 +614,7 @@ async function streamAgyResponse(
 ): Promise<void> {
   let cwd: string;
   try {
-    cwd = await prepareInvestigateWorkspace(card?.repo, cfg, !conversationId, emit);
+    cwd = await prepareChatWorkspace(card?.repo, cfg, !conversationId, emit);
   } catch (err) {
     await emit({
       event: "error",
@@ -704,7 +719,7 @@ async function streamClaudeResponse(
 ): Promise<void> {
   let cwd: string;
   try {
-    cwd = await prepareInvestigateWorkspace(card?.repo, cfg, !conversationId, emit);
+    cwd = await prepareChatWorkspace(card?.repo, cfg, !conversationId, emit);
   } catch (err) {
     await emit({
       event: "error",
@@ -804,12 +819,9 @@ async function streamClaudeResponse(
 }
 
 /**
- * 調査処理のエントリポイント（UI 非依存・ストリーミング）
+ * チャット処理のエントリポイント（調査・壁打ち共通、UI 非依存・ストリーミング）
  */
-export async function streamInvestigate(
-  options: InvestigateOptions,
-  emit: EventCallback,
-): Promise<void> {
+export async function streamChat(options: ChatOptions, emit: EventCallback): Promise<void> {
   const selectedEngine = options.engine || "agy";
   const selectedMode = options.mode || "investigate";
   const isAvailable = isCliAvailable(selectedEngine);

@@ -91,8 +91,9 @@ stdenv.mkDerivation {
 
     # 不変条件のテスト。GitHub にもエージェントにも触らないので sandbox 内で走る。
     # src/view/dev 配下はローカル確認用ダッシュボードで devDependencies に依存しており、
-    # node_modules を --production で構築するこのビルドには含まれないため対象外にする。
-    bun test --path-ignore-patterns 'src/view/dev/**'
+    # *.dom.test.* は happy-dom (devDependencies) を使う DOM テストであり、
+    # いずれも node_modules を --production で構築するこのビルドには含まれないため対象外にする。
+    bun test --path-ignore-patterns 'src/view/dev/**' --path-ignore-patterns '**/*.dom.test.*'
 
     # SPA 資産も含めて単一バイナリに埋め込む。別途のファイル配置は要らない。
     bun build --compile --outfile autopilot src/main.ts
