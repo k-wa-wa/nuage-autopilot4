@@ -1,7 +1,11 @@
 import type { Hono } from "hono";
 import type { DB } from "../store/db.ts";
 import { renderErrorHistory, renderHistoryTimeline, renderLanes } from "../view/render.tsx";
-import { handleChatStream } from "./chat.ts";
+import {
+  createChatStreamHandler,
+  createGetConversationHandler,
+  createListConversationsHandler,
+} from "./chat.ts";
 import { handleCreateIssue } from "./issue.ts";
 import { buildDoneState, buildState, getCard } from "./state.ts";
 
@@ -12,7 +16,9 @@ import { buildDoneState, buildState, getCard } from "./state.ts";
  * - /api/state: システム状態（全レーン情報 + health）
  * - /api/health: ヘルス・レートリミット状態
  * - /api/done: 完了済みアイテム一覧
- * - /api/chat: AI 調査・壁打ちアシスタント (SSE ストリーミング)
+ * - /api/chat: AI 調査・壁打ちアシスタント (SSE ストリーミング & 永続化)
+ * - /api/chat/conversations: 会話セッション一覧
+ * - /api/chat/conversations/:id: 会話詳細・メッセージ履歴
  * - /api/issue/create: GitHub Issue 起票
  * - /api/render/*: レーンおよび履歴・エラー HTML 片（後方互換）
  */
@@ -49,8 +55,10 @@ export function mountApiRoutes(app: Hono, db: DB): void {
     });
   });
 
-  // AI 調査アシスタント (SSE ストリーミング)
-  app.post("/api/chat", handleChatStream);
+  // AI 調査アシスタント (SSE ストリーミング & 永続化)
+  app.post("/api/chat", createChatStreamHandler(db));
+  app.get("/api/chat/conversations", createListConversationsHandler(db));
+  app.get("/api/chat/conversations/:id", createGetConversationHandler(db));
 
   // GitHub Issue 起票 API (壁打ちモード等からの連携)
   app.post("/api/issue/create", handleCreateIssue);

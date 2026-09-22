@@ -1,5 +1,12 @@
 import type { FC } from "hono/jsx";
-import { ArrowRightIcon, ChevronDownIcon, CloseIcon, SparklesIcon } from "./icons.tsx";
+import {
+  ArrowRightIcon,
+  ChevronDownIcon,
+  CloseIcon,
+  HistoryIcon,
+  PlusIcon,
+  SparklesIcon,
+} from "./icons.tsx";
 
 export const ChatPane: FC = () => {
   return (
@@ -21,6 +28,26 @@ export const ChatPane: FC = () => {
           <div class="chat-header-actions">
             <button
               type="button"
+              id="chat-history-btn"
+              class="chat-header-action-btn"
+              aria-label="過去の会話履歴"
+              title="過去の会話履歴"
+            >
+              <HistoryIcon size={14} />
+              <span class="btn-label">履歴</span>
+            </button>
+            <button
+              type="button"
+              id="chat-new-btn"
+              class="chat-header-action-btn"
+              aria-label="新しい会話を開始"
+              title="新しい会話を開始"
+            >
+              <PlusIcon size={14} />
+              <span class="btn-label">新規会話</span>
+            </button>
+            <button
+              type="button"
               id="chat-close-btn"
               class="chat-close-btn"
               aria-label="チャットパネルを閉じる"
@@ -30,6 +57,14 @@ export const ChatPane: FC = () => {
             </button>
           </div>
         </header>
+
+        {/* 過去の会話履歴ポップオーバー */}
+        <div id="chat-history-popover" class="chat-history-popover" style={{ display: "none" }}>
+          <div class="chat-history-header">
+            <span>過去の会話履歴</span>
+          </div>
+          <div id="chat-history-list" class="chat-history-list" />
+        </div>
 
         <div id="chat-messages" class="chat-messages">
           <div class="chat-welcome-msg">

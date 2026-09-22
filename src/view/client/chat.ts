@@ -1,5 +1,5 @@
 import type { Card } from "../../api/state.ts";
-import { esc } from "./utils.ts";
+import { ago, esc } from "./utils.ts";
 
 let currentChatCard: Card | null = null;
 let currentConversationId: string | null = null;
@@ -174,6 +174,162 @@ export function renderContextChips(): void {
   }
 }
 
+let initialWelcomeHtml = "";
+
+export function resetChatToWelcome(): void {
+  currentConversationId = null;
+  const chatMessages = document.getElementById("chat-messages");
+  if (chatMessages && initialWelcomeHtml) {
+    chatMessages.innerHTML = initialWelcomeHtml;
+    const modeSelect = document.getElementById("chat-mode-select") as HTMLSelectElement | null;
+    const mode = (modeSelect?.value as "investigate" | "brainstorm") || "investigate";
+    updateChatModeUI(mode);
+  }
+  const chatInput = document.getElementById("chat-input") as HTMLTextAreaElement | null;
+  if (chatInput) {
+    chatInput.value = "";
+    chatInput.focus();
+  }
+}
+
+export async function restoreConversationById(convId: string): Promise<boolean> {
+  const chatMessages = document.getElementById("chat-messages");
+  if (!chatMessages) return false;
+
+  try {
+    const detailRes = await fetch(`/api/chat/conversations/${convId}`);
+    if (!detailRes.ok) return false;
+    const detailData = (await detailRes.json()) as {
+      conversation?: { id: string; engine?: string; mode?: string };
+      messages?: Array<{ role: string; content: string }>;
+    };
+    const conv = detailData.conversation;
+    const messages = detailData.messages || [];
+
+    if (!conv || messages.length === 0) return false;
+
+    currentConversationId = conv.id;
+
+    // エンジン・モードの同期
+    const chatEngineSelect = document.getElementById(
+      "chat-engine-select",
+    ) as HTMLSelectElement | null;
+    if (chatEngineSelect && conv.engine) {
+      chatEngineSelect.value = conv.engine;
+    }
+    const chatModeSelect = document.getElementById("chat-mode-select") as HTMLSelectElement | null;
+    if (chatModeSelect && conv.mode) {
+      chatModeSelect.value = conv.mode;
+      updateChatModeUI(conv.mode as "investigate" | "brainstorm");
+    }
+
+    // メッセージ描画
+    chatMessages.innerHTML = "";
+    for (const msg of messages) {
+      const msgDiv = document.createElement("div");
+      msgDiv.className = `chat-msg ${msg.role}`;
+      const bubbleDiv = document.createElement("div");
+      bubbleDiv.className = "msg-bubble";
+      if (msg.role === "assistant") {
+        bubbleDiv.innerHTML = renderSimpleMarkdown(msg.content);
+      } else {
+        bubbleDiv.textContent = msg.content;
+      }
+      msgDiv.appendChild(bubbleDiv);
+      chatMessages.appendChild(msgDiv);
+    }
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function loadConversationHistory(card: Card | null): Promise<void> {
+  const repo = card?.repo ?? "";
+  const issueNumber = card?.issue_number ?? 0;
+
+  try {
+    const listRes = await fetch(
+      `/api/chat/conversations?repo=${encodeURIComponent(repo)}&issue=${issueNumber}`,
+    );
+    if (!listRes.ok) return;
+    const listData = (await listRes.json()) as {
+      conversations?: Array<{ id: string }>;
+    };
+    const latestConv = listData.conversations?.[0];
+    if (!latestConv) {
+      resetChatToWelcome();
+      return;
+    }
+
+    const restored = await restoreConversationById(latestConv.id);
+    if (!restored) {
+      resetChatToWelcome();
+    }
+  } catch {
+    // 取得エラー時は初期表示を維持
+  }
+}
+
+export async function toggleChatHistoryPopover(): Promise<void> {
+  const popover = document.getElementById("chat-history-popover");
+  const listEl = document.getElementById("chat-history-list");
+  if (!popover || !listEl) return;
+
+  if (popover.style.display === "flex") {
+    popover.style.display = "none";
+    return;
+  }
+
+  const repo = currentChatCard?.repo ?? "";
+  const issueNumber = currentChatCard?.issue_number ?? 0;
+
+  try {
+    const res = await fetch(
+      `/api/chat/conversations?repo=${encodeURIComponent(repo)}&issue=${issueNumber}`,
+    );
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      conversations?: Array<{
+        id: string;
+        title?: string;
+        mode?: string;
+        engine?: string;
+        updated_at?: string;
+      }>;
+    };
+    const conversations = data.conversations || [];
+
+    if (conversations.length === 0) {
+      listEl.innerHTML = '<div class="chat-history-empty">過去の会話履歴はありません</div>';
+    } else {
+      listEl.innerHTML = conversations
+        .map((c) => {
+          const isActive = currentConversationId === c.id;
+          const modeLabel = c.mode === "brainstorm" ? "💡 壁打ち" : "🔍 調査";
+          const engineLabel = c.engine === "claude" ? "Claude" : "AGY";
+          const timeAgo = ago(c.updated_at || null);
+          return `
+            <div class="chat-history-item ${isActive ? "active" : ""}" data-id="${esc(c.id)}">
+              <div class="chat-history-item-title">${esc(c.title || "Autopilot Chat")}</div>
+              <div class="chat-history-meta">
+                <span class="chat-history-badge">${modeLabel}</span>
+                <span class="chat-history-badge">${engineLabel}</span>
+                <span>${timeAgo}</span>
+              </div>
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    popover.style.display = "flex";
+  } catch {
+    // エラー時は表示しない
+  }
+}
+
 export function openChat(card?: Card | null, mode?: "investigate" | "brainstorm"): void {
   const chatPane = document.getElementById("chat-pane");
   const paneResizer = document.getElementById("pane-resizer");
@@ -205,6 +361,9 @@ export function openChat(card?: Card | null, mode?: "investigate" | "brainstorm"
 
   renderContextChips();
   chatInput?.focus();
+
+  // 過去の会話履歴をロードして画面に復元
+  void loadConversationHistory(currentChatCard);
 }
 
 export function closeChat(): void {
@@ -255,6 +414,12 @@ export async function startChatInvestigation(userPrompt: string): Promise<void> 
         : snapshotCard
           ? `このアイテムが現在「${snapshotCard.display_hint}」となっている原因と現在の状況を調査してください。`
           : "システム全体の状況を調査してください。");
+
+  // ウェルカム表示があれば削除
+  const welcomeEl = chatMessages.querySelector(".chat-welcome-msg");
+  if (welcomeEl) {
+    welcomeEl.remove();
+  }
 
   // ユーザーメッセージ追加
   const userDiv = document.createElement("div");
@@ -387,11 +552,57 @@ export function initChat(): void {
   const chatPane = document.getElementById("chat-pane");
   const paneResizer = document.getElementById("pane-resizer");
   const chatCloseBtn = document.getElementById("chat-close-btn");
+  const chatNewBtn = document.getElementById("chat-new-btn");
+  const chatHistoryBtn = document.getElementById("chat-history-btn");
   const chatHeaderBtn = document.getElementById("chat-header-btn");
   const chatMessages = document.getElementById("chat-messages");
   const chatContextChips = document.getElementById("chat-context-chips");
   const chatInput = document.getElementById("chat-input") as HTMLTextAreaElement | null;
   const chatSendBtn = document.getElementById("chat-send-btn") as HTMLButtonElement | null;
+
+  if (chatMessages && !initialWelcomeHtml) {
+    initialWelcomeHtml = chatMessages.innerHTML;
+  }
+
+  if (chatNewBtn) {
+    chatNewBtn.addEventListener("click", () => {
+      resetChatToWelcome();
+    });
+  }
+
+  if (chatHistoryBtn) {
+    chatHistoryBtn.addEventListener("click", () => {
+      void toggleChatHistoryPopover();
+    });
+  }
+
+  // 履歴ポップオーバー内のアイテム選択
+  const historyList = document.getElementById("chat-history-list");
+  if (historyList) {
+    historyList.addEventListener("click", async (e) => {
+      const target = e.target as HTMLElement | null;
+      const item = target?.closest(".chat-history-item") as HTMLElement | null;
+      if (item) {
+        const id = item.getAttribute("data-id");
+        if (id) {
+          await restoreConversationById(id);
+          const popover = document.getElementById("chat-history-popover");
+          if (popover) popover.style.display = "none";
+        }
+      }
+    });
+  }
+
+  // ポップオーバー外クリックで閉じる
+  document.addEventListener("click", (e) => {
+    const popover = document.getElementById("chat-history-popover");
+    const historyBtn = document.getElementById("chat-history-btn");
+    if (!popover || popover.style.display === "none") return;
+    const target = e.target as HTMLElement | null;
+    if (target && !popover.contains(target) && !historyBtn?.contains(target)) {
+      popover.style.display = "none";
+    }
+  });
   const chatEngineSelect = document.getElementById(
     "chat-engine-select",
   ) as HTMLSelectElement | null;

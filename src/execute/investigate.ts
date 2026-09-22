@@ -416,7 +416,9 @@ async function streamMockResponse(
   engine: "agy" | "claude" = "agy",
   mode: ChatMode = "investigate",
 ): Promise<void> {
-  const isTest = Boolean(process.env.BUN_TEST);
+  const isTest = Boolean(
+    process.env.BUN_TEST || process.env.NODE_ENV === "test" || process.env.MOCK_CHAT === "true",
+  );
   const delay = (ms: number) => (isTest ? Bun.sleep(1) : Bun.sleep(ms));
   const convId = conversationId || `mock-${Date.now()}`;
   const isContinuation = Boolean(conversationId);
@@ -588,7 +590,7 @@ async function streamMockResponse(
   // 8. 完了イベント
   await emit({
     event: "done",
-    data: { status: "SUCCESS", conversation_id: `mock-${Date.now()}` },
+    data: { status: "SUCCESS", conversation_id: convId },
   });
 }
 

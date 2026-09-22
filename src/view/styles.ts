@@ -847,6 +847,7 @@ dialog.modal::backdrop {
 
 /* 右ペイン: チャットサイドパネル */
 .chat-pane {
+  position: relative;
   width: 460px;
   min-width: 300px;
   max-width: 75vw;
@@ -857,6 +858,86 @@ dialog.modal::backdrop {
   flex-shrink: 0;
   z-index: 40;
   font-size: 13px;
+}
+
+.chat-history-popover {
+  position: absolute;
+  top: 54px;
+  right: 14px;
+  width: 320px;
+  max-height: 420px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  overflow: hidden;
+}
+
+.chat-history-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.chat-history-list {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.chat-history-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chat-history-item {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-history-item:hover {
+  background: rgba(120, 120, 120, 0.08);
+}
+
+.chat-history-item.active {
+  background: rgba(59, 130, 246, 0.08);
+  border-left: 3px solid var(--accent);
+}
+
+.chat-history-item-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-history-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.chat-history-badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 10px;
+  background: rgba(120, 120, 120, 0.12);
 }
 
 .chat-header {
@@ -894,6 +975,25 @@ dialog.modal::backdrop {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.chat-header-action-btn {
+  background: rgba(120, 120, 120, 0.08);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+.chat-header-action-btn:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+  background: var(--card);
 }
 .chat-close-btn {
   background: transparent;
