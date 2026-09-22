@@ -20,7 +20,7 @@
 }
 .failed-job-reason {
   color: var(--muted);
-  font-family: monospace;
+  font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
 }

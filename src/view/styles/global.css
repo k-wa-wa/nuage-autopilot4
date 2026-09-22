@@ -6,6 +6,9 @@
   --card: #fff;
   --warn: #a8442a;
   --accent: #3b82f6;
+  --font-sans:
+    "IBM Plex Sans", "IBM Plex Sans JP", ui-sans-serif, -apple-system, "Hiragino Sans", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -43,11 +46,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font:
-    14px / 1.6 ui-sans-serif,
-    -apple-system,
-    "Hiragino Sans",
-    sans-serif;
+  font: 14px / 1.6 var(--font-sans);
 }
 header {
   padding: 16px 20px;

@@ -84,7 +84,7 @@
 }
 .sub-connector {
   color: var(--muted);
-  font-family: monospace;
+  font-family: var(--font-mono);
   font-size: 12px;
   user-select: none;
   flex-shrink: 0;
