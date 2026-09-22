@@ -9,7 +9,31 @@ export type ChatEngine = "agy" | "claude";
 export interface ToolCall {
   id: string;
   name: string;
-  done: boolean;
+  /** コマンド内容やファイルパスなど、引数から抽出した一行サマリー。完了状態は追跡しない。 */
+  detail: string;
+}
+
+/** ツール引数オブジェクトから、バッジ表示用の一行サマリーを best-effort で抽出する。 */
+function summarizeToolArgs(args: unknown): string {
+  if (!args || typeof args !== "object") return "";
+  const obj = args as Record<string, unknown>;
+  const preferredKeys = [
+    "command",
+    "CommandLine",
+    "cmd",
+    "file_path",
+    "path",
+    "pattern",
+    "query",
+    "url",
+    "description",
+  ];
+  for (const key of preferredKeys) {
+    const v = obj[key];
+    if (typeof v === "string" && v.trim()) return v;
+  }
+  const firstString = Object.values(obj).find((v) => typeof v === "string" && v.trim());
+  return typeof firstString === "string" ? firstString : "";
 }
 
 /** ストリーミング中に受け取った途中経過。履歴から復元した発言は持たない。 */
@@ -85,6 +109,7 @@ function applyEvent(entry: AssistantEntry, ev: SseEvent): AssistantEntry {
     delta?: string;
     id?: string;
     name?: string;
+    args?: unknown;
     message?: string;
   };
   switch (ev.event) {
@@ -93,13 +118,12 @@ function applyEvent(entry: AssistantEntry, ev: SseEvent): AssistantEntry {
         ? { ...entry, live: { ...live, thinking: live.thinking + data.delta } }
         : entry;
     case "tool_start": {
-      const tool = { id: data.id || data.name || "", name: data.name || "", done: false };
+      const tool: ToolCall = {
+        id: data.id || data.name || "",
+        name: data.name || "",
+        detail: summarizeToolArgs(data.args),
+      };
       return { ...entry, live: { ...live, tools: [...live.tools, tool] } };
-    }
-    case "tool_end": {
-      const id = data.id || data.name;
-      const tools = live.tools.map((t) => (t.id === id ? { ...t, done: true } : t));
-      return { ...entry, live: { ...live, tools } };
     }
     case "text":
       return data.delta ? { ...entry, text: entry.text + data.delta } : entry;

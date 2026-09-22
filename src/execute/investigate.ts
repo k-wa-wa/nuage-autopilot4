@@ -642,10 +642,13 @@ async function streamAgyResponse(
       } else if (parsed.event === "step_update") {
         const step = parsed.step_update as
           | {
+            step_index?: number;
+            state?: string;
             step_type?: string;
             text_delta?: string;
             thought?: string;
-            tool_call?: { id?: string; name: string; args?: unknown };
+            tool_name?: string;
+            tool_info?: { name?: string; parameters?: unknown };
           }
           | undefined;
 
@@ -653,8 +656,17 @@ async function streamAgyResponse(
           await emit({ event: "text", data: { delta: step.text_delta } });
         } else if (step?.thought) {
           await emit({ event: "thought", data: { delta: step.thought } });
-        } else if (step?.tool_call) {
-          await emit({ event: "tool_start", data: step.tool_call });
+        } else if (step?.step_type === "tool" && step.state === "ACTIVE") {
+          // agy は同じツール呼び出しを ACTIVE → DONE の2回送ってくるため、
+          // 完了タイミングは追わず ACTIVE 時点の呼び出し内容だけを表示する。
+          await emit({
+            event: "tool_start",
+            data: {
+              id: step.step_index !== undefined ? String(step.step_index) : step.tool_name,
+              name: step.tool_name || step.tool_info?.name || "tool",
+              args: step.tool_info?.parameters,
+            },
+          });
         }
       } else if (parsed.event === "result") {
         const res = parsed.result as
@@ -720,6 +732,10 @@ async function streamClaudeResponse(
       },
     });
 
+    // tool_use の input は content_block_start 時点では空で、input_json_delta で
+    // 少しずつ届く。content_block_stop で確定するまでブロック index ごとに貯める。
+    const pendingTools = new Map<number, { id: string; name: string; json: string }>();
+
     await processJsonStream(proc.stdout, async (parsed) => {
       if (parsed.session_id && parsed.type === "system" && parsed.status === "requesting") {
         await emit({
@@ -733,18 +749,16 @@ async function streamClaudeResponse(
         const ev = parsed.event as
           | {
             type?: string;
+            index?: number;
             content_block?: { type?: string; id?: string; name?: string; input?: unknown };
-            delta?: { type?: string; thinking?: string; text?: string };
+            delta?: { type?: string; thinking?: string; text?: string; partial_json?: string };
           }
           | undefined;
 
         if (ev?.type === "content_block_start") {
           const cb = ev.content_block;
-          if (cb?.type === "tool_use") {
-            await emit({
-              event: "tool_start",
-              data: { id: cb.id, name: cb.name || "tool", args: cb.input },
-            });
+          if (cb?.type === "tool_use" && typeof ev.index === "number") {
+            pendingTools.set(ev.index, { id: cb.id ?? "", name: cb.name || "tool", json: "" });
           }
         } else if (ev?.type === "content_block_delta") {
           const d = ev.delta;
@@ -752,6 +766,21 @@ async function streamClaudeResponse(
             await emit({ event: "thought", data: { delta: d.thinking || d.text || "" } });
           } else if (d?.type === "text_delta") {
             await emit({ event: "text", data: { delta: d.text || "" } });
+          } else if (d?.type === "input_json_delta" && typeof ev.index === "number") {
+            const pending = pendingTools.get(ev.index);
+            if (pending) pending.json += d.partial_json ?? "";
+          }
+        } else if (ev?.type === "content_block_stop" && typeof ev.index === "number") {
+          const pending = pendingTools.get(ev.index);
+          if (pending) {
+            pendingTools.delete(ev.index);
+            let args: unknown;
+            try {
+              args = pending.json ? JSON.parse(pending.json) : undefined;
+            } catch {
+              args = undefined;
+            }
+            await emit({ event: "tool_start", data: { id: pending.id, name: pending.name, args } });
           }
         }
       } else if (parsed.type === "result") {

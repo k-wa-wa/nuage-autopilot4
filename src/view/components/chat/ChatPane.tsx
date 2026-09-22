@@ -81,12 +81,8 @@ function EntryView({ entry }: { entry: ChatEntry }) {
           {live.tools.map((t) => (
             <div class="tool-call-badge" key={t.id}>
               <span class="tool-icon">🛠️</span>{" "}
-              <span>
-                <code>{t.name}</code>
-              </span>{" "}
-              <span class={t.done ? "tool-status done" : "tool-status running"}>
-                {t.done ? "完了" : "実行中..."}
-              </span>
+              <code>{t.name}</code>
+              {t.detail && <code class="tool-detail">{t.detail}</code>}
             </div>
           ))}
         </div>

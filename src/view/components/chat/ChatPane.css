@@ -525,7 +525,7 @@ button.chat-history-item {
   margin-bottom: 6px;
 }
 .tool-call-badge {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
@@ -539,21 +539,14 @@ button.chat-history-item {
 }
 .tool-call-badge .tool-icon {
   font-size: 12px;
+  flex-shrink: 0;
 }
-.tool-call-badge .tool-status {
-  font-size: 10px;
-  padding: 1px 5px;
-  border-radius: 4px;
-  margin-left: auto;
-  font-weight: 600;
-}
-.tool-call-badge .tool-status.running {
-  background: rgba(59, 130, 246, 0.15);
-  color: var(--accent);
-}
-.tool-call-badge .tool-status.done {
-  background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
+.tool-call-badge .tool-detail {
+  color: var(--muted);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* クイックチップス */
