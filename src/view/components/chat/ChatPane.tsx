@@ -80,8 +80,7 @@ function EntryView({ entry }: { entry: ChatEntry }) {
         <div class="tool-call-container">
           {live.tools.map((t) => (
             <div class="tool-call-badge" key={t.id}>
-              <span class="tool-icon">🛠️</span>{" "}
-              <code>{t.name}</code>
+              <span class="tool-icon">🛠️</span> <code>{t.name}</code>
               {t.detail && <code class="tool-detail">{t.detail}</code>}
             </div>
           ))}
@@ -205,6 +204,19 @@ export function ChatPane({ chat }: { chat: ChatController }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, close]);
+
+  // モバイルのボトムシート表示中は背面ページの touch スクロール/バウンスを止める
+  useEffect(() => {
+    if (!open || !window.matchMedia("(max-width: 768px)").matches) return;
+    const scrollY = window.scrollY;
+    document.body.classList.add("chat-pane-locked");
+    document.body.style.top = `-${scrollY}px`;
+    return () => {
+      document.body.classList.remove("chat-pane-locked");
+      document.body.style.top = "";
+      window.scrollTo(0, scrollY);
+    };
+  }, [open]);
 
   const historyOpen = history !== null;
   useEffect(() => {

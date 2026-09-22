@@ -187,10 +187,7 @@ Claude and GPT models\tFive Hour Limit Remaining\t100%\t2026-08-29T18:31:29Z`;
 
   describe("Chat invocation (investigate.ts 用)", () => {
     test("claude: 新規会話", () => {
-      const inv = buildChatInvocation(
-        { command: "claude", timeout_sec: 0 },
-        { prompt: "hi" },
-      );
+      const inv = buildChatInvocation({ command: "claude", timeout_sec: 0 }, { prompt: "hi" });
       expect(inv).toEqual({
         argv: [
           "claude",
