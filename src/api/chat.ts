@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
+import type { Config } from "../config.ts";
 import type { CardContext, InvestigatePayload } from "../execute/investigate.ts";
 import { streamInvestigate } from "../execute/investigate.ts";
 import {
@@ -21,7 +22,7 @@ export type { CardContext, InvestigatePayload };
  * execute 層のエージェント実行ストリームを SSE に中継しながら、
  * 会話セッションおよびメッセージ履歴を SQLite DB に自動保存する。
  */
-export function createChatStreamHandler(db: DB) {
+export function createChatStreamHandler(db: DB, cfg?: Config) {
   return async (c: Context) => {
     let payload: InvestigatePayload = {};
     try {
@@ -50,6 +51,7 @@ export function createChatStreamHandler(db: DB) {
           conversationId: payload.conversation_id,
           engine,
           mode,
+          cfg,
         },
         async (ev) => {
           // 1. init イベント: エージェント CLI から確定 conversation_id を取得

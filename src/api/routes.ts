@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import type { Config } from "../config.ts";
 import type { DB } from "../store/db.ts";
 import {
   createChatStreamHandler,
@@ -18,14 +19,14 @@ import { buildDoneState, buildState } from "./state.ts";
  * - /api/chat/conversations: 会話セッション一覧
  * - /api/chat/conversations/:id: 会話詳細・メッセージ履歴
  */
-export function mountApiRoutes(app: Hono, db: DB): void {
+export function mountApiRoutes(app: Hono, db: DB, cfg?: Config): void {
   // 状態データ JSON API
   app.get("/api/state", (c) => c.json(buildState(db)));
   app.get("/api/health", (c) => c.json(buildState(db).health));
   app.get("/api/done", (c) => c.json(buildDoneState(db)));
 
   // AI 調査アシスタント (SSE ストリーミング & 永続化)
-  app.post("/api/chat", createChatStreamHandler(db));
+  app.post("/api/chat", createChatStreamHandler(db, cfg));
   app.get("/api/chat/conversations", createListConversationsHandler(db));
   app.get("/api/chat/conversations/:id", createGetConversationHandler(db));
 }

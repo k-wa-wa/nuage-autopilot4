@@ -89,7 +89,7 @@ graph TD
     end
 
     subgraph View["④ 参照"]
-        Dash["Dashboard (読み取り専用)"]
+        Dash["Dashboard"]
     end
 
     GH --> Poller --> Cache
@@ -108,7 +108,7 @@ graph TD
 | **① 収集** | 変更を最小コストで検知し、変化したアイテムだけ詳細を取得してキャッシュする | [docs/spec.md](./docs/spec.md) |
 | **② 判定** | 「今どういう状況で、次に何をすべきか」を決め、`items` を更新して `job_queue` に積む | [docs/spec.md](./docs/spec.md) / [docs/spec.md](./docs/spec.md) |
 | **③ 実行** | キューから直列にジョブを取り、エージェントを起動し、成果物を GitHub 側で検証する | [docs/spec.md](./docs/spec.md) / [docs/spec.md](./docs/spec.md) |
-| **④ 参照** | `items` と `job_queue` を 3 レーンで見せる。書き込み API は持たない | [docs/spec.md](./docs/spec.md) |
+| **④ 参照** | `items` と `job_queue` を 3 レーンで見せる | [docs/spec.md](./docs/spec.md) |
 
 判定の入口は 2 つある。**GitHub 側が動いたとき**（キャッシュの差分）と、**時間だけが経ったとき**（Tick）である。
 CI が固まったまま何も変化しないケースは前者では永久に発火しないため、後者が必要になる。
@@ -129,7 +129,7 @@ CI が固まったまま何も変化しないケースは前者では永久に�
 
 ---
 
-## 4. Dashboard は読むだけ
+## 4. Dashboard
 
 承認・指示・マージはすべて GitHub 側で行う。Dashboard に承認ボタンを置くと、**GitHub のコメント履歴に残らない指示経路**が生まれ、真実源が二重化する（方針1 に反する）。
 スマホからの操作は GitHub Mobile が担うので、同等の機能を持たせる必要もない。

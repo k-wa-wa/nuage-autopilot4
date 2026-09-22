@@ -93,7 +93,7 @@ export function loadConfig(configPath?: string): Config {
     queue: { max_parallel: raw?.queue?.max_parallel ?? 2 },
     dashboard: {
       // 既定はループバック。認証を持たないため、0.0.0.0 にするのは
-      // 信頼できるネットワークに限ること（読み取り専用だが Issue の題名と状態が見える）。
+      // 信頼できるネットワークに限ること。
       host: raw?.dashboard?.host ?? "127.0.0.1",
       port: raw?.dashboard?.port ?? 8787,
     },

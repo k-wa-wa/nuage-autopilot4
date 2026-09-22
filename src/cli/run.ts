@@ -64,7 +64,7 @@ export async function cmdRun(configPath?: string): Promise<void> {
   const recovered = recover(wd, true);
   if (recovered > 0) log("info", `recovered ${recovered} orphaned job(s)`);
 
-  const server = startServer(db, cfg.dashboard.port, cfg.dashboard.host);
+  const server = startServer(db, cfg);
   log("info", `autopilot started (dashboard: http://${cfg.dashboard.host}:${cfg.dashboard.port})`);
 
   let stopping = false;

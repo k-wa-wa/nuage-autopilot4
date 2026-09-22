@@ -1,10 +1,10 @@
 import { describe, expect, it } from "bun:test";
-import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Config } from "../config.ts";
 import { goldenIn } from "../testing/golden.ts";
 import type { AutopilotEnvironment, CardContext } from "./investigate.ts";
-import { buildInvestigatePrompt, resolveWorkspaceDir } from "./investigate.ts";
+import { buildInvestigatePrompt, prepareInvestigateWorkspace } from "./investigate.ts";
+import type { GitRunner } from "./workspace.ts";
 
 const golden = goldenIn(import.meta.url);
 
@@ -117,23 +117,45 @@ describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () =
 });
 
 describe("Agent Investigation Utilities (execute/investigate.ts)", () => {
-  it("resolveWorkspaceDir が chat-workspaces を最優先で解決し、workspaces にフォールバックする", () => {
-    const tmpHome = `/tmp/mock-autopilot-${Date.now()}`;
-    const mockCfg = {
-      home: tmpHome,
-    } as unknown as Config;
+  const cfg = { home: `/tmp/mock-autopilot-${Date.now()}` } as unknown as Config;
+  const recordingGit = (cwds: string[]): GitRunner => {
+    return async (_args, cwd) => {
+      cwds.push(cwd);
+      return { code: 0, stdout: "", stderr: "" };
+    };
+  };
 
-    expect(resolveWorkspaceDir("k-wa-wa/unknown-repo", mockCfg)).toBeUndefined();
-    expect(resolveWorkspaceDir(undefined, mockCfg)).toBeUndefined();
+  it("prepareInvestigateWorkspace は chat-workspaces だけを使い、workspaces には触れない", async () => {
+    const cwds: string[] = [];
+    const dir = await prepareInvestigateWorkspace(
+      "k-wa-wa/test-repo",
+      cfg,
+      true,
+      undefined,
+      recordingGit(cwds),
+    );
 
-    // workspaces のみに存在する場合
-    const mainDir = join(tmpHome, "workspaces", "k-wa-wa/test-repo");
-    mkdirSync(mainDir, { recursive: true });
-    expect(resolveWorkspaceDir("k-wa-wa/test-repo", mockCfg)).toBe(mainDir);
+    expect(dir).toBe(join(cfg.home, "chat-workspaces", "k-wa-wa/test-repo"));
+    expect(cwds.every((c) => !c.startsWith(join(cfg.home, "workspaces")))).toBe(true);
+  });
 
-    // chat-workspaces にも存在する場合 -> chat-workspaces が優先される
-    const chatDir = join(tmpHome, "chat-workspaces", "k-wa-wa/test-repo");
-    mkdirSync(chatDir, { recursive: true });
-    expect(resolveWorkspaceDir("k-wa-wa/test-repo", mockCfg)).toBe(chatDir);
+  it("prepareInvestigateWorkspace は設定が無ければフォールバックせず失敗する", async () => {
+    await expect(
+      prepareInvestigateWorkspace("k-wa-wa/test-repo", undefined, true),
+    ).rejects.toThrow();
+  });
+
+  it("prepareInvestigateWorkspace は repo でメインワーカーのワークスペースを指させない", async () => {
+    const cwds: string[] = [];
+    await expect(
+      prepareInvestigateWorkspace(
+        "../workspaces/k-wa-wa",
+        cfg,
+        true,
+        undefined,
+        recordingGit(cwds),
+      ),
+    ).rejects.toThrow("invalid repo");
+    expect(cwds).toEqual([]);
   });
 });

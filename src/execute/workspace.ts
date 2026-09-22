@@ -69,21 +69,32 @@ export async function ensureClone(
   return dir;
 }
 
+/** `owner/name` 形式か。パス区切りや `.` / `..` のセグメントを含むものは弾く。 */
+export function isRepoSlug(repo: string): boolean {
+  const parts = repo.split("/");
+  return (
+    parts.length === 2 && parts.every((p) => /^[A-Za-z0-9_.-]+$/.test(p) && p !== "." && p !== "..")
+  );
+}
+
 /**
  * Autopilot Chat 専用の調査用ワークスペースを準備する。
  *
  * メインワーカー（workspaceDir）とは完全に分離された chatWorkspaceDir にクローンする。
  * これにより、メインワーカーのジョブ実行（ブランチ作成・コミット・リセット）との競合や破壊を防ぐ。
  *
- * - ディレクトリが存在しない場合: git clone を実行
- * - 既に存在する場合: git fetch --prune origin を行い、安全に HEAD または指定ブランチを clean 状態にする
+ * - 未クローン: git clone（既定ブランチの最新になる）
+ * - refresh（新しい会話の開始時）: fetch して既定ブランチの最新へ detached で合わせ、作業ツリーを空にする
+ * - それ以外（会話の続き）: 触らない。会話の途中で読んでいたコードが変わらないようにする
  */
 export async function ensureChatWorkspace(
   cfg: Config,
   repo: string,
-  branch?: string,
+  opts: { refresh: boolean },
   git: GitRunner = realGit,
 ): Promise<string> {
+  // repo はブラウザから届く。`..` などでメインワーカーの workspaces/ を指されると reset/clean で壊れる
+  if (!isRepoSlug(repo)) throw new Error(`invalid repo: ${repo}`);
   const dir = chatWorkspaceDir(cfg, repo);
   if (!existsSync(`${dir}/.git`)) {
     mkdirSync(dirname(dir), { recursive: true });
@@ -94,22 +105,23 @@ export async function ensureChatWorkspace(
     );
     if (r.code !== 0) throw new Error(`chat workspace clone failed: ${r.stderr}`);
     await configureCredentials(dir, git);
-  } else {
-    await configureCredentials(dir, git);
-    await git(["fetch", "--prune", "origin"], dir);
+    return dir;
   }
+  if (!opts.refresh) return dir;
 
-  // 調査エージェントが安全にファイルを読めるようクリーンアップ
-  await git(["reset", "--hard", "HEAD"], dir);
-  await git(["clean", "-fd"], dir);
-
-  if (branch) {
-    const r = await git(["checkout", branch], dir);
-    if (r.code !== 0) {
-      await git(["checkout", "-B", branch, `origin/${branch}`], dir);
-    }
-  }
-
+  await configureCredentials(dir, git);
+  const f = await git(["fetch", "--prune", "origin"], dir);
+  if (f.code !== 0) throw new Error(`chat workspace fetch failed: ${f.stderr}`);
+  // 既定ブランチが変わっていても追従する
+  await git(["remote", "set-head", "origin", "--auto"], dir);
+  // エージェントが途中で止めた操作が残っていると checkout しても状態が残る
+  await git(["rebase", "--abort"], dir);
+  await git(["merge", "--abort"], dir);
+  await git(["cherry-pick", "--abort"], dir);
+  // エージェントが別ブランチを checkout していても、そのブランチを動かさずに最新へ移る
+  const c = await git(["checkout", "--detach", "--force", "origin/HEAD"], dir);
+  if (c.code !== 0) throw new Error(`chat workspace checkout failed: ${c.stderr}`);
+  await git(["clean", "-fdx"], dir);
   return dir;
 }
 

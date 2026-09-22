@@ -3,8 +3,7 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { getVersionInfo } from "../cli/version.ts";
 import type { Config } from "../config.ts";
-import { chatWorkspaceDir, workspaceDir } from "../config.ts";
-import { ensureChatWorkspace } from "./workspace.ts";
+import { ensureChatWorkspace, type GitRunner } from "./workspace.ts";
 
 export interface CardContext {
   repo: string;
@@ -84,16 +83,6 @@ export function getAutopilotEnvironment(): AutopilotEnvironment {
     };
   }
 
-  // 4. メインワークスペース配下のフォールバック
-  const wsDir = join(home, "workspaces", "k-wa-wa", "nuage-autopilot4");
-  if (existsSync(join(wsDir, "src"))) {
-    return {
-      version: info.version,
-      commit: info.commit,
-      sourceDir: wsDir,
-    };
-  }
-
   // 4. 実体ディレクトリが見つからない場合（単一バイナリ配布時で source 未同梱）
   return {
     version: info.version,
@@ -143,63 +132,40 @@ export type InvestigateEvent =
 export type EventCallback = (event: InvestigateEvent) => Promise<void> | void;
 
 /**
- * リポジトリの作業ディレクトリ (cwd) を解決（spec.md §8 ワークスペース規約）。
+ * 実機エージェント実行前に Chat 専用ワークスペース（chat-workspaces/<repo>）を準備する。
  *
- * メインワーカーとの競合を防ぐため、Chat 専用ワークスペース（chat-workspaces/<repo>）を
- * 最優先として解決する。
- */
-export function resolveWorkspaceDir(repo?: string, cfg?: Config): string | undefined {
-  if (!repo) return undefined;
-
-  // 1. Config が渡されている場合
-  if (cfg) {
-    const chatDir = chatWorkspaceDir(cfg, repo);
-    if (existsSync(chatDir)) return chatDir;
-    const dir = workspaceDir(cfg, repo);
-    if (existsSync(dir)) return dir;
-  }
-
-  // 2. 環境変数 AUTOPILOT_HOME または既定の ~/.autopilot
-  const home = process.env.AUTOPILOT_HOME || join(homedir(), ".autopilot");
-  const chatFallback = join(home, "chat-workspaces", repo);
-  if (existsSync(chatFallback)) return chatFallback;
-
-  const fallbackDir = join(home, "workspaces", repo);
-  if (existsSync(fallbackDir)) return fallbackDir;
-
-  return undefined;
-}
-
-/**
- * 実機エージェント実行前に Chat 専用ワークスペースを準備する。
+ * エージェントは権限確認なしで動くため、メインワーカーの workspaces/<repo> や
+ * プロセスの cwd へは決してフォールバックしない。準備できなければ例外を投げる。
  */
 export async function prepareInvestigateWorkspace(
-  repo?: string,
-  cfg?: Config,
+  repo: string | undefined,
+  cfg: Config | undefined,
+  refresh: boolean,
   emit?: EventCallback,
-): Promise<string | undefined> {
+  git?: GitRunner,
+): Promise<string> {
+  if (!cfg) throw new Error("設定が渡されていないため Chat 用ワークスペースを準備できません");
   const targetRepo = repo || "k-wa-wa/nuage-autopilot4";
+  await emit?.({
+    event: "thought",
+    data: {
+      delta: refresh
+        ? `調査用ワークスペース (${targetRepo}) を最新化中...\n`
+        : `調査用ワークスペース (${targetRepo}) を使用します\n`,
+    },
+  });
+  return await ensureChatWorkspace(cfg, targetRepo, { refresh }, git);
+}
 
-  if (cfg) {
-    try {
-      if (emit) {
-        await emit({
-          event: "thought",
-          data: { delta: `調査用ワークスペース (${targetRepo}) を準備中...\n` },
-        });
-      }
-      return await ensureChatWorkspace(cfg, targetRepo);
-    } catch (err) {
-      if (emit) {
-        await emit({
-          event: "thought",
-          data: { delta: `ワークスペース準備をスキップします: ${String(err)}\n` },
-        });
-      }
-    }
-  }
-
-  return resolveWorkspaceDir(targetRepo, cfg);
+/** 並列の会話が同じチェックアウトを共有するため、エージェント自身に HEAD を確かめさせる。 */
+function pushWorkspaceGuidance(parts: string[]): void {
+  parts.push("\n【作業ディレクトリ】");
+  parts.push(
+    "カレントディレクトリは Chat 専用のチェックアウトで、新しい会話の開始時に既定ブランチの最新へ更新されます。他の会話と共有しているため、会話の途中で更新されている可能性があります。",
+  );
+  parts.push(
+    "コードを読んだりコマンドを実行したりする前に、毎回 `git log -1 --format='%h %ad %s' --date=iso` と `git status -sb` で HEAD の位置を確認し、回答にはどのコミット時点のコードを前提にしたかを明記してください。",
+  );
 }
 
 /**
@@ -245,6 +211,8 @@ export function buildBrainstormPrompt(
   if (currentEnv.sourceDir) {
     parts.push(`- ソースコード配置パス: ${currentEnv.sourceDir}`);
   }
+
+  pushWorkspaceGuidance(parts);
 
   parts.push("\n【GitHub Issue の起票】");
   parts.push(
@@ -323,6 +291,8 @@ export function buildInvestigatePrompt(
       "- （注意: スタンドアロンバイナリ実行のためローカルにソースツリーは配置されていません）",
     );
   }
+
+  pushWorkspaceGuidance(parts);
 
   parts.push("\n【調査のガイドライン】");
   parts.push(
@@ -626,7 +596,16 @@ async function streamAgyResponse(
   env?: AutopilotEnvironment,
   mode: ChatMode = "investigate",
 ): Promise<void> {
-  const cwd = await prepareInvestigateWorkspace(card?.repo, cfg, emit);
+  let cwd: string;
+  try {
+    cwd = await prepareInvestigateWorkspace(card?.repo, cfg, !conversationId, emit);
+  } catch (err) {
+    await emit({
+      event: "error",
+      data: { message: `ワークスペース準備に失敗しました: ${String(err)}` },
+    });
+    return;
+  }
   const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
   const args = [
@@ -717,7 +696,16 @@ async function streamClaudeResponse(
   env?: AutopilotEnvironment,
   mode: ChatMode = "investigate",
 ): Promise<void> {
-  const cwd = await prepareInvestigateWorkspace(card?.repo, cfg, emit);
+  let cwd: string;
+  try {
+    cwd = await prepareInvestigateWorkspace(card?.repo, cfg, !conversationId, emit);
+  } catch (err) {
+    await emit({
+      event: "error",
+      data: { message: `ワークスペース準備に失敗しました: ${String(err)}` },
+    });
+    return;
+  }
   const prompt = buildInvestigatePrompt({ card, userMessage, env, mode });
 
   const args = [

@@ -289,10 +289,9 @@ flowchart TD
 
 ## 10. Dashboard
 
-- `autopilot run` 内に Hono を同居させる。**書き込み API を持たない。**
+- `autopilot run` 内に Hono を同居させる。
   待ち受けは `dashboard.host`（既定 `127.0.0.1`）と `dashboard.port`。
-  認証は持たないので、`0.0.0.0` にするのは信頼できるネットワークに限る
-  （読み取り専用なので影響は Issue の題名と状態の開示まで）。
+  認証は持たないので、`0.0.0.0` にするのは信頼できるネットワークに限る。
 - `GET /api/state` が `action_required` / `working` / `queued` / `backlog` の各レーンと `health` を返す（`Done` は含めない）。
 - 完了ページ `GET /done`（JSON は `GET /api/done`）は `Done` をリポジトリごとのレーンで表示する。
   レーン内は `state_since` 降順で、リポジトリごとに直近 30 件に限る（終端で増え続けるため）。
