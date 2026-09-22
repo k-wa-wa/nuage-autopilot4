@@ -408,6 +408,9 @@ async function processJsonStream(
 /**
  * モック環境用のストリーミングシミュレーター
  */
+const MOCK_STREAM_CHARS_PER_TICK = 3;
+const MOCK_STREAM_TICK_MS = 15;
+
 async function streamMockResponse(
   emit: EventCallback,
   card?: CardContext,
@@ -416,9 +419,8 @@ async function streamMockResponse(
   engine: "agy" | "claude" = "agy",
   mode: ChatMode = "investigate",
 ): Promise<void> {
-  const isTest = Boolean(
-    process.env.BUN_TEST || process.env.NODE_ENV === "test" || process.env.MOCK_CHAT === "true",
-  );
+  // MOCK_CHAT は dev サーバーでも立つので、待ち時間を省くのはテスト実行時だけにする
+  const isTest = Boolean(process.env.BUN_TEST || process.env.NODE_ENV === "test");
   const delay = (ms: number) => (isTest ? Bun.sleep(1) : Bun.sleep(ms));
   const convId = conversationId || `mock-${Date.now()}`;
   const isContinuation = Boolean(conversationId);
@@ -578,13 +580,14 @@ async function streamMockResponse(
             : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
         ];
 
-  for (const chunk of responseChunks) {
-    for (const char of chunk) {
-      await emit({ event: "text", data: { delta: char } });
-      if (!isTest) {
-        await Bun.sleep(10);
-      }
-    }
+  // 実ストリームより少し速い程度（約 200 文字/秒）で数文字ずつ流す
+  const chars = [...responseChunks.join("")];
+  for (let i = 0; i < chars.length; i += MOCK_STREAM_CHARS_PER_TICK) {
+    await emit({
+      event: "text",
+      data: { delta: chars.slice(i, i + MOCK_STREAM_CHARS_PER_TICK).join("") },
+    });
+    await delay(MOCK_STREAM_TICK_MS);
   }
 
   // 8. 完了イベント

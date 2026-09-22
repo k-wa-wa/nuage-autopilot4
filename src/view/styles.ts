@@ -1593,4 +1593,69 @@ dialog.modal::backdrop {
 .issue-created-badge:hover {
   text-decoration: underline;
 }
+
+/* ボタン化した要素のブラウザ既定スタイルを打ち消す */
+button.banner,
+button.chat-history-item {
+  width: 100%;
+  border: none;
+  font: inherit;
+  text-align: left;
+}
+button.banner {
+  color: #fff;
+}
+button.chat-history-item {
+  background: none;
+  color: inherit;
+  border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+}
+.banner-static {
+  cursor: default;
+}
+.rate-val-warn {
+  color: var(--warn);
+  font-size: 11px;
+}
+.system-degraded-list {
+  margin-bottom: 14px;
+}
+.history-timeline-section {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.chat-error {
+  color: var(--warn);
+  margin-top: 8px;
+}
+.issue-draft-content {
+  margin: 10px 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg);
+  opacity: 0.9;
+}
+.issue-draft-content h3 {
+  font-size: 12px;
+  margin: 10px 0 4px;
+}
+.issue-create-error {
+  color: var(--warn);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.md-task {
+  list-style: none;
+  margin-left: -16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.md-task-box {
+  color: var(--muted);
+}
+.md-task-box.checked {
+  color: var(--accent);
+}
 `;

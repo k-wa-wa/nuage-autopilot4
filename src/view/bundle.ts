@@ -6,13 +6,13 @@ import { bundleClientMacro } from "./macro.ts" with { type: "macro" };
 const compiledBundle: string = bundleClientMacro();
 
 /**
- * クライアント側スクリプト（src/view/client/main.ts）の JS バンドル文字列を取得する。
+ * クライアント側スクリプト（src/view/client.tsx）の JS バンドル文字列を取得する。
  *
- * - ローカル開発 / ソースコード実行時: `src/view/client/main.ts` が存在すれば Bun.build でインメモリビルド。
+ * - ローカル開発 / ソースコード実行時: `src/view/client.tsx` が存在すれば Bun.build でインメモリビルド。
  * - 単一バイナリ配布時: コンパイル時にマクロ埋め込みされた compiledBundle を返却。
  */
 export async function getClientBundle(): Promise<string> {
-  const entryPath = join(import.meta.dir, "client/main.ts");
+  const entryPath = join(import.meta.dir, "client.tsx");
   if (existsSync(entryPath)) {
     try {
       const buildResult = await Bun.build({

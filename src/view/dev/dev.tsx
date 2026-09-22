@@ -1,14 +1,12 @@
 import { Hono } from "hono";
-import { raw } from "hono/html";
-import type { FC } from "hono/jsx";
 import { buildDoneState, buildState } from "../../api/state.ts";
-import { DonePage } from "../done.tsx";
-import { Page } from "../page.tsx";
+import { renderDocument } from "../document.tsx";
+import type { DevOptions } from "../pageData.ts";
 import { mountRoutes } from "../server.tsx";
 import { createMockDb, loadScenario, SCENARIOS, type ScenarioName } from "./mock.ts";
 
 const devBarStyles = `
-#dev-toolbar {
+.dev-toolbar {
   background: var(--card);
   color: var(--fg);
   border-bottom: 1px solid var(--line);
@@ -18,16 +16,14 @@ const devBarStyles = `
   gap: 16px;
   font: 12px ui-sans-serif, -apple-system, sans-serif;
 }
-#dev-toolbar .control-group {
+.dev-toolbar .control-group {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-#dev-toolbar label {
   color: var(--muted);
   font-weight: 500;
 }
-#dev-toolbar select {
+.dev-toolbar select {
   background: var(--bg);
   color: var(--fg);
   border: 1px solid var(--line);
@@ -37,98 +33,10 @@ const devBarStyles = `
   cursor: pointer;
   outline: none;
 }
-#dev-toolbar select:hover {
+.dev-toolbar select:hover {
   border-color: var(--muted);
 }
 `;
-
-const devClientScript = `
-(function() {
-  const scenarioSelect = document.getElementById("dev-scenario-select");
-  const themeSelect = document.getElementById("dev-theme-select");
-
-  async function switchScenario(name) {
-    try {
-      const res = await fetch('/api/dev/scenario/' + encodeURIComponent(name), { method: 'POST' });
-      if (!res.ok) return;
-      const url = new URL(window.location);
-      url.searchParams.set('scenario', name);
-      window.history.replaceState({}, '', url);
-      window.dispatchEvent(new CustomEvent('autopilot:refresh'));
-    } catch (e) {
-      console.error('failed to switch scenario:', e);
-    }
-  }
-
-  function switchTheme(theme) {
-    const root = document.documentElement;
-    if (theme === 'dark' || theme === 'light') {
-      root.setAttribute('data-theme', theme);
-    } else {
-      root.removeAttribute('data-theme');
-    }
-    localStorage.setItem('autopilot_dev_theme', theme);
-  }
-
-  if (scenarioSelect) {
-    scenarioSelect.addEventListener('change', (e) => {
-      switchScenario(e.target.value);
-    });
-  }
-
-  if (themeSelect) {
-    const savedTheme = localStorage.getItem('autopilot_dev_theme') || 'system';
-    themeSelect.value = savedTheme;
-    switchTheme(savedTheme);
-
-    themeSelect.addEventListener('change', (e) => {
-      switchTheme(e.target.value);
-    });
-  }
-
-  // クエリパラメータの初期同期
-  const params = new URLSearchParams(window.location.search);
-  const qScenario = params.get('scenario');
-  if (qScenario && scenarioSelect && scenarioSelect.value !== qScenario) {
-    scenarioSelect.value = qScenario;
-  }
-})();
-`;
-
-interface DevWrapperProps {
-  currentScenario: ScenarioName;
-  children?: unknown;
-}
-
-const DevWrapper: FC<DevWrapperProps> = ({ currentScenario, children }) => {
-  return (
-    <>
-      <div id="dev-toolbar">
-        <div class="control-group">
-          <label for="dev-scenario-select">Scenario:</label>
-          <select id="dev-scenario-select">
-            {SCENARIOS.map((s) => (
-              <option value={s.name} selected={s.name === currentScenario}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div class="control-group">
-          <label for="dev-theme-select">Theme:</label>
-          <select id="dev-theme-select">
-            <option value="system">🌓 System (OS追従)</option>
-            <option value="light">☀️ Light</option>
-            <option value="dark">🌙 Dark</option>
-          </select>
-        </div>
-      </div>
-      <style>{raw(devBarStyles)}</style>
-      {children}
-      <script>{raw(devClientScript)}</script>
-    </>
-  );
-};
 
 export function createDevApp(initialScenario: ScenarioName = "standard") {
   process.env.MOCK_CHAT = "true";
@@ -161,30 +69,37 @@ export function createDevApp(initialScenario: ScenarioName = "standard") {
     });
   });
 
+  const dev = (): DevOptions => ({
+    scenarios: SCENARIOS.map((sc) => ({ name: sc.name, title: sc.title })),
+    current: currentScenario,
+  });
+
   app.get("/", (c) => {
     const q = c.req.query("scenario") as ScenarioName | undefined;
     if (q && SCENARIOS.some((s) => s.name === q) && q !== currentScenario) {
       loadScenario(db, q);
       currentScenario = q;
     }
-    const state = buildState(db);
     return c.html(
-      `<!doctype html>${(
-        <DevWrapper currentScenario={currentScenario}>
-          <Page initialState={state} />
-        </DevWrapper>
-      )}`,
+      renderDocument(
+        { page: "dashboard", state: buildState(db), dev: dev() },
+        { extraStyles: devBarStyles },
+      ),
     );
   });
 
   // 完了ページにもシナリオ切替のツールバーを付ける
   app.get("/done", (c) =>
     c.html(
-      `<!doctype html>${(
-        <DevWrapper currentScenario={currentScenario}>
-          <DonePage state={buildDoneState(db)} health={buildState(db).health} />
-        </DevWrapper>
-      )}`,
+      renderDocument(
+        {
+          page: "done",
+          done: buildDoneState(db),
+          health: buildState(db).health,
+          dev: dev(),
+        },
+        { extraStyles: devBarStyles },
+      ),
     ),
   );
 

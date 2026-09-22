@@ -67,8 +67,8 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(htmlText).toContain("dev-scenario-select");
     expect(htmlText).toContain("dev-theme-select");
     expect(htmlText).toContain("Action Required");
-    expect(htmlText).toContain("info-btn");
-    expect(htmlText).toContain("info-modal");
+    expect(htmlText).toContain('aria-label="システム・API情報"');
+    expect(htmlText).toContain('<dialog class="modal"');
     expect(htmlText).toContain("GraphQL API");
     expect(htmlText).toContain("REST API (GitHub)");
 
@@ -274,16 +274,12 @@ describe("Dashboard Dev & Mock Environment", () => {
     const html = await res.text();
 
     // SVG コネクタ要素が存在すること
-    expect(html).toContain('id="relation-connector-canvas"');
     expect(html).toContain('class="relation-connector-svg"');
-    expect(html).toContain('id="relation-connector-layer"');
 
     // 親カードの属性と子バッジ
     expect(html).toContain('data-key="k-wa-wa/nuage-autopilot4#95"');
     expect(html).toContain('data-is-parent="true"');
     expect(html).toContain('class="relation-badge child-badge"');
-    expect(html).toContain('data-child-key="k-wa-wa/nuage-autopilot4#96"');
-    expect(html).toContain('data-child-key="k-wa-wa/nuage-autopilot4#97"');
     expect(html).toContain("子: #96");
     expect(html).toContain("子: #97");
 
@@ -358,8 +354,8 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(html).not.toContain('class="hint"');
 
     // ヘッダーはメインと揃える：info アイコンはあるが件数表示はしない
-    expect(html).toContain('id="info-btn"');
-    expect(html).toContain('id="info-modal"');
+    expect(html).toContain('aria-label="システム・API情報"');
+    expect(html).toContain('<dialog class="modal"');
     expect(html).not.toMatch(/完了\s*\d/);
 
     // メインページは Done を出さず、/done へのリンクを持つ
@@ -367,11 +363,8 @@ describe("Dashboard Dev & Mock Environment", () => {
     expect(mainHtml).toContain('href="/done"');
     expect(mainHtml).not.toContain("テナント識別子のリクエストコンテキスト伝播");
 
-    // 履歴 API は Done のカードも引ける
-    const hist = (await (
-      await app.request("/api/render/history?repo=k-wa-wa/nuage-autopilot4&issue=98")
-    ).json()) as { timeline_html: string };
-    expect(hist.timeline_html).toContain("AsyncLocalStorage");
+    // Done のカードも実行履歴を持ち、履歴モーダルはそれをそのまま描画する
+    expect(doneChild?.job_history?.[0]?.summary).toContain("AsyncLocalStorage");
   });
 
   test("Done はリポジトリごとの上限で打ち切られ、empty では空ページになる", async () => {

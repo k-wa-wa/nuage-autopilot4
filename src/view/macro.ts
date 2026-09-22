@@ -6,7 +6,7 @@ import { join } from "node:path";
  * クライアント側スクリプトをバンドルした結果の文字列を返す。
  */
 export function bundleClientMacro(): string {
-  const entry = join(import.meta.dir, "client/main.ts");
+  const entry = join(import.meta.dir, "client.tsx");
   const proc = Bun.spawnSync(["bun", "build", entry, "--target=browser"]);
   if (!proc.success) {
     throw new Error(`Failed to bundle client script at compile-time: ${proc.stderr.toString()}`);

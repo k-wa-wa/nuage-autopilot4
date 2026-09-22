@@ -1,52 +1,39 @@
-import type { FC } from "hono/jsx";
-import type { JobHistoryItem } from "../../api/state.ts";
+import type { Card, JobHistoryItem } from "../../api/state.ts";
 import { formatAgo, formatDuration } from "../utils.ts";
+import { Modal } from "./Modal.tsx";
 
-export interface HistoryTimelineProps {
-  history?: JobHistoryItem[];
-}
+const RESULT_MODIFIERS: Record<string, string> = {
+  success: " success",
+  fail: " fail",
+  timeout: " fail",
+  blocked: " blocked",
+  running: " running",
+};
 
-export const HistoryTimelineComponent: FC<HistoryTimelineProps> = ({ history = [] }) => {
+export function HistoryTimeline({ history }: { history: JobHistoryItem[] }) {
   if (!history.length) {
     return <div class="timeline-empty">実行履歴がありません</div>;
   }
 
   return (
-    <>
+    <div class="timeline">
       {history.map((item) => {
-        const res = (item.result || "UNKNOWN").toLowerCase();
-        let markerModifier = "";
-        let resultModifier = "";
-        if (res === "success") {
-          markerModifier = " success";
-          resultModifier = " success";
-        } else if (res === "fail" || res === "timeout") {
-          markerModifier = " fail";
-          resultModifier = " fail";
-        } else if (res === "blocked") {
-          markerModifier = " blocked";
-          resultModifier = " blocked";
-        } else if (res === "running") {
-          markerModifier = " running";
-          resultModifier = " running";
-        }
-
-        const durationStr = formatDuration(item.duration_sec);
-        const timeStr = formatAgo(item.started_at);
-
+        const result = item.result || "UNKNOWN";
+        const modifier = RESULT_MODIFIERS[result.toLowerCase()] ?? "";
         return (
           <div class="timeline-item" key={item.id}>
-            <div class={`timeline-marker${markerModifier}`} />
+            <div class={`timeline-marker${modifier}`} />
             <div class="timeline-header">
               <div class="timeline-title-group">
                 <span class="timeline-job-type">ジョブ: {item.job_type}</span>
-                <span class={`timeline-result${resultModifier}`}>{item.result || "UNKNOWN"}</span>
+                <span class={`timeline-result${modifier}`}>{result}</span>
               </div>
               <div class="timeline-time-group">
                 <span>
-                  所要時間: <strong class="timeline-duration">{durationStr}</strong>
+                  所要時間:{" "}
+                  <strong class="timeline-duration">{formatDuration(item.duration_sec)}</strong>
                 </span>
-                <span class="timeline-time">{timeStr}</span>
+                <span class="timeline-time">{formatAgo(item.started_at)}</span>
               </div>
             </div>
 
@@ -63,58 +50,54 @@ export const HistoryTimelineComponent: FC<HistoryTimelineProps> = ({ history = [
           </div>
         );
       })}
-    </>
+    </div>
   );
-};
+}
 
-export const HistoryModalDialog: FC = () => {
+export function HistoryModal(props: { card: Card | null; onClose: () => void }) {
+  const c = props.card;
   return (
-    <dialog id="history-modal" class="modal">
-      <div class="modal-box history-modal-box">
-        <div class="modal-header">
-          <h2 id="history-modal-title">⏱️ ジョブ実行履歴</h2>
-          <button type="button" id="history-modal-close-btn" class="close-btn" aria-label="閉じる">
-            &times;
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="modal-section">
-            <div class="error-meta-box">
-              <div class="error-issue-title" id="history-modal-issue-title">
-                --
-              </div>
-              <div class="error-badges-row" id="history-modal-badges" />
-            </div>
-          </div>
-          <div
-            class="modal-section"
-            style="max-height: 420px; overflow-y: auto; padding-right: 4px;"
-          >
-            <div id="history-modal-timeline" class="timeline" />
-          </div>
-          <div class="modal-footer">
-            <a
-              id="history-modal-issue-link"
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              class="btn btn-secondary"
-            >
-              Issue を開く
-            </a>
-            <a
-              id="history-modal-pr-link"
-              href="https://github.com"
-              target="_blank"
-              rel="noreferrer"
-              class="btn btn-secondary"
-              style="display: none;"
-            >
-              PR を開く
-            </a>
+    <Modal
+      open={c !== null}
+      onClose={props.onClose}
+      title={c ? `⏱️ ジョブ実行履歴 (${c.repo}#${c.issue_number})` : "⏱️ ジョブ実行履歴"}
+      boxClass="history-modal-box"
+    >
+      {c && <HistoryModalBody card={c} />}
+    </Modal>
+  );
+}
+
+function HistoryModalBody({ card: c }: { card: Card }) {
+  const history = c.job_history ?? [];
+  return (
+    <>
+      <div class="modal-section">
+        <div class="error-meta-box">
+          <div class="error-issue-title">{c.title || "(no title)"}</div>
+          <div class="error-badges-row">
+            {c.display_hint && <span class="tag-badge">{c.display_hint}</span>}
+            <span class="tag-badge">
+              {c.repo}#{c.issue_number}
+            </span>
+            {c.pr_number > 0 && <span class="tag-badge">PR #{c.pr_number}</span>}
+            <span class="tag-badge">計 {history.length} 回実行</span>
           </div>
         </div>
       </div>
-    </dialog>
+      <div class="modal-section history-timeline-section">
+        <HistoryTimeline history={history} />
+      </div>
+      <div class="modal-footer">
+        <a href={c.issue_url || c.url} target="_blank" rel="noreferrer" class="btn btn-secondary">
+          Issue を開く
+        </a>
+        {c.pr_url && (
+          <a href={c.pr_url} target="_blank" rel="noreferrer" class="btn btn-secondary">
+            PR を開く
+          </a>
+        )}
+      </div>
+    </>
   );
-};
+}

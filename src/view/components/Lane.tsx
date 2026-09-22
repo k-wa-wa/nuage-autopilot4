@@ -1,27 +1,27 @@
-import type { FC } from "hono/jsx";
 import type { Card } from "../../api/state.ts";
-import { CardComponent } from "./Card.tsx";
+import { cardKeyOf } from "../utils.ts";
+import { CardView } from "./Card.tsx";
 
 export interface LaneProps {
-  id: string;
   title: string;
-  cards?: Card[];
+  cards: Card[];
   open?: boolean;
+  emptyText?: string;
 }
 
-export const LaneComponent: FC<LaneProps> = ({ id, title, cards, open = false }) => {
+export function Lane({ title, cards, open = false, emptyText = "なし" }: LaneProps) {
   return (
     <section>
       <details open={open}>
         <summary>{title}</summary>
-        <div id={id}>
-          {cards === undefined ? null : cards.length === 0 ? (
-            <div class="empty">なし</div>
+        <div>
+          {cards.length === 0 ? (
+            <div class="empty">{emptyText}</div>
           ) : (
-            cards.map((c) => <CardComponent key={`${c.repo}#${c.issue_number}`} card={c} />)
+            cards.map((c) => <CardView key={cardKeyOf(c)} card={c} />)
           )}
         </div>
       </details>
     </section>
   );
-};
+}
