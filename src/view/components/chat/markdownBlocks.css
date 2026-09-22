@@ -11,3 +11,24 @@
 .md-task-box.checked {
   color: var(--accent);
 }
+
+.md-table {
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 12.5px;
+  width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+.md-table th,
+.md-table td {
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.md-table th {
+  background: rgba(120, 120, 120, 0.08);
+  font-weight: 600;
+  white-space: nowrap;
+}

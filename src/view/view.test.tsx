@@ -73,6 +73,28 @@ describe("Markdown", () => {
     expect(html).toContain('class="md-task-box checked"');
     expect(html).toContain("<h3>見出し</h3>");
   });
+
+  test("パイプ区切り表を table にまとめる", () => {
+    const html = renderToString(
+      <div>
+        {renderBlocks(
+          "| 関心事 | 行数目安 |\n|---|---|\n| 環境検出 | ~50行 |\n| プロンプト構築 | ~180行 |",
+        )}
+      </div>,
+    );
+    expect(html).toContain('<table class="md-table">');
+    expect(html).toContain("<th>関心事</th><th>行数目安</th>");
+    expect(html).toContain("<td>環境検出</td><td>~50行</td>");
+    expect(html).toContain("<td>プロンプト構築</td><td>~180行</td>");
+  });
+
+  test("区切り行を伴わない | は表として解釈しない", () => {
+    const html = renderToString(
+      <div>{renderBlocks("AとBの比較: A|B のような表記を含む一文。")}</div>,
+    );
+    expect(html).not.toContain("<table");
+    expect(html).toContain("A|B");
+  });
 });
 
 describe("relatedPairs", () => {
