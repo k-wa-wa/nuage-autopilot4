@@ -444,6 +444,13 @@ button.chat-history-item {
 }
 .chat-msg.user {
   align-self: flex-end;
+  align-items: flex-end;
+  /* コンテキストピンが無く子が .msg-bubble 1つだけの場合、column flex コンテナの
+     幅を auto の shrink-to-fit に任せると、子の max-width: 85%（不定な親幅に対する
+     割合）が絡んで実際の文字幅より狭く確定してしまうことがある（例: "hi" が
+     1文字ずつ縦積みになる）。fit-content で明示的に内容基準の幅にして回避する。 */
+  width: fit-content;
+  max-width: 85%;
 }
 .chat-msg.assistant {
   align-self: flex-start;
@@ -460,7 +467,6 @@ button.chat-history-item {
   background: var(--accent);
   color: #fff;
   border-bottom-right-radius: 2px;
-  max-width: 85%;
 }
 .chat-msg.assistant .msg-bubble {
   background: var(--bg);
