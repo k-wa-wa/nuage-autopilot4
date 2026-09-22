@@ -246,29 +246,13 @@ export function buildBrainstormPrompt(
     parts.push(`- ソースコード配置パス: ${currentEnv.sourceDir}`);
   }
 
-  parts.push("\n【Issue ドラフトの出力要件】");
+  parts.push("\n【GitHub Issue の起票】");
   parts.push(
-    "対話を通じて仕様・方針がまとまった場合、またはユーザーから仕様化や Issue 起票の指示があった場合は、",
+    "仕様・方針がまとまった場合、またはユーザーから仕様化を頼まれた場合は、Issue の案（タイトル・背景と目的・仕様と変更内容・受け入れ条件のチェックリスト）を Markdown で提示し、起票してよいか確認してください。",
   );
   parts.push(
-    "GitHub Issue としてそのまま起票できるよう、必ず以下のフォーマット（マーカータグ付き）で『GitHub Issue ドラフト』を出力してください：",
+    `ユーザーが起票を明示的に指示したときだけ、シェルで \`gh issue create -R ${card?.repo || "<owner/repo>"} --title "<タイトル>" --body-file <本文を書いたファイル>\` を実行し、作成された Issue の URL を回答に含めてください。確認を得ずに起票してはいけません。`,
   );
-  parts.push(`
-<!-- ISSUE_DRAFT_START -->
-**タイトル**: <簡潔で具体的なタイトル>
-**対象リポジトリ**: ${card?.repo || "<owner/repo>"}
-
-#### 背景・目的
-<なぜこの機能や変更が必要か、解決したい課題>
-
-#### 仕様・変更内容
-<設計方針、具体的な変更内容、スコープ>
-
-#### 受け入れ条件 (Acceptance Criteria)
-- [ ] <条件1>
-- [ ] <条件2>
-<!-- ISSUE_DRAFT_END -->
-`);
 
   if (userMessage?.trim()) {
     parts.push(`\n【ユーザーの相談・メッセージ】\n${userMessage.trim()}`);
@@ -411,6 +395,22 @@ async function processJsonStream(
 const MOCK_STREAM_CHARS_PER_TICK = 3;
 const MOCK_STREAM_TICK_MS = 15;
 
+// 実ストリームより少し速い程度（約 200 文字/秒）で数文字ずつ流す
+async function streamMockText(
+  emit: EventCallback,
+  text: string,
+  delay: (ms: number) => Promise<void>,
+): Promise<void> {
+  const chars = [...text];
+  for (let i = 0; i < chars.length; i += MOCK_STREAM_CHARS_PER_TICK) {
+    await emit({
+      event: "text",
+      data: { delta: chars.slice(i, i + MOCK_STREAM_CHARS_PER_TICK).join("") },
+    });
+    await delay(MOCK_STREAM_TICK_MS);
+  }
+}
+
 async function streamMockResponse(
   emit: EventCallback,
   card?: CardContext,
@@ -532,17 +532,43 @@ async function streamMockResponse(
   await delay(200);
 
   // 7. 回答本文のトークンストリーミング
+  const wantsCreate = isBrainstorm && /起票/.test(userMessage ?? "");
+  if (wantsCreate) {
+    const mockIssueNumber = Math.floor(Math.random() * 900) + 100;
+    await emit({
+      event: "tool_start",
+      data: {
+        id: "tool-3",
+        name: "run_shell_command",
+        args: { command: `gh issue create -R ${targetRepo} --title "..." --body-file issue.md` },
+      },
+    });
+    await delay(500);
+    await emit({
+      event: "tool_end",
+      data: {
+        id: "tool-3",
+        name: "run_shell_command",
+        result: `https://github.com/${targetRepo}/issues/${mockIssueNumber}`,
+      },
+    });
+    await delay(200);
+    const text = `✅ Issue を起票しました: https://github.com/${targetRepo}/issues/${mockIssueNumber}\n\n次回のポーリングで Autopilot に取り込まれます。`;
+    await streamMockText(emit, text, delay);
+    await emit({ event: "done", data: { status: "SUCCESS", conversation_id: convId } });
+    return;
+  }
+
   const responseChunks = isBrainstorm
     ? [
-        `### 💡 壁打ち提案: 設計方針と Issue ドラフトの作成\n\n`,
+        `### 💡 壁打ち提案: 設計方針と Issue 案\n\n`,
         `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
         "**設計上の検討ポイント**:\n",
-        "1. **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
-        "2. **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
-        "以下の内容で GitHub Issue ドラフトを作成しました：\n\n",
-        "<!-- ISSUE_DRAFT_START -->\n",
+        "- **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
+        "- **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
+        "#### Issue 案\n",
         `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
-        `**対象リポジトリ**: ${targetRepo}\n\n`,
+        `**対象リポジトリ**: \`${targetRepo}\`\n\n`,
         "#### 背景・目的\n",
         `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
         "#### 仕様・変更内容\n",
@@ -552,9 +578,8 @@ async function streamMockResponse(
         "#### 受け入れ条件 (Acceptance Criteria)\n",
         "- [ ] 主要ロジックの単体テストがパスすること\n",
         "- [ ] 既存機能にリグレッションが発生しないこと\n",
-        "- [ ] `bun run check` をパスすること\n",
-        "<!-- ISSUE_DRAFT_END -->\n\n",
-        "この内容でよろしければ、下の **「🚀 GitHub Issue を起票」** ボタンを押してください。起票後、Autopilot が自動で取り込み自律開発を開始します。",
+        "- [ ] `bun run check` をパスすること\n\n",
+        "この内容で起票してよければ「**起票して**」と返信してください。",
       ]
     : hasError
       ? [
@@ -580,15 +605,7 @@ async function streamMockResponse(
             : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
         ];
 
-  // 実ストリームより少し速い程度（約 200 文字/秒）で数文字ずつ流す
-  const chars = [...responseChunks.join("")];
-  for (let i = 0; i < chars.length; i += MOCK_STREAM_CHARS_PER_TICK) {
-    await emit({
-      event: "text",
-      data: { delta: chars.slice(i, i + MOCK_STREAM_CHARS_PER_TICK).join("") },
-    });
-    await delay(MOCK_STREAM_TICK_MS);
-  }
+  await streamMockText(emit, responseChunks.join(""), delay);
 
   // 8. 完了イベント
   await emit({

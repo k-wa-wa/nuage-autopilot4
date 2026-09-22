@@ -45,27 +45,6 @@ describe("Autopilot HTTP API Routes Regression Tests (/api/*)", () => {
     expect(json.repos).toBeArray();
   });
 
-  test("mountApiRoutes: /api/issue/create が正常に応答する", async () => {
-    const { db } = createMockDb("standard");
-    const app = new Hono();
-    mountApiRoutes(app, db);
-
-    process.env.MOCK_CHAT = "true";
-    const res = await app.request("/api/issue/create", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        repo: "k-wa-wa/test-repo",
-        title: "Test Issue",
-        body: "Test Body",
-      }),
-    });
-    expect(res.status).toBe(200);
-    const json = (await res.json()) as { ok: boolean; issue_number: number };
-    expect(json.ok).toBe(true);
-    expect(json.issue_number).toBeGreaterThan(0);
-  });
-
   test("mountApiRoutes: /api/chat が SSE ストリーミングで応答する", async () => {
     const { db } = createMockDb("standard");
     const app = new Hono();

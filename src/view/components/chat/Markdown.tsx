@@ -1,23 +1,17 @@
-import { type IssueDraft, IssueDraftCard, parseIssueDraft } from "./IssueDraftCard.tsx";
 import { renderBlocks } from "./markdownBlocks.tsx";
 
-export type Segment =
-  | { kind: "text"; text: string }
-  | { kind: "code"; code: string }
-  | { kind: "draft"; draft: IssueDraft };
+export type Segment = { kind: "text"; text: string } | { kind: "code"; code: string };
 
-const BLOCK_PATTERN =
-  /```[a-zA-Z0-9_-]*\n([\s\S]*?)```|<!-- ISSUE_DRAFT_START -->([\s\S]*?)<!-- ISSUE_DRAFT_END -->/g;
+const CODE_BLOCK = /```[a-zA-Z0-9_-]*\n([\s\S]*?)```/g;
 
-/** コードブロックと Issue ドラフトを切り出し、残りをテキスト片として返す。 */
+/** コードブロックを切り出し、残りをテキスト片として返す。 */
 export function splitSegments(text: string): Segment[] {
   const segments: Segment[] = [];
   let last = 0;
-  for (const m of text.matchAll(BLOCK_PATTERN)) {
+  for (const m of text.matchAll(CODE_BLOCK)) {
     const start = m.index ?? 0;
     if (start > last) segments.push({ kind: "text", text: text.slice(last, start) });
-    if (m[1] !== undefined) segments.push({ kind: "code", code: m[1].trim() });
-    else segments.push({ kind: "draft", draft: parseIssueDraft(m[2] ?? "") });
+    segments.push({ kind: "code", code: (m[1] ?? "").trim() });
     last = start + m[0].length;
   }
   if (last < text.length) segments.push({ kind: "text", text: text.slice(last) });
@@ -27,19 +21,15 @@ export function splitSegments(text: string): Segment[] {
 export function Markdown({ text }: { text: string }) {
   return (
     <>
-      {splitSegments(text).map((seg, i) => {
-        if (seg.kind === "code") {
-          return (
-            <pre key={i}>
-              <code>{seg.code}</code>
-            </pre>
-          );
-        }
-        if (seg.kind === "draft") {
-          return <IssueDraftCard key={i} draft={seg.draft} />;
-        }
-        return <div key={i}>{renderBlocks(seg.text)}</div>;
-      })}
+      {splitSegments(text).map((seg, i) =>
+        seg.kind === "code" ? (
+          <pre key={i}>
+            <code>{seg.code}</code>
+          </pre>
+        ) : (
+          <div key={i}>{renderBlocks(seg.text)}</div>
+        ),
+      )}
     </>
   );
 }

@@ -27,12 +27,17 @@ export function CardView({ card: c }: { card: Card }) {
   }
 
   const isParent = Boolean(c.sub_issues_total && c.sub_issues_total > 0);
-  const { openChat, openError, openHistory, hover, registerElement } = actions;
+  const { openChat, openError, openHistory, hover, registerElement, relationOf } = actions;
+  const relation = relationOf?.(cardKey);
+  const classes = ["card"];
+  if (hasError) classes.push("has-error");
+  if (isDone) classes.push("done");
+  if (relation) classes.push(`relation-${relation}`);
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: ホバーは親子コネクタ線の見た目だけに使う
     <div
-      class={`card${hasError ? " has-error" : ""}${isDone ? " done" : ""}`}
+      class={classes.join(" ")}
       data-key={cardKey}
       data-parent-key={parentKeyOf(c) ?? undefined}
       data-is-parent={isParent ? "true" : undefined}

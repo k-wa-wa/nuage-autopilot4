@@ -98,8 +98,8 @@ describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () =
     golden("brainstorm_with_card_prompt", prompt);
     expect(prompt).toContain("要件壁打ち・設計相談アーキテクト");
     expect(prompt).toContain("k-wa-wa/pechka");
-    expect(prompt).toContain("<!-- ISSUE_DRAFT_START -->");
-    expect(prompt).toContain("<!-- ISSUE_DRAFT_END -->");
+    expect(prompt).toContain("gh issue create -R k-wa-wa/pechka");
+    expect(prompt).toContain("確認を得ずに起票してはいけません");
   });
 
   it("brainstorm: 壁打ちモードでカード未指定（全般的な設計相談）のプロンプト", () => {
@@ -112,7 +112,7 @@ describe("Agent Investigation Logic Golden Tests (execute/investigate.ts)", () =
     golden("brainstorm_general_prompt", prompt);
     expect(prompt).toContain("要件壁打ち・設計相談アーキテクト");
     expect(prompt).not.toContain("【関連コンテキスト (Issue/PR)】");
-    expect(prompt).toContain("<!-- ISSUE_DRAFT_START -->");
+    expect(prompt).toContain("gh issue create -R <owner/repo>");
   });
 });
 

@@ -15,7 +15,8 @@ export function relatedPairs(hoverKey: string, cards: Card[]): Array<[string, st
   if (!hovered) return [];
   const pairs: Array<[string, string]> = [];
   const parentKey = parentKeyOf(hovered);
-  if (parentKey) pairs.push([parentKey, hoverKey]);
+  // 親が Done などで画面に無ければ線もハイライトも出さない
+  if (parentKey && cards.some((c) => cardKeyOf(c) === parentKey)) pairs.push([parentKey, hoverKey]);
   for (const c of cards) {
     if (parentKeyOf(c) === hoverKey) pairs.push([hoverKey, cardKeyOf(c)]);
   }
@@ -72,7 +73,8 @@ export function RelationConnectors({ hoverKey, cards, elements }: RelationConnec
     for (const [fromKey, toKey] of relatedPairs(hoverKey, cards)) {
       const fromEl = elements.get(fromKey);
       const toEl = elements.get(toKey);
-      if (fromEl && toEl) next.push(bezier(fromEl, toEl));
+      // 閉じたレーン内のカードは offsetParent が null（矩形が 0 になり線が左上へ飛ぶ）
+      if (fromEl?.offsetParent && toEl?.offsetParent) next.push(bezier(fromEl, toEl));
     }
     setConnectors(next);
   };

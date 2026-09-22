@@ -5,7 +5,6 @@ import {
   createGetConversationHandler,
   createListConversationsHandler,
 } from "./chat.ts";
-import { handleCreateIssue } from "./issue.ts";
 import { buildDoneState, buildState } from "./state.ts";
 
 /**
@@ -18,7 +17,6 @@ import { buildDoneState, buildState } from "./state.ts";
  * - /api/chat: AI 調査・壁打ちアシスタント (SSE ストリーミング & 永続化)
  * - /api/chat/conversations: 会話セッション一覧
  * - /api/chat/conversations/:id: 会話詳細・メッセージ履歴
- * - /api/issue/create: GitHub Issue 起票
  */
 export function mountApiRoutes(app: Hono, db: DB): void {
   // 状態データ JSON API
@@ -30,7 +28,4 @@ export function mountApiRoutes(app: Hono, db: DB): void {
   app.post("/api/chat", createChatStreamHandler(db));
   app.get("/api/chat/conversations", createListConversationsHandler(db));
   app.get("/api/chat/conversations/:id", createGetConversationHandler(db));
-
-  // GitHub Issue 起票 API (壁打ちモード等からの連携)
-  app.post("/api/issue/create", handleCreateIssue);
 }

@@ -49,27 +49,13 @@ describe("createSseParser", () => {
 });
 
 describe("Markdown", () => {
-  test("コードブロックと Issue ドラフトを切り出す", () => {
-    const text = [
-      "前置き",
-      "```ts",
-      "const a = 1;",
-      "```",
-      "<!-- ISSUE_DRAFT_START -->",
-      "**タイトル**: 新機能",
-      "**対象リポジトリ**: o/r",
-      "### 背景",
-      "- [ ] やること",
-      "<!-- ISSUE_DRAFT_END -->",
-      "後書き",
-    ].join("\n");
-    const segs = splitSegments(text);
-    expect(segs.map((s) => s.kind)).toEqual(["text", "code", "text", "draft", "text"]);
-    expect(segs[1]).toEqual({ kind: "code", code: "const a = 1;" });
-    expect(segs[3]).toEqual({
-      kind: "draft",
-      draft: { repo: "o/r", title: "新機能", body: "### 背景\n- [ ] やること" },
-    });
+  test("コードブロックを切り出す", () => {
+    const segs = splitSegments("前置き\n```ts\nconst a = 1;\n```\n後書き");
+    expect(segs).toEqual([
+      { kind: "text", text: "前置き\n" },
+      { kind: "code", code: "const a = 1;" },
+      { kind: "text", text: "\n後書き" },
+    ]);
   });
 
   test("HTML を解釈せずテキストとして描画する", () => {
@@ -98,6 +84,10 @@ describe("relatedPairs", () => {
     expect(relatedPairs("o/r#10", [parent, child, other])).toEqual([["o/r#10", "o/r#11"]]);
     expect(relatedPairs("o/r#11", [parent, child, other])).toEqual([["o/r#10", "o/r#11"]]);
     expect(relatedPairs("o/r#12", [parent, child, other])).toEqual([]);
+  });
+
+  test("親が画面に無い（Done 等）ときは親への組を作らない", () => {
+    expect(relatedPairs("o/r#11", [child, other])).toEqual([]);
   });
 });
 

@@ -8,6 +8,8 @@ export interface CardActions {
   openHistory?: (card: Card) => void;
   hover?: (key: string | null) => void;
   registerElement?: (key: string, el: HTMLElement | null) => void;
+  /** 親子関係のハイライト。ホバー中が active、線でつながる相手が target。 */
+  relationOf?: (key: string) => "active" | "target" | null;
 }
 
 export const CardActionsContext = createContext<CardActions>({});

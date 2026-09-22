@@ -9,7 +9,7 @@ import { HistoryModal } from "../components/HistoryModal.tsx";
 import { InfoModal } from "../components/InfoModal.tsx";
 import { InfoIcon, SparklesIcon } from "../components/icons.tsx";
 import { Lane } from "../components/Lane.tsx";
-import { RelationConnectors } from "../components/RelationConnectors.tsx";
+import { RelationConnectors, relatedPairs } from "../components/RelationConnectors.tsx";
 import { SystemErrorModal } from "../components/SystemErrorModal.tsx";
 import { cardKeyOf } from "../utils.ts";
 
@@ -73,6 +73,15 @@ export function Dashboard({ initialState }: { initialState: StateResponse }) {
     [lanes],
   );
 
+  const relatedKeys = useMemo(() => {
+    if (!hoverKey) return new Set<string>();
+    return new Set(
+      relatedPairs(hoverKey, allCards)
+        .flat()
+        .filter((k) => k !== hoverKey),
+    );
+  }, [hoverKey, allCards]);
+
   // モーダルを開いたままポーリングで更新されたら最新のカードを見せる（消えたら開いた時点の値）
   const latest = (card: Card) => allCards.find((c) => cardKeyOf(c) === cardKeyOf(card)) ?? card;
   const closeModal = () => setModal(null);
@@ -82,6 +91,11 @@ export function Dashboard({ initialState }: { initialState: StateResponse }) {
     openError: (card) => setModal({ kind: "error", card }),
     openHistory: (card) => setModal({ kind: "history", card }),
     hover: setHoverKey,
+    relationOf: (key) => {
+      if (relatedKeys.size === 0) return null;
+      if (key === hoverKey) return "active";
+      return relatedKeys.has(key) ? "target" : null;
+    },
     registerElement: (key, el) => {
       if (el) cardElements.set(key, el);
       else cardElements.delete(key);

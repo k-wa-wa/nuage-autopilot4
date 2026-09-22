@@ -1510,89 +1510,6 @@ dialog.modal::backdrop {
   align-self: flex-start;
 }
 
-/* Issue ドラフトプレビューカード */
-.issue-draft-card {
-  margin-top: 14px;
-  padding: 14px 16px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--accent);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
-.issue-draft-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-.issue-draft-badge {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.issue-draft-title {
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 4px;
-  color: var(--fg);
-}
-.issue-draft-repo {
-  font-size: 11px;
-  color: var(--muted);
-  font-family: ui-monospace, monospace;
-  margin-bottom: 12px;
-}
-.issue-create-action {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-}
-.issue-create-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s ease, transform 0.1s ease;
-}
-.issue-create-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-.issue-create-btn:active {
-  transform: translateY(0);
-}
-.issue-create-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.issue-created-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: rgba(16, 185, 129, 0.12);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.25);
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.issue-created-badge:hover {
-  text-decoration: underline;
-}
 
 /* ボタン化した要素のブラウザ既定スタイルを打ち消す */
 button.banner,
@@ -1628,22 +1545,6 @@ button.chat-history-item {
 .chat-error {
   color: var(--warn);
   margin-top: 8px;
-}
-.issue-draft-content {
-  margin: 10px 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--fg);
-  opacity: 0.9;
-}
-.issue-draft-content h3 {
-  font-size: 12px;
-  margin: 10px 0 4px;
-}
-.issue-create-error {
-  color: var(--warn);
-  font-size: 11px;
-  margin-top: 4px;
 }
 .md-task {
   list-style: none;
