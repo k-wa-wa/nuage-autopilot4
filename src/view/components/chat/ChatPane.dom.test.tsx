@@ -91,4 +91,39 @@ describe("ChatPane (happy-dom)", () => {
     });
     expect(document.body.classList.contains("chat-pane-locked")).toBe(false);
   });
+
+  test("ストリーミング中で本文未達の場合、重複する思考中msg-bubbleは出さず、Thinkingアコーディオンのみ表示する", () => {
+    const entries: ChatEntry[] = [
+      {
+        id: 1,
+        role: "assistant",
+        text: "",
+        error: null,
+        live: {
+          thinking: "設計を整理中",
+          thinkingDone: false,
+          tools: [],
+          streaming: true,
+          pendingLabel: "思考中... 設計・仕様を整理しています",
+        },
+      },
+    ];
+    const container = mount(fakeChat({ entries }));
+    expect(container.querySelector(".thinking-accordion")).not.toBeNull();
+    expect(container.querySelector(".msg-bubble")).toBeNull();
+    expect(container.textContent).not.toContain("思考中... 設計・仕様を整理しています");
+  });
+
+  test("モード選択とエンジン選択の選択肢表記が最適化されている（モデル名なし、plan/investigate）", () => {
+    const container = mount(fakeChat());
+    const modeOptions = Array.from(
+      container.querySelectorAll<HTMLOptionElement>(".chat-mode-select option"),
+    ).map((o) => o.textContent);
+    expect(modeOptions).toEqual(["🔍 Investigate", "💡 Plan"]);
+
+    const engineOptions = Array.from(
+      container.querySelectorAll<HTMLOptionElement>(".agy-engine-select option"),
+    ).map((o) => o.textContent);
+    expect(engineOptions).toEqual(["Antigravity", "Claude Code"]);
+  });
 });

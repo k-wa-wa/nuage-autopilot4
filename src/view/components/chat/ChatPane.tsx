@@ -68,12 +68,15 @@ function EntryView({ entry }: { entry: ChatEntry }) {
   }
 
   const { live } = entry;
+  const showThinking = Boolean(
+    live && (live.thinking || (live.streaming && live.tools.length === 0)),
+  );
   return (
     <div class="chat-msg assistant">
-      {live?.thinking && (
+      {showThinking && (
         <details class="thinking-accordion" open>
-          <summary>💭 Thinking ({live.thinkingDone ? "完了" : "思考中..."})</summary>
-          <pre class="thinking-content">{live.thinking}</pre>
+          <summary>💭 Thinking ({live?.thinkingDone ? "完了" : "思考中..."})</summary>
+          {live?.thinking && <pre class="thinking-content">{live.thinking}</pre>}
         </details>
       )}
       {live && live.tools.length > 0 && (
@@ -86,14 +89,12 @@ function EntryView({ entry }: { entry: ChatEntry }) {
           ))}
         </div>
       )}
-      <div class="msg-bubble">
-        {entry.text ? (
-          <Markdown text={entry.text} />
-        ) : (
-          live?.streaming && <span class="meta">{live.pendingLabel}</span>
-        )}
-        {entry.error && <div class="chat-error">⚠️ {entry.error}</div>}
-      </div>
+      {(entry.text || entry.error) && (
+        <div class="msg-bubble">
+          {entry.text && <Markdown text={entry.text} />}
+          {entry.error && <div class="chat-error">⚠️ {entry.error}</div>}
+        </div>
+      )}
     </div>
   );
 }
@@ -123,7 +124,7 @@ function HistoryPopover(props: {
               <div class="chat-history-item-title">{c.title || "Autopilot Chat"}</div>
               <div class="chat-history-meta">
                 <span class="chat-history-badge">
-                  {c.mode === "brainstorm" ? "💡 壁打ち" : "🔍 調査"}
+                  {c.mode === "brainstorm" ? "💡 Plan" : "🔍 Investigate"}
                 </span>
                 <span class="chat-history-badge">{c.engine === "claude" ? "Claude" : "AGY"}</span>
                 <span>{formatAgo(c.updated_at)}</span>
@@ -416,8 +417,8 @@ export function ChatPane({ chat }: { chat: ChatController }) {
                     value={chat.mode}
                     onChange={(e) => chat.setMode(e.currentTarget.value as ChatMode)}
                   >
-                    <option value="investigate">🔍 調査</option>
-                    <option value="brainstorm">💡 壁打ち</option>
+                    <option value="investigate">🔍 Investigate</option>
+                    <option value="brainstorm">💡 Plan</option>
                   </select>
                   <span class="agy-picker-arrow">
                     <ChevronDownIcon size={10} />
@@ -429,8 +430,8 @@ export function ChatPane({ chat }: { chat: ChatController }) {
                     value={chat.engine}
                     onChange={(e) => chat.setEngine(e.currentTarget.value as ChatEngine)}
                   >
-                    <option value="agy">Antigravity (Gemini)</option>
-                    <option value="claude">Claude Code (Sonnet)</option>
+                    <option value="agy">Antigravity</option>
+                    <option value="claude">Claude Code</option>
                   </select>
                   <span class="agy-picker-arrow">
                     <ChevronDownIcon size={10} />
