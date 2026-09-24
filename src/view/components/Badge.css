@@ -24,6 +24,13 @@
   flex-shrink: 0;
 }
 
+.badge > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 各 variant */
 .badge-accent {
   color: var(--accent);

@@ -90,6 +90,10 @@
   user-select: none;
   flex-shrink: 0;
 }
+.error-badge {
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .relation-badge-group {
   display: inline-flex;
   align-items: center;
