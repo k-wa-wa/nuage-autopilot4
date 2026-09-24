@@ -74,7 +74,7 @@
 }
 .card-sub {
   border-top: 1px dashed var(--line);
-  padding: 8px 16px;
+  padding: 4px 16px;
   background: var(--muted-subtle);
   display: flex;
   align-items: center;
@@ -86,69 +86,8 @@
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 12px;
+  line-height: 1;
   user-select: none;
-  flex-shrink: 0;
-}
-.pr-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--accent);
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: var(--accent-subtle);
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  flex-shrink: 0;
-}
-.pr-badge:hover {
-  background: var(--accent-emphasis);
-  text-decoration: underline;
-}
-.pr-badge svg {
-  flex-shrink: 0;
-}
-.error-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--warn);
-  text-decoration: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  background: var(--warn-subtle);
-  border: none;
-  cursor: pointer;
-  font-family: inherit;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition:
-    transform var(--duration-release) var(--ease-spring),
-    background 0.15s ease,
-    color 0.15s ease;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-}
-@media (hover: hover) {
-  .error-badge:hover {
-    background: var(--warn-emphasis);
-    text-decoration: underline;
-  }
-}
-.error-badge:active {
-  transform: scale(var(--scale-button-active));
-  transition: transform var(--duration-press) var(--ease-snappy);
-}
-.error-badge svg {
   flex-shrink: 0;
 }
 .relation-badge-group {
@@ -156,35 +95,6 @@
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
-}
-.relation-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--muted);
-  background: var(--muted-subtle);
-  padding: 4px 8px;
-  border-radius: 4px;
-  border: 1px solid var(--line);
-  cursor: default;
-  user-select: none;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    color 0.15s ease;
-  flex-shrink: 0;
-}
-.relation-badge svg {
-  flex-shrink: 0;
-}
-.relation-badge.parent-badge {
-  color: var(--fg);
-  border-color: var(--muted-border);
-}
-.relation-badge.child-badge {
-  color: var(--muted);
 }
 .card-actions {
   position: absolute;

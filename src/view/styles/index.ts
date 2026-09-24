@@ -5,6 +5,7 @@
  * .css に co-locate してあり、ここではそれらを集約して1つの <style> にまとめるだけ。
  */
 
+import badgeCss from "../components/Badge.css" with { type: "text" };
 import bannerCss from "../components/Banner.css" with { type: "text" };
 import cardCss from "../components/Card.css" with { type: "text" };
 import chatPaneCss from "../components/chat/ChatPane.css" with { type: "text" };
@@ -19,6 +20,7 @@ import globalCss from "./global.css" with { type: "text" };
 
 export const styles = [
   globalCss,
+  badgeCss,
   cardCss,
   bannerCss,
   relationConnectorsCss,

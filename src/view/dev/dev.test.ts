@@ -278,14 +278,14 @@ describe("Dashboard Dev & Mock Environment", () => {
     // 親カードの属性と子バッジ
     expect(html).toContain('data-key="k-wa-wa/nuage-autopilot4#95"');
     expect(html).toContain('data-is-parent="true"');
-    expect(html).toContain('class="relation-badge child-badge"');
+    expect(html).toContain("relation-badge child-badge");
     expect(html).toContain("子: #96");
     expect(html).toContain("子: #97");
 
     // 子カードの属性と親バッジ
     expect(html).toContain('data-key="k-wa-wa/nuage-autopilot4#96"');
     expect(html).toContain('data-parent-key="k-wa-wa/nuage-autopilot4#95"');
-    expect(html).toContain('class="relation-badge parent-badge"');
+    expect(html).toContain("relation-badge parent-badge");
     expect(html).toContain("親: #95");
   });
 

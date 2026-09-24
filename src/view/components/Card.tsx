@@ -1,6 +1,7 @@
 import { useContext } from "preact/hooks";
 import type { Card } from "../../api/state.ts";
 import { cardKeyOf, formatAgo, isErrorHint, parentKeyOf } from "../utils.ts";
+import { Badge } from "./Badge.tsx";
 import { CardActionsContext } from "./cardActions.ts";
 import { HistoryIcon, PrIcon, SparklesIcon, WarnIcon } from "./icons.tsx";
 
@@ -81,34 +82,45 @@ export function CardView({ card: c }: { card: Card }) {
       {hasError && c.error_detail && (
         <div class="card-sub">
           <span class="sub-connector">└</span>
-          <button
-            type="button"
+          <Badge
+            variant="warn"
             class="error-badge"
+            icon={<WarnIcon />}
             title={`クリックしてエラー詳細を表示: ${c.error_detail.summary}`}
             onClick={() => openError?.(c)}
           >
-            <WarnIcon />
-            <span>エラー: {summaryPreview}</span>
-          </button>
+            エラー: {summaryPreview}
+          </Badge>
         </div>
       )}
 
       {c.pr_url && (
         <div class="card-sub">
           <span class="sub-connector">└</span>
-          <a class="pr-badge" href={c.pr_url} target="_blank" rel="noreferrer" title="PR を開く">
-            <PrIcon />
-            <span>#{c.pr_number}</span>
-          </a>
+          <Badge
+            variant="accent"
+            class="pr-badge"
+            icon={<PrIcon />}
+            href={c.pr_url}
+            target="_blank"
+            rel="noreferrer"
+            title="PR を開く"
+          >
+            #{c.pr_number}
+          </Badge>
         </div>
       )}
 
       {c.parent_issue_number && (
         <div class="card-sub">
           <span class="sub-connector">└</span>
-          <span class="relation-badge parent-badge" title={`親 Issue #${c.parent_issue_number}`}>
+          <Badge
+            variant="muted"
+            class="relation-badge parent-badge"
+            title={`親 Issue #${c.parent_issue_number}`}
+          >
             親: #{c.parent_issue_number}
-          </span>
+          </Badge>
         </div>
       )}
 
@@ -117,9 +129,14 @@ export function CardView({ card: c }: { card: Card }) {
           <span class="sub-connector">└</span>
           <span class="relation-badge-group">
             {c.sub_issue_numbers.map((n) => (
-              <span key={n} class="relation-badge child-badge" title={`子 Issue #${n}`}>
+              <Badge
+                key={n}
+                variant="muted"
+                class="relation-badge child-badge"
+                title={`子 Issue #${n}`}
+              >
                 子: #{n}
-              </span>
+              </Badge>
             ))}
           </span>
         </div>
