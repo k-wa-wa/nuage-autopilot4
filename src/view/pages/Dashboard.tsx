@@ -127,7 +127,7 @@ export function Dashboard({ initialState }: { initialState: StateResponse }) {
               <SparklesIcon size={14} />
             </button>
             <a class="header-link" href="/done">
-              完了タスクを見る
+              完了タスクを見る →
             </a>
           </header>
 

@@ -13,7 +13,6 @@ export function Banner({ degraded, offline, onOpenDetail }: BannerProps) {
   return (
     <button type="button" class="banner" onClick={onOpenDetail}>
       <span>⚠️ {degraded.join(" / ")}</span>
-      <span class="banner-tap-hint">障害詳細を見る &rarr;</span>
     </button>
   );
 }

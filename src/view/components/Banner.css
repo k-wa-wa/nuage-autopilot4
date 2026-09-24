@@ -19,11 +19,6 @@
     filter: brightness(0.95);
   }
 }
-.banner-tap-hint {
-  font-size: 11px;
-  opacity: 0.85;
-  text-decoration: underline;
-}
 button.banner {
   width: 100%;
   border: none;
