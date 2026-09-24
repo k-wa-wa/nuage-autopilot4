@@ -241,14 +241,18 @@
   padding: 10px 14px;
   border-bottom: 1px solid rgba(120, 120, 120, 0.1);
   cursor: pointer;
-  transition: background 0.15s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.chat-history-item:hover {
-  background: rgba(120, 120, 120, 0.08);
+@media (hover: hover) {
+  .chat-history-item:hover {
+    background: rgba(120, 120, 120, 0.08);
+  }
 }
 
 .chat-history-item.active {
@@ -288,6 +292,13 @@ button.chat-history-item {
   background: none;
   color: inherit;
   border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+button.chat-history-item:active {
+  transform: scale(0.985);
+  transition: transform 0.08s ease-out;
 }
 
 .chat-header {
@@ -338,12 +349,25 @@ button.chat-history-item {
   gap: 4px;
   font-size: 11px;
   font-weight: 500;
-  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
-.chat-header-action-btn:hover {
-  color: var(--fg);
-  border-color: var(--accent);
-  background: var(--card);
+@media (hover: hover) {
+  .chat-header-action-btn:hover {
+    color: var(--fg);
+    border-color: var(--accent);
+    background: var(--card);
+  }
+}
+.chat-header-action-btn:active {
+  transform: scale(0.92);
+  transition: transform 0.08s ease-out;
 }
 .chat-close-btn {
   background: transparent;
@@ -354,13 +378,31 @@ button.chat-history-item {
   border-radius: 4px;
   display: flex;
   align-items: center;
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
     color 0.15s ease,
     background 0.15s ease;
 }
-.chat-close-btn:hover {
-  color: var(--fg);
-  background: var(--line);
+.chat-close-btn:focus,
+.chat-close-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .chat-close-btn:hover {
+    color: var(--fg);
+    background: var(--line);
+  }
+}
+.chat-close-btn:active {
+  transform: scale(0.88);
+  transition: transform 0.08s ease-out;
 }
 
 .chat-context-bar {
@@ -402,12 +444,25 @@ button.chat-history-item {
   color: var(--muted);
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
 }
-.context-refresh-btn:hover {
-  color: var(--fg);
-  border-color: var(--muted);
-  background: var(--line);
+@media (hover: hover) {
+  .context-refresh-btn:hover {
+    color: var(--fg);
+    border-color: var(--muted);
+    background: var(--line);
+  }
+}
+.context-refresh-btn:active {
+  transform: scale(0.92);
+  transition: transform 0.08s ease-out;
 }
 
 .chat-messages {
@@ -609,13 +664,25 @@ button.chat-history-item {
   color: var(--fg);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.15s ease,
+    border-color 0.15s ease;
   font-family: inherit;
 }
-.quick-chip:hover {
-  background: var(--line);
-  border-color: var(--muted);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .quick-chip:hover {
+    background: var(--line);
+    border-color: var(--muted);
+    transform: translateY(-1px);
+  }
+}
+.quick-chip:active {
+  transform: scale(0.94);
+  transition: transform 0.08s ease-out;
 }
 
 /* Antigravity IDE 風 Composer (入力エリア) */
@@ -715,11 +782,21 @@ button.chat-history-item {
   display: flex;
   align-items: center;
   border-radius: 50%;
-  transition: color 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.15s ease;
 }
-
-.agy-chip .chip-close:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .agy-chip .chip-close:hover {
+    color: var(--fg);
+  }
+}
+.agy-chip .chip-close:active {
+  transform: scale(0.85);
+  transition: transform 0.08s ease-out;
 }
 
 /* テキストエリア */
@@ -841,21 +918,27 @@ button.chat-history-item {
   justify-content: center;
   border: none;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.15s ease,
-    transform 0.1s ease,
     opacity 0.15s ease;
   flex-shrink: 0;
   box-shadow: 0 1px 3px rgba(0, 122, 204, 0.3);
 }
 
-.agy-send-btn:hover {
-  background: #0088e0;
-  transform: scale(1.05);
+@media (hover: hover) {
+  .agy-send-btn:hover {
+    background: #0088e0;
+    transform: scale(1.05);
+  }
 }
 
 .agy-send-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.9);
+  transition: transform 0.08s ease-out;
 }
 
 .agy-send-btn:disabled {

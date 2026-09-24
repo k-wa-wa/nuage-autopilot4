@@ -126,7 +126,11 @@
   border: none;
   cursor: pointer;
   font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.15s ease,
     color 0.15s ease;
   overflow: hidden;
@@ -134,9 +138,15 @@
   white-space: nowrap;
   min-width: 0;
 }
-.error-badge:hover {
-  background: rgba(168, 68, 42, 0.18);
-  text-decoration: underline;
+@media (hover: hover) {
+  .error-badge:hover {
+    background: rgba(168, 68, 42, 0.18);
+    text-decoration: underline;
+  }
+}
+.error-badge:active {
+  transform: scale(0.94);
+  transition: transform 0.08s ease-out;
 }
 .error-badge svg {
   flex-shrink: 0;
@@ -195,9 +205,20 @@
   padding: 2px 7px;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
   line-height: 1.2;
   border: 1px solid var(--line);
+}
+.card-action-btn:active {
+  transform: scale(0.92);
+  transition: transform 0.08s ease-out;
 }
 .card-action-btn svg {
   flex-shrink: 0;
@@ -206,10 +227,12 @@
   color: var(--muted);
   background: rgba(120, 120, 120, 0.08);
 }
-.card-history-btn:hover {
-  background: var(--line);
-  color: var(--fg);
-  border-color: var(--muted);
+@media (hover: hover) {
+  .card-history-btn:hover {
+    background: var(--line);
+    color: var(--fg);
+    border-color: var(--muted);
+  }
 }
 .card-debug-btn {
   color: var(--accent);
@@ -218,8 +241,10 @@
   padding: 3px 5px;
   border-radius: 6px;
 }
-.card-debug-btn:hover {
-  background: rgba(59, 130, 246, 0.18);
-  border-color: var(--accent);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .card-debug-btn:hover {
+    background: rgba(59, 130, 246, 0.18);
+    border-color: var(--accent);
+    transform: translateY(-1px);
+  }
 }

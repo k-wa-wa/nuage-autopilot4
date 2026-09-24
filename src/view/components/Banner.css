@@ -3,19 +3,21 @@
   color: #fff;
   padding: 8px 20px;
   font-size: 13px;
-}
-.banner {
-  background: var(--warn);
-  color: #fff;
-  padding: 8px 20px;
-  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition:
+    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    filter 0.15s ease;
 }
-.banner:hover {
-  filter: brightness(0.95);
+@media (hover: hover) {
+  .banner:hover {
+    filter: brightness(0.95);
+  }
 }
 .banner-tap-hint {
   font-size: 11px;
@@ -28,6 +30,11 @@ button.banner {
   font: inherit;
   text-align: left;
   color: #fff;
+}
+button.banner:active {
+  transform: scale(0.99);
+  filter: brightness(0.9);
+  transition: transform 0.08s ease-out;
 }
 .banner-static {
   cursor: default;

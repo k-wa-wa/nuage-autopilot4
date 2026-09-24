@@ -47,10 +47,28 @@ dialog.modal::backdrop {
   cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
+  outline: none;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    color 0.15s ease,
+    background 0.15s ease;
 }
-.close-btn:hover {
-  color: var(--fg);
-  background: var(--bg);
+.close-btn:focus,
+.close-btn:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+@media (hover: hover) {
+  .close-btn:hover {
+    color: var(--fg);
+    background: var(--bg);
+  }
+}
+.close-btn:active {
+  transform: scale(0.88);
+  transition: transform 0.08s ease-out;
 }
 .modal-section {
   margin-bottom: 18px;
@@ -83,24 +101,41 @@ dialog.modal::backdrop {
   cursor: pointer;
   text-decoration: none;
   border: 1px solid transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
   transition:
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
     background 0.15s ease,
-    opacity 0.15s ease;
+    border-color 0.15s ease,
+    opacity 0.15s ease,
+    filter 0.15s ease;
 }
 .btn-primary {
   background: var(--fg);
   color: var(--bg);
 }
-.btn-primary:hover {
-  opacity: 0.9;
+@media (hover: hover) {
+  .btn-primary:hover {
+    opacity: 0.9;
+  }
 }
 .btn-secondary {
   background: var(--bg);
   border-color: var(--line);
   color: var(--fg);
 }
-.btn-secondary:hover {
-  border-color: var(--muted);
+@media (hover: hover) {
+  .btn-secondary:hover {
+    border-color: var(--muted);
+  }
+}
+.btn:active {
+  transform: scale(0.95);
+  filter: brightness(0.92);
+  transition:
+    transform 0.08s ease-out,
+    filter 0.08s ease-out;
 }
 .error-modal-box {
   width: 540px;
