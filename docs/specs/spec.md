@@ -1,6 +1,6 @@
 # 実装仕様 (Spec)
 
-前提は [DESIGN.md](../DESIGN.md)、方針は [ARCHITECTURE.md](../ARCHITECTURE.md)、外部制約は [constraints.md](./constraints.md)。
+前提は [design.md](../design.md)、方針は [architecture.md](../architecture.md)、外部制約は [constraints.md](./constraints.md)。
 
 本書は **巻き戻しコストが高い決定だけ**を持つ。スキーマ・値域・書き手・外部との契約がそれにあたる。
 閾値やエッジケースの扱いは実装時に決め、**理由はコードのコメントに書く**。本書に理由づけは書かない。

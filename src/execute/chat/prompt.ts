@@ -125,8 +125,8 @@ export function buildInvestigatePrompt(
   if (currentEnv.sourceDir) {
     parts.push(`- ソースコード配置パス: ${currentEnv.sourceDir}`);
     parts.push("- 主な仕様・実装ファイル:");
-    parts.push(`  - 仕様定義: ${currentEnv.sourceDir}/docs/spec.md`);
-    parts.push(`  - 設計方針: ${currentEnv.sourceDir}/ARCHITECTURE.md`);
+    parts.push(`  - 仕様定義: ${currentEnv.sourceDir}/docs/specs/spec.md`);
+    parts.push(`  - 設計方針: ${currentEnv.sourceDir}/docs/architecture.md`);
     parts.push(`  - 判定ロジック: ${currentEnv.sourceDir}/src/decide/`);
     parts.push(`  - 実行エンジン: ${currentEnv.sourceDir}/src/execute/`);
     parts.push(`  - 収集ポーラー: ${currentEnv.sourceDir}/src/collect/`);

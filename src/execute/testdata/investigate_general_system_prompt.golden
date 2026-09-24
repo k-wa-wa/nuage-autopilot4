@@ -3,8 +3,8 @@
 - バージョン: autopilot 0.1.0 (commit: a1b2c3d)
 - ソースコード配置パス: /Users/test/nuage-autopilot4
 - 主な仕様・実装ファイル:
-  - 仕様定義: /Users/test/nuage-autopilot4/docs/spec.md
-  - 設計方針: /Users/test/nuage-autopilot4/ARCHITECTURE.md
+  - 仕様定義: /Users/test/nuage-autopilot4/docs/specs/spec.md
+  - 設計方針: /Users/test/nuage-autopilot4/docs/architecture.md
   - 判定ロジック: /Users/test/nuage-autopilot4/src/decide/
   - 実行エンジン: /Users/test/nuage-autopilot4/src/execute/
   - 収集ポーラー: /Users/test/nuage-autopilot4/src/collect/

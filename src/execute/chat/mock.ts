@@ -80,7 +80,7 @@ export async function streamMockResponse(
   if (isBrainstorm) {
     await emit({
       event: "tool_start",
-      data: { id: "tool-1", name: "Read", args: { file_path: "ARCHITECTURE.md" } },
+      data: { id: "tool-1", name: "Read", args: { file_path: "docs/architecture.md" } },
     });
     await delay(350);
     await emit({

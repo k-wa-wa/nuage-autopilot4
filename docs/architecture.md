@@ -1,8 +1,8 @@
 # 実装アーキテクチャ
 
-[DESIGN.md](./DESIGN.md) の「何を実現するか（What）」を、どう作るか（How）に落とすための**方針**を定める。
+[design.md](./design.md) の「何を実現するか（What）」を、どう作るか（How）に落とすための**方針**を定める。
 
-本書は思想だけを書く。実装に要る決定は [docs/spec.md](./docs/spec.md)、外部制約は [docs/constraints.md](./docs/constraints.md)、
+本書は思想だけを書く。実装に要る決定は [specs/spec.md](./specs/spec.md)、外部制約は [specs/constraints.md](./specs/constraints.md)、
 スキーマ・クエリ・設定は `schema.sql` / `queries.graphql` / `config.example.yaml` を正本とする。
 
 ---
@@ -169,10 +169,11 @@ autopilot doctor                   # 設定と接続性を起動前に検証す�
 
 | ファイル | 役割 |
 |---|---|
-| [DESIGN.md](./DESIGN.md) | 前提。ユーザーストーリーとシナリオ（**何を実現するか**） |
-| ARCHITECTURE.md | 本書。10 の方針と全体像（**なぜそう作るか**）。細部を決めるときはこの 10 項目とだけ照合する |
-| [docs/constraints.md](./docs/constraints.md) | 実測で確かめた外部制約（GitHub API / LLM / Git）。再取得コストが高いので残す |
-| [docs/spec.md](./docs/spec.md) | 実装に要る決定だけ（**巻き戻しコストが高いもの**）。閾値やエッジケースは実装時に決める |
+| [design.md](./design.md) | 前提。ユーザーストーリーとシナリオ（**何を実現するか**） |
+| architecture.md | 本書。10 の方針と全体像（**なぜそう作るか**）。細部を決めるときはこの 10 項目とだけ照合する |
+| [ui-design.md](./ui-design.md) | UI設計標準。デザイントークン体系とコンポーネント設計原則 |
+| [specs/constraints.md](./specs/constraints.md) | 実測で確かめた外部制約（GitHub API / LLM / Git）。再取得コストが高いので残す |
+| [specs/spec.md](./specs/spec.md) | 実装に要る決定だけ（**巻き戻しコストが高いもの**）。閾値やエッジケースは実装時に決める |
 | `src/` / `config.example.yaml` | 実装。スキーマ・クエリ・閾値の正本はコード側にあり、散文で二重に持たない |
 
 > **ディレクトリは §2 の 4 ステージに 1:1 で対応する。**
