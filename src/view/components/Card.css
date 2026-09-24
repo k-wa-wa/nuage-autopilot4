@@ -15,21 +15,24 @@
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
-.card.done .t {
-  color: var(--muted);
-}
 .card.has-error {
   border-color: var(--warn-border);
 }
 .card.has-error:hover {
   border-color: var(--warn);
 }
-.card.relation-active {
-  border-color: var(--accent) !important;
+.card.relation-active,
+.card.relation-active:hover,
+.card.has-error.relation-active,
+.card.has-error.relation-active:hover {
+  border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-border);
 }
-.card.relation-target {
-  border-color: var(--accent) !important;
+.card.relation-target,
+.card.relation-target:hover,
+.card.has-error.relation-target,
+.card.has-error.relation-target:hover {
+  border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
   animation: relation-pulse 1.2s infinite alternate ease-in-out;
 }
@@ -47,15 +50,18 @@
   text-decoration: none;
   color: inherit;
 }
-.card-main:hover .t {
-  color: var(--accent);
-}
 .t {
   font-weight: 500;
   margin-bottom: 4px;
   overflow-wrap: anywhere;
   padding-right: 32px;
   transition: color 0.15s ease;
+}
+.card.done .t {
+  color: var(--muted);
+}
+.card-main:hover .t {
+  color: var(--accent);
 }
 .card:has(.card-history-btn) .t {
   padding-right: 72px;

@@ -83,7 +83,7 @@
 /* モバイル: サイドパネルではなく下からせり上がるボトムシートにする */
 @media (max-width: 768px) {
   .pane-resizer {
-    display: none !important;
+    display: none;
   }
 
   .chat-pane-backdrop {

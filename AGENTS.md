@@ -9,8 +9,7 @@
 コード変更やテスト追加を行った後は、**以下のコマンドを必ずすべて実行して成功を確認すること**。
 
 ```bash
-bun run typecheck
-bun run lint
+bun run check
 bun test
 ```
 

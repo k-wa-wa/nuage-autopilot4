@@ -1,12 +1,18 @@
-import { describe, expect, it } from "bun:test";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { afterAll, describe, expect, it } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Config } from "../config.ts";
 import { ensureChatWorkspace, type GitRunner, isRepoSlug } from "./workspace.ts";
 
 describe("ensureChatWorkspace (Chat 専用調査ワークスペース)", () => {
+  const testDir = mkdtempSync(join(tmpdir(), "autopilot-chat-test-"));
+  afterAll(() => {
+    rmSync(testDir, { recursive: true, force: true });
+  });
+
   const dummyCfg: Config = {
-    home: "/tmp/autopilot-chat-test",
+    home: testDir,
     token: "dummy-token",
     repos: [],
     allowlist: [],

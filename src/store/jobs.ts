@@ -53,7 +53,7 @@ export function enqueueJob(
       .get(v.repo, v.issue_number, v.job_type) as { id: number; job_context: string } | null;
     if (cur) {
       db.query("UPDATE job_queue SET job_context=? WHERE id=?").run(
-        clampContext(cur.job_context + "\n\n---\n\n" + ctx),
+        clampContext(`${cur.job_context}\n\n---\n\n${ctx}`),
         cur.id,
       );
     }
@@ -64,7 +64,7 @@ export function enqueueJob(
 export const MAX_CONTEXT = 60_000;
 /** 60,000 文字上限。超過分は古い側から捨てる（spec.md §6）。 */
 export function clampContext(s: string): string {
-  return s.length <= MAX_CONTEXT ? s : "…（省略）\n" + s.slice(s.length - MAX_CONTEXT);
+  return s.length <= MAX_CONTEXT ? s : `…（省略）\n${s.slice(s.length - MAX_CONTEXT)}`;
 }
 
 /**

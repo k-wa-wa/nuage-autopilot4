@@ -9,7 +9,7 @@
     "build": "bun build --compile --outfile dist/autopilot src/main.ts",
     "test": "bun test --isolate",
     "typecheck": "tsc --noEmit",
-    "lint": "biome check src",
+    "lint": "biome check --error-on-warnings src",
     "lint:fix": "biome check --write src",
     "format": "biome format --write src",
     "check": "bun run typecheck && bun run lint"

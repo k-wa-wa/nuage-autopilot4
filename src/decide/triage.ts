@@ -256,5 +256,5 @@ function pastComments(i: TriageInput): Array<{ author: string; body: string; at:
 }
 
 function clip(s: string, n: number): string {
-  return s.length <= n ? s : s.slice(0, n) + "\n…（省略）";
+  return s.length <= n ? s : `${s.slice(0, n)}\n…（省略）`;
 }

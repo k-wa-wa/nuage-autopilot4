@@ -478,8 +478,8 @@ describe("Triage Agent プロンプトの Golden テスト", () => {
       lastRun: null,
     });
     // Issue 本文・PR 本文は 4000 文字、履歴は 1000 文字で切る。
-    expect(p.split("あ".repeat(4000) + "\n…（省略）").length - 1).toBe(2);
-    expect(p).toContain("あ".repeat(1000) + "\n…（省略）");
+    expect(p.split(`${"あ".repeat(4000)}\n…（省略）`).length - 1).toBe(2);
+    expect(p).toContain(`${"あ".repeat(1000)}\n…（省略）`);
     expect(p).not.toContain("あ".repeat(4001));
   });
 });
