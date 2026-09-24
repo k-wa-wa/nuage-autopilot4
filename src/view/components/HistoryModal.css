@@ -9,7 +9,7 @@
 .timeline {
   position: relative;
   padding-left: 24px;
-  margin: 12px 0 6px 4px;
+  margin: 12px 0 8px 4px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -27,12 +27,12 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 .timeline-marker {
   position: absolute;
   left: -24px;
-  top: 3px;
+  top: 4px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
@@ -41,16 +41,16 @@
   box-sizing: border-box;
 }
 .timeline-marker.success {
-  border-color: #10b981;
-  background: #10b981;
+  border-color: var(--success);
+  background: var(--success);
 }
 .timeline-marker.fail {
   border-color: var(--warn);
   background: var(--warn);
 }
 .timeline-marker.blocked {
-  border-color: #f59e0b;
-  background: #f59e0b;
+  border-color: var(--blocked);
+  background: var(--blocked);
 }
 .timeline-marker.running {
   border-color: var(--accent);
@@ -61,7 +61,7 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
 }
 .timeline-title-group {
@@ -77,24 +77,24 @@
 .timeline-result {
   font-size: 10px;
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 4px 8px;
   border-radius: 4px;
   text-transform: uppercase;
 }
 .timeline-result.success {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  background: var(--success-emphasis);
+  color: var(--success);
 }
 .timeline-result.fail {
-  background: rgba(168, 68, 42, 0.15);
+  background: var(--warn-emphasis);
   color: var(--warn);
 }
 .timeline-result.blocked {
-  background: rgba(245, 158, 11, 0.15);
-  color: #f59e0b;
+  background: var(--blocked-emphasis);
+  color: var(--blocked);
 }
 .timeline-result.running {
-  background: rgba(59, 130, 246, 0.15);
+  background: var(--accent-emphasis);
   color: var(--accent);
 }
 .timeline-time-group {
@@ -107,15 +107,15 @@
 .timeline-duration {
   background: var(--bg);
   border: 1px solid var(--line);
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
   font-family: var(--font-mono);
 }
 .timeline-body {
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 6px;
-  padding: 10px 12px;
+  padding: 12px;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -127,7 +127,7 @@
 }
 .timeline-next-context {
   margin-top: 8px;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px dashed var(--line);
   color: var(--muted);
   font-size: 11px;

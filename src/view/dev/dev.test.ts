@@ -65,7 +65,6 @@ describe("Dashboard Dev & Mock Environment", () => {
     const htmlText = await resHtml.text();
     expect(htmlText).toContain("Autopilot");
     expect(htmlText).toContain("dev-scenario-select");
-    expect(htmlText).toContain("dev-theme-select");
     expect(htmlText).toContain("Action Required");
     expect(htmlText).toContain('aria-label="システム・API情報"');
     expect(htmlText).toContain('<dialog class="modal"');

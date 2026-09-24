@@ -1,6 +1,6 @@
 .banner {
   background: var(--warn);
-  color: #fff;
+  color: var(--bg);
   padding: 8px 20px;
   font-size: 13px;
   display: flex;
@@ -11,7 +11,7 @@
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     filter 0.15s ease;
 }
 @media (hover: hover) {
@@ -29,12 +29,14 @@ button.banner {
   border: none;
   font: inherit;
   text-align: left;
-  color: #fff;
+  color: var(--bg);
 }
 button.banner:active {
   transform: scale(0.99);
   filter: brightness(0.9);
-  transition: transform 0.08s ease-out;
+  transition:
+    transform var(--duration-press) var(--ease-snappy),
+    filter var(--duration-press) var(--ease-snappy);
 }
 .banner-static {
   cursor: default;

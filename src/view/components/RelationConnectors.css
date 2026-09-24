@@ -15,7 +15,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
   opacity: 0.85;
-  filter: drop-shadow(0 2px 5px rgba(59, 130, 246, 0.4));
+  filter: drop-shadow(0 2px 5px rgba(96, 165, 250, 0.4));
   stroke-dasharray: 6 3;
   animation: relation-dash 1s linear infinite;
 }

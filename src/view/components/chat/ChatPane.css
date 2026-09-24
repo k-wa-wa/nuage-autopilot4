@@ -137,7 +137,7 @@
     display: none;
   }
   .chat-header-action-btn {
-    padding: 4px 6px;
+    padding: 4px 8px;
   }
   .chat-close-btn {
     padding: 4px;
@@ -170,7 +170,7 @@
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
-    padding: 6px 0 2px;
+    padding: 8px 0 4px;
     cursor: pointer;
   }
   .chat-drag-handle::before {
@@ -217,7 +217,7 @@
 }
 
 .chat-history-header {
-  padding: 10px 14px;
+  padding: 12px 16px;
   font-size: 11px;
   font-weight: 600;
   color: var(--muted);
@@ -238,12 +238,12 @@
 }
 
 .chat-history-item {
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
   cursor: pointer;
   transition:
     background 0.15s ease,
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform var(--duration-release) var(--ease-spring);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -251,12 +251,12 @@
 
 @media (hover: hover) {
   .chat-history-item:hover {
-    background: rgba(120, 120, 120, 0.08);
+    background: var(--muted-subtle);
   }
 }
 
 .chat-history-item.active {
-  background: rgba(59, 130, 246, 0.08);
+  background: var(--accent-subtle);
   border-left: 3px solid var(--accent);
 }
 
@@ -278,10 +278,10 @@
 }
 
 .chat-history-badge {
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
   font-size: 10px;
-  background: rgba(120, 120, 120, 0.12);
+  background: var(--muted-emphasis);
 }
 
 button.chat-history-item {
@@ -291,18 +291,18 @@ button.chat-history-item {
   text-align: left;
   background: none;
   color: inherit;
-  border-bottom: 1px solid rgba(120, 120, 120, 0.1);
+  border-bottom: 1px solid var(--line);
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
 }
 button.chat-history-item:active {
-  transform: scale(0.985);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 .chat-header {
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -323,13 +323,13 @@ button.chat-history-item:active {
   align-items: center;
 }
 .chat-target-badge {
-  background: rgba(59, 130, 246, 0.12);
+  background: var(--accent-subtle);
   color: var(--accent);
   font-size: 11px;
   font-family: var(--font-mono);
-  padding: 2px 7px;
+  padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  border: 1px solid var(--accent-border);
   font-weight: 500;
 }
 .chat-header-actions {
@@ -338,11 +338,11 @@ button.chat-history-item:active {
   gap: 8px;
 }
 .chat-header-action-btn {
-  background: rgba(120, 120, 120, 0.08);
+  background: var(--muted-subtle);
   border: 1px solid var(--line);
   color: var(--muted);
   cursor: pointer;
-  padding: 3px 8px;
+  padding: 4px 8px;
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -353,7 +353,7 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     color 0.15s ease,
     border-color 0.15s ease,
     background 0.15s ease;
@@ -366,8 +366,8 @@ button.chat-history-item:active {
   }
 }
 .chat-header-action-btn:active {
-  transform: scale(0.92);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 .chat-close-btn {
   background: transparent;
@@ -385,7 +385,7 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     color 0.15s ease,
     background 0.15s ease;
 }
@@ -401,18 +401,18 @@ button.chat-history-item:active {
   }
 }
 .chat-close-btn:active {
-  transform: scale(0.88);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-icon-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 .chat-context-bar {
   padding: 8px 16px;
-  background: rgba(120, 120, 120, 0.05);
+  background: var(--muted-subtle);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -439,7 +439,7 @@ button.chat-history-item:active {
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 4px 8px;
   font-size: 11px;
   color: var(--muted);
   cursor: pointer;
@@ -448,7 +448,7 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     color 0.15s ease,
     border-color 0.15s ease,
     background 0.15s ease;
@@ -461,8 +461,8 @@ button.chat-history-item:active {
   }
 }
 .context-refresh-btn:active {
-  transform: scale(0.92);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 .chat-messages {
@@ -477,13 +477,13 @@ button.chat-history-item:active {
 
 .chat-welcome-msg {
   text-align: center;
-  padding: 30px 20px;
+  padding: 32px 20px;
   color: var(--muted);
 }
 .chat-welcome-msg .welcome-icon {
   display: inline-flex;
   padding: 12px;
-  background: rgba(59, 130, 246, 0.1);
+  background: var(--accent-subtle);
   color: var(--accent);
   border-radius: 50%;
   margin-bottom: 16px;
@@ -528,14 +528,14 @@ button.chat-history-item:active {
 }
 
 .msg-bubble {
-  padding: 10px 14px;
+  padding: 12px 16px;
   border-radius: 10px;
   line-height: 1.55;
   word-break: break-word;
 }
 .chat-msg.user .msg-bubble {
   background: var(--accent);
-  color: #fff;
+  color: var(--bg);
   border-bottom-right-radius: 2px;
 }
 .chat-msg.assistant .msg-bubble {
@@ -546,7 +546,7 @@ button.chat-history-item:active {
 }
 .msg-bubble pre {
   background: rgba(0, 0, 0, 0.05);
-  padding: 10px;
+  padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
   font-family: var(--font-mono);
@@ -554,39 +554,39 @@ button.chat-history-item:active {
 }
 .msg-bubble code {
   font-family: var(--font-mono);
-  background: rgba(120, 120, 120, 0.12);
-  padding: 2px 4px;
+  background: var(--muted-emphasis);
+  padding: 2px 6px;
   border-radius: 4px;
   font-size: 12px;
 }
 .msg-bubble blockquote {
   margin: 8px 0;
-  padding-left: 10px;
+  padding-left: 12px;
   border-left: 3px solid var(--accent);
   color: var(--muted);
 }
 .msg-bubble h3 {
-  margin: 6px 0 10px;
+  margin: 8px 0 12px;
   font-size: 14px;
 }
 .msg-bubble ul,
 .msg-bubble ol {
-  margin: 6px 0;
+  margin: 8px 0;
   padding-left: 20px;
 }
 .msg-bubble p {
-  margin: 6px 0;
+  margin: 8px 0;
 }
 
 /* 思考プロセス (Thinking / CoT) */
 .thinking-accordion {
   border: 1px dashed var(--line);
   border-radius: 8px;
-  background: rgba(120, 120, 120, 0.04);
+  background: var(--muted-subtle);
   padding: 8px 12px;
   font-size: 12px;
   color: var(--muted);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .thinking-accordion summary {
   cursor: pointer;
@@ -594,7 +594,7 @@ button.chat-history-item:active {
   font-weight: 500;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   outline: none;
 }
 .thinking-accordion summary:hover {
@@ -602,7 +602,7 @@ button.chat-history-item:active {
 }
 .thinking-content {
   margin: 8px 0 0;
-  padding: 6px 0 0;
+  padding: 8px 0 0;
   border-top: 1px dotted var(--line);
   white-space: pre-wrap;
   font-family: var(--font-mono);
@@ -618,14 +618,14 @@ button.chat-history-item:active {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .tool-call-badge {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 11px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -659,7 +659,7 @@ button.chat-history-item:active {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 4px 10px;
+  padding: 4px 12px;
   font-size: 12px;
   color: var(--fg);
   cursor: pointer;
@@ -668,7 +668,7 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     background 0.15s ease,
     border-color 0.15s ease;
   font-family: inherit;
@@ -681,8 +681,8 @@ button.chat-history-item:active {
   }
 }
 .quick-chip:active {
-  transform: scale(0.94);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 /* Antigravity IDE 風 Composer (入力エリア) */
@@ -697,7 +697,7 @@ button.chat-history-item:active {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -711,7 +711,7 @@ button.chat-history-item:active {
   border-color: var(--accent);
   box-shadow:
     0 0 0 1px var(--accent),
-    0 2px 8px rgba(59, 130, 246, 0.12);
+    0 2px 8px var(--accent-emphasis);
 }
 
 /* アタッチされたコンテキストチップ (Mention Chips) */
@@ -725,11 +725,11 @@ button.chat-history-item:active {
 .agy-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.25);
+  gap: 4px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
-  padding: 2px 7px;
+  padding: 4px 8px;
   font-size: 11px;
   font-family: var(--font-mono);
   color: var(--fg);
@@ -739,19 +739,19 @@ button.chat-history-item:active {
 }
 
 .agy-chip:hover {
-  background: rgba(59, 130, 246, 0.18);
+  background: var(--accent-emphasis);
   border-color: var(--accent);
 }
 
 .agy-chip.error-chip {
-  background: rgba(239, 68, 68, 0.1);
-  border-color: rgba(239, 68, 68, 0.25);
-  color: #ef4444;
+  background: var(--warn-subtle);
+  border-color: var(--warn-border);
+  color: var(--warn);
 }
 
 .agy-chip.error-chip:hover {
-  background: rgba(239, 68, 68, 0.18);
-  border-color: #ef4444;
+  background: var(--warn-emphasis);
+  border-color: var(--warn);
 }
 
 .agy-chip .chip-icon {
@@ -761,7 +761,7 @@ button.chat-history-item:active {
 }
 
 .agy-chip.error-chip .chip-icon {
-  color: #ef4444;
+  color: var(--warn);
 }
 
 .agy-chip .chip-text {
@@ -786,7 +786,7 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     color 0.15s ease;
 }
 @media (hover: hover) {
@@ -795,8 +795,8 @@ button.chat-history-item:active {
   }
 }
 .agy-chip .chip-close:active {
-  transform: scale(0.85);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-icon-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 /* テキストエリア */
@@ -825,7 +825,7 @@ button.chat-history-item:active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 2px;
+  padding-top: 4px;
 }
 
 .agy-toolbar-left {
@@ -841,7 +841,7 @@ button.chat-history-item:active {
   display: inline-flex;
   align-items: center;
   height: 26px;
-  background: rgba(120, 120, 120, 0.08);
+  background: var(--muted-subtle);
   border: 1px solid var(--line);
   border-radius: 6px;
   cursor: pointer;
@@ -868,7 +868,7 @@ button.chat-history-item:active {
   cursor: pointer;
   outline: none;
   /* 見た目上の枠全体（矢印アイコンの上も含む）をタップ判定に含める */
-  padding: 0 24px 0 9px;
+  padding: 0 24px 0 8px;
   width: 100%;
   height: 100%;
   line-height: 24px;
@@ -911,8 +911,8 @@ button.chat-history-item:active {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #007acc;
-  color: #fff;
+  background: var(--accent);
+  color: var(--bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -922,23 +922,24 @@ button.chat-history-item:active {
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     background 0.15s ease,
-    opacity 0.15s ease;
+    opacity 0.15s ease,
+    filter 0.15s ease;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0, 122, 204, 0.3);
+  box-shadow: 0 1px 3px var(--accent-border);
 }
 
 @media (hover: hover) {
   .agy-send-btn:hover {
-    background: #0088e0;
+    filter: brightness(1.1);
     transform: scale(1.05);
   }
 }
 
 .agy-send-btn:active {
-  transform: scale(0.9);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-icon-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 
 .agy-send-btn:disabled {
@@ -954,10 +955,10 @@ button.chat-history-item:active {
   gap: 4px;
   font-size: 10px;
   font-family: var(--font-mono);
-  background: rgba(120, 120, 120, 0.1);
+  background: var(--muted-subtle);
   border: 1px solid var(--line);
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 4px 8px;
   color: var(--muted);
   margin-bottom: 4px;
   align-self: flex-start;

@@ -19,31 +19,31 @@
   color: var(--muted);
 }
 .card.has-error {
-  border-color: rgba(168, 68, 42, 0.35);
+  border-color: var(--warn-border);
 }
 .card.has-error:hover {
   border-color: var(--warn);
 }
 .card.relation-active {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+  box-shadow: 0 0 0 2px var(--accent-border);
 }
 .card.relation-target {
   border-color: var(--accent) !important;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.35);
   animation: relation-pulse 1.2s infinite alternate ease-in-out;
 }
 @keyframes relation-pulse {
   from {
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
   }
   to {
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.55);
+    box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.55);
   }
 }
 .card-main {
   display: block;
-  padding: 11px 13px;
+  padding: 12px 16px;
   text-decoration: none;
   color: inherit;
 }
@@ -74,11 +74,11 @@
 }
 .card-sub {
   border-top: 1px dashed var(--line);
-  padding: 6px 13px;
-  background: rgba(120, 120, 120, 0.04);
+  padding: 8px 16px;
+  background: var(--muted-subtle);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
   overflow: hidden;
 }
@@ -97,16 +97,16 @@
   font-weight: 500;
   color: var(--accent);
   text-decoration: none;
-  padding: 2px 7px;
+  padding: 4px 8px;
   border-radius: 4px;
-  background: rgba(59, 130, 246, 0.08);
+  background: var(--accent-subtle);
   transition:
     background 0.15s ease,
     color 0.15s ease;
   flex-shrink: 0;
 }
 .pr-badge:hover {
-  background: rgba(59, 130, 246, 0.18);
+  background: var(--accent-emphasis);
   text-decoration: underline;
 }
 .pr-badge svg {
@@ -120,9 +120,9 @@
   font-weight: 500;
   color: var(--warn);
   text-decoration: none;
-  padding: 2px 7px;
+  padding: 4px 8px;
   border-radius: 4px;
-  background: rgba(168, 68, 42, 0.08);
+  background: var(--warn-subtle);
   border: none;
   cursor: pointer;
   font-family: inherit;
@@ -130,7 +130,7 @@
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     background 0.15s ease,
     color 0.15s ease;
   overflow: hidden;
@@ -140,13 +140,13 @@
 }
 @media (hover: hover) {
   .error-badge:hover {
-    background: rgba(168, 68, 42, 0.18);
+    background: var(--warn-emphasis);
     text-decoration: underline;
   }
 }
 .error-badge:active {
-  transform: scale(0.94);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 .error-badge svg {
   flex-shrink: 0;
@@ -154,7 +154,7 @@
 .relation-badge-group {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 .relation-badge {
@@ -164,8 +164,8 @@
   font-size: 11px;
   font-weight: 500;
   color: var(--muted);
-  background: rgba(120, 120, 120, 0.08);
-  padding: 2px 7px;
+  background: var(--muted-subtle);
+  padding: 4px 8px;
   border-radius: 4px;
   border: 1px solid var(--line);
   cursor: default;
@@ -181,7 +181,7 @@
 }
 .relation-badge.parent-badge {
   color: var(--fg);
-  border-color: rgba(120, 120, 120, 0.25);
+  border-color: var(--muted-border);
 }
 .relation-badge.child-badge {
   color: var(--muted);
@@ -198,18 +198,18 @@
 .card-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   font-size: 11px;
   font-weight: 500;
-  border-radius: 12px;
-  padding: 2px 7px;
+  border-radius: 9999px;
+  padding: 4px 8px;
   cursor: pointer;
   font-family: inherit;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     background 0.15s ease,
     border-color 0.15s ease,
     color 0.15s ease;
@@ -217,15 +217,15 @@
   border: 1px solid var(--line);
 }
 .card-action-btn:active {
-  transform: scale(0.92);
-  transition: transform 0.08s ease-out;
+  transform: scale(var(--scale-button-active));
+  transition: transform var(--duration-press) var(--ease-snappy);
 }
 .card-action-btn svg {
   flex-shrink: 0;
 }
 .card-history-btn {
   color: var(--muted);
-  background: rgba(120, 120, 120, 0.08);
+  background: var(--muted-subtle);
 }
 @media (hover: hover) {
   .card-history-btn:hover {
@@ -236,14 +236,14 @@
 }
 .card-debug-btn {
   color: var(--accent);
-  background: rgba(59, 130, 246, 0.08);
-  border-color: rgba(59, 130, 246, 0.25);
-  padding: 3px 5px;
+  background: var(--accent-subtle);
+  border-color: var(--accent-border);
+  padding: 4px 8px;
   border-radius: 6px;
 }
 @media (hover: hover) {
   .card-debug-btn:hover {
-    background: rgba(59, 130, 246, 0.18);
+    background: var(--accent-emphasis);
     border-color: var(--accent);
     transform: translateY(-1px);
   }

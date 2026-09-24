@@ -1,43 +1,50 @@
 :root {
-  --bg: #fbfbfa;
-  --fg: #26241f;
-  --muted: #7a756c;
-  --line: #e6e3dd;
-  --card: #fff;
-  --warn: #a8442a;
-  --accent: #3b82f6;
+  /* ベースカラー（ダークテーマ専用） */
+  --bg: #191816;
+  --fg: #e8e4dc;
+  --card: #211f1c;
+  --line: #2f2d29;
+  --muted: #98928a;
+
+  /* セマンティック・状態カラー */
+  --accent: #60a5fa;
+  --warn: #e0a08a;
+  --success: #10b981;
+  --blocked: #f59e0b;
+
+  /* 半透明（Alpha）パターントークン（弱 ~8%, 中 ~16%, 強 ~25%） */
+  --accent-subtle: rgba(96, 165, 250, 0.08);
+  --accent-emphasis: rgba(96, 165, 250, 0.16);
+  --accent-border: rgba(96, 165, 250, 0.25);
+
+  --warn-subtle: rgba(224, 160, 138, 0.08);
+  --warn-emphasis: rgba(224, 160, 138, 0.16);
+  --warn-border: rgba(224, 160, 138, 0.25);
+
+  --muted-subtle: rgba(152, 146, 138, 0.08);
+  --muted-emphasis: rgba(152, 146, 138, 0.16);
+  --muted-border: rgba(152, 146, 138, 0.25);
+
+  --success-subtle: rgba(16, 185, 129, 0.08);
+  --success-emphasis: rgba(16, 185, 129, 0.16);
+  --success-border: rgba(16, 185, 129, 0.25);
+
+  --blocked-subtle: rgba(245, 158, 11, 0.08);
+  --blocked-emphasis: rgba(245, 158, 11, 0.16);
+  --blocked-border: rgba(245, 158, 11, 0.25);
+
+  /* モーション・触覚トークン（iOS Fluid Interaction） */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-snappy: ease-out;
+  --duration-press: 0.08s;
+  --duration-release: 0.35s;
+  --scale-button-active: 0.94;
+  --scale-icon-active: 0.88;
+
+  /* タイポグラフィ */
   --font-sans:
     "IBM Plex Sans", "IBM Plex Sans JP", ui-sans-serif, -apple-system, "Hiragino Sans", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #191816;
-    --fg: #e8e4dc;
-    --muted: #98928a;
-    --line: #2f2d29;
-    --card: #211f1c;
-    --warn: #e0a08a;
-    --accent: #60a5fa;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #191816;
-  --fg: #e8e4dc;
-  --muted: #98928a;
-  --line: #2f2d29;
-  --card: #211f1c;
-  --warn: #e0a08a;
-  --accent: #60a5fa;
-}
-:root[data-theme="light"] {
-  --bg: #fbfbfa;
-  --fg: #26241f;
-  --muted: #7a756c;
-  --line: #e6e3dd;
-  --card: #fff;
-  --warn: #a8442a;
-  --accent: #3b82f6;
 }
 * {
   box-sizing: border-box;
@@ -77,7 +84,7 @@ header {
   padding: 16px 20px;
   border-bottom: 1px solid var(--line);
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 h1 {
@@ -113,7 +120,7 @@ h1 {
   box-shadow: none;
   -webkit-tap-highlight-color: transparent;
   transition:
-    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform var(--duration-release) var(--ease-spring),
     color 0.15s ease,
     background 0.15s ease,
     filter 0.15s ease;
@@ -133,11 +140,11 @@ h1 {
   }
 }
 .icon-btn:active {
-  transform: scale(0.88);
+  transform: scale(var(--scale-icon-active));
   filter: brightness(0.9);
   transition:
-    transform 0.08s ease-out,
-    filter 0.08s ease-out;
+    transform var(--duration-press) var(--ease-snappy),
+    filter var(--duration-press) var(--ease-snappy);
 }
 .header-chat-btn {
   color: var(--accent);
@@ -155,7 +162,7 @@ section {
 .empty {
   color: var(--muted);
   font-size: 13px;
-  padding: 6px 0;
+  padding: 8px 0;
 }
 details summary {
   cursor: pointer;
@@ -164,7 +171,7 @@ details summary {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   user-select: none;
 }
 details summary:hover {

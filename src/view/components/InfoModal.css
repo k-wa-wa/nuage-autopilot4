@@ -6,13 +6,13 @@
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px;
 }
 .rate-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .rate-name {
   font-weight: 600;
@@ -33,7 +33,7 @@
   height: 6px;
   border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .progress-bar-fill {
   height: 100%;
@@ -64,7 +64,7 @@
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 10px 12px;
+  padding: 12px;
 }
 .status-grid dt {
   color: var(--muted);
@@ -79,6 +79,6 @@
 .status-full {
   grid-column: 1 / -1;
   border-top: 1px solid var(--line);
-  padding-top: 6px;
-  margin-top: 2px;
+  padding-top: 8px;
+  margin-top: 4px;
 }
