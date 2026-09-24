@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import type { Config } from "../config.ts";
-import type { CardContext, ChatPayload } from "../execute/chat.ts";
-import { streamChat } from "../execute/chat.ts";
+import type { CardContext, ChatPayload } from "../execute/chat/index.ts";
+import { streamChat } from "../execute/chat/index.ts";
 import {
   addChatMessage,
   getConversation,
@@ -35,7 +35,8 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
     const repo = card?.repo ?? "";
     const issueNumber = card?.issue_number ?? 0;
     const mode = (payload.mode as "investigate" | "brainstorm") || "investigate";
-    const engine = (payload.engine as "claude" | "agy") || "agy";
+    // 一旦 autopilot chat から利用できるエージェントは claude に絞る
+    const engine = (payload.engine as "claude" | "agy") || "claude";
     const userPrompt = payload.message?.trim() || "";
 
     // 会話 ID の初期決定（指定がなければ新規 UUID）

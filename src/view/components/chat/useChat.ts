@@ -140,7 +140,8 @@ export function useChat() {
   const [open, setOpen] = useState(false);
   const [card, setCard] = useState<Card | null>(null);
   const [mode, setModeState] = useState<ChatMode>("investigate");
-  const [engine, setEngineState] = useState<ChatEngine>("agy");
+  // 一旦 autopilot chat から利用できるエージェントは claude に絞る
+  const [engine, setEngineState] = useState<ChatEngine>("claude");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [entries, setEntries] = useState<ChatEntry[]>([]);
   const [streaming, setStreaming] = useState(false);
@@ -150,8 +151,14 @@ export function useChat() {
   useEffect(() => {
     const savedMode = localStorage.getItem(MODE_STORAGE_KEY);
     if (isMode(savedMode)) setModeState(savedMode);
+    // 一旦 claude 固定。過去の agy 設定が残っていれば claude に更新
     const savedEngine = localStorage.getItem(ENGINE_STORAGE_KEY);
-    if (isEngine(savedEngine)) setEngineState(savedEngine);
+    if (savedEngine === "claude") {
+      setEngineState("claude");
+    } else {
+      localStorage.setItem(ENGINE_STORAGE_KEY, "claude");
+      setEngineState("claude");
+    }
   }, []);
 
   const setMode = (next: ChatMode) => {

@@ -2,8 +2,8 @@ import { describe, expect, it } from "bun:test";
 import { join } from "node:path";
 import type { Config } from "../config.ts";
 import { goldenIn } from "../testing/golden.ts";
-import type { AutopilotEnvironment, CardContext } from "./chat.ts";
-import { buildInvestigatePrompt, prepareChatWorkspace } from "./chat.ts";
+import type { AutopilotEnvironment, CardContext } from "./chat/index.ts";
+import { buildInvestigatePrompt, prepareChatWorkspace } from "./chat/index.ts";
 import type { GitRunner } from "./workspace.ts";
 
 const golden = goldenIn(import.meta.url);

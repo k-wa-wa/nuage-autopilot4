@@ -114,16 +114,14 @@ describe("ChatPane (happy-dom)", () => {
     expect(container.textContent).not.toContain("思考中... 設計・仕様を整理しています");
   });
 
-  test("モード選択とエンジン選択の選択肢表記が最適化されている（モデル名なし、plan/investigate）", () => {
+  test("モード選択の選択肢が 🔍 Investigate と 💡 Plan になっており、エンジン選択は Claude 固定（非表示）になっている", () => {
     const container = mount(fakeChat());
     const modeOptions = Array.from(
       container.querySelectorAll<HTMLOptionElement>(".chat-mode-select option"),
     ).map((o) => o.textContent);
     expect(modeOptions).toEqual(["🔍 Investigate", "💡 Plan"]);
 
-    const engineOptions = Array.from(
-      container.querySelectorAll<HTMLOptionElement>(".agy-engine-select option"),
-    ).map((o) => o.textContent);
-    expect(engineOptions).toEqual(["Antigravity", "Claude Code"]);
+    // 一旦 autopilot chat は claude に絞るため、エンジン選択UIは非表示
+    expect(container.querySelector(".agy-engine-select")).toBeNull();
   });
 });

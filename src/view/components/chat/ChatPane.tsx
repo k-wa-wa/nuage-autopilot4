@@ -12,7 +12,7 @@ import {
 import { Markdown } from "./Markdown.tsx";
 import type {
   ChatController,
-  ChatEngine,
+  // ChatEngine,
   ChatEntry,
   ChatMode,
   ConversationSummary,
@@ -424,6 +424,8 @@ export function ChatPane({ chat }: { chat: ChatController }) {
                     <ChevronDownIcon size={10} />
                   </span>
                 </div>
+                {/* 一旦 autopilot chat から利用できるエージェントは claude に絞るため、agy 関連（エンジン選択）はコメントアウト。後で agy 展開時に復帰する */}
+                {/*
                 <div class="agy-engine-picker" title="使用するAIエンジンを選択">
                   <select
                     class="agy-engine-select"
@@ -437,6 +439,7 @@ export function ChatPane({ chat }: { chat: ChatController }) {
                     <ChevronDownIcon size={10} />
                   </span>
                 </div>
+                */}
               </div>
               <div class="agy-toolbar-right">
                 <button
