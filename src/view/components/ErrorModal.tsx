@@ -11,12 +11,12 @@ export function ErrorModal(props: { card: Card | null; onClose: () => void }) {
       title={c ? `⚠️ エラー原因 (${c.repo}#${c.issue_number})` : "⚠️ エラー原因"}
       boxClass="error-modal-box"
     >
-      {c && <ErrorModalBody card={c} onClose={props.onClose} />}
+      {c && <ErrorModalBody card={c} />}
     </Modal>
   );
 }
 
-function ErrorModalBody({ card: c, onClose }: { card: Card; onClose: () => void }) {
+function ErrorModalBody({ card: c }: { card: Card }) {
   const detail = c.error_detail;
   const history = c.error_history ?? [];
   return (
@@ -62,9 +62,6 @@ function ErrorModalBody({ card: c, onClose }: { card: Card; onClose: () => void 
         <a href={c.issue_url || c.url} target="_blank" rel="noreferrer" class="btn btn-secondary">
           GitHub で開く
         </a>
-        <button type="button" class="btn btn-primary" onClick={onClose}>
-          閉じる
-        </button>
       </div>
     </>
   );

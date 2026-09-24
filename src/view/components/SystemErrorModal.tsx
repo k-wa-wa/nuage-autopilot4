@@ -38,11 +38,6 @@ export function SystemErrorModal(props: { open: boolean; onClose: () => void; he
           </div>
         </div>
       )}
-      <div class="modal-footer">
-        <button type="button" class="btn btn-primary" onClick={props.onClose}>
-          閉じる
-        </button>
-      </div>
     </Modal>
   );
 }
