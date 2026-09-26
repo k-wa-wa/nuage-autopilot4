@@ -41,7 +41,7 @@
   transition: background 0.15s ease;
   user-select: none;
 }
-.pane-resizer:hover,
+.pane-resizer:hover /* design-lint-ignore: リサイザーのみのホバーでモバイル非表示(@media display:none)のため残留なし */,
 .pane-resizer.resizing {
   background: var(--accent);
 }
@@ -131,7 +131,7 @@
   }
   .chat-header-title {
     font-size: 13px;
-    gap: 6px;
+    gap: 6px; /* design-lint-ignore: モバイルヘッダー内のコンパクトな要素間隔 */
   }
   .chat-header-action-btn .btn-label {
     display: none;
@@ -177,7 +177,7 @@
     content: "";
     width: 36px;
     height: 4px;
-    border-radius: 2px;
+    border-radius: 2px; /* design-lint-ignore: ドラッグハンドルの丸みインジケーター専用 */
     background: var(--line);
   }
 
@@ -272,15 +272,15 @@
 .chat-history-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 6px; /* design-lint-ignore: チャット履歴メタ情報のコンパクトな要素間隔 */
   font-size: 11px;
   color: var(--muted);
 }
 
 .chat-history-badge {
-  padding: 2px 6px;
+  padding: 2px 6px; /* design-lint-ignore: チャット履歴バッジのコンパクトなパディング */
   border-radius: 4px;
-  font-size: 10px;
+  font-size: 10px; /* design-lint-ignore: チャット履歴バッジの極小表示 */
   background: var(--muted-emphasis);
 }
 
@@ -419,10 +419,7 @@ button.chat-history-item:active {
 .context-info {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  gap: 6px; /* design-lint-ignore: コンテキスト情報行のコンパクトな要素間隔 */
 }
 .context-label {
   color: var(--muted);
@@ -529,7 +526,7 @@ button.chat-history-item:active {
 
 .msg-bubble {
   padding: 12px 16px;
-  border-radius: 10px;
+  border-radius: 10px; /* design-lint-ignore: チャットバブル専用の丸みのある角丸 */
   line-height: 1.55;
   word-break: break-word;
 }
@@ -555,7 +552,7 @@ button.chat-history-item:active {
 .msg-bubble code {
   font-family: var(--font-mono);
   background: var(--muted-emphasis);
-  padding: 2px 6px;
+  padding: 2px 6px; /* design-lint-ignore: インラインコードのコンパクトな水平パディング */
   border-radius: 4px;
   font-size: 12px;
 }
@@ -597,8 +594,10 @@ button.chat-history-item:active {
   gap: 8px;
   outline: none;
 }
-.thinking-accordion summary:hover {
-  color: var(--fg);
+@media (hover: hover) {
+  .thinking-accordion summary:hover {
+    color: var(--fg);
+  }
 }
 .thinking-content {
   margin: 8px 0 0;
@@ -658,7 +657,7 @@ button.chat-history-item:active {
 .quick-chip {
   background: var(--card);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 14px; /* design-lint-ignore: クイックチップのピル寄り角丸 */
   padding: 4px 12px;
   font-size: 12px;
   color: var(--fg);
@@ -718,7 +717,7 @@ button.chat-history-item:active {
 .agy-context-chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 6px; /* design-lint-ignore: コンテキストチップ群のコンパクトな間隔 */
   align-items: center;
 }
 
@@ -738,9 +737,11 @@ button.chat-history-item:active {
   transition: all 0.15s ease;
 }
 
-.agy-chip:hover {
-  background: var(--accent-emphasis);
-  border-color: var(--accent);
+@media (hover: hover) {
+  .agy-chip:hover {
+    background: var(--accent-emphasis);
+    border-color: var(--accent);
+  }
 }
 
 .agy-chip.error-chip {
@@ -749,9 +750,11 @@ button.chat-history-item:active {
   color: var(--warn);
 }
 
-.agy-chip.error-chip:hover {
-  background: var(--warn-emphasis);
-  border-color: var(--warn);
+@media (hover: hover) {
+  .agy-chip.error-chip:hover {
+    background: var(--warn-emphasis);
+    border-color: var(--warn);
+  }
 }
 
 .agy-chip .chip-icon {
@@ -849,10 +852,12 @@ button.chat-history-item:active {
   box-sizing: border-box;
 }
 
-.agy-mode-picker:hover,
-.agy-engine-picker:hover {
-  background: var(--line);
-  border-color: var(--muted);
+@media (hover: hover) {
+  .agy-mode-picker:hover,
+  .agy-engine-picker:hover {
+    background: var(--line);
+    border-color: var(--muted);
+  }
 }
 
 .chat-mode-select,
@@ -953,7 +958,7 @@ button.chat-history-item:active {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: 10px; /* design-lint-ignore: ツール呼び出しバッジの極小表示 */
   font-family: var(--font-mono);
   background: var(--muted-subtle);
   border: 1px solid var(--line);

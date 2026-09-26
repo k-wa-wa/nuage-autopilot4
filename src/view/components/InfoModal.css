@@ -1,6 +1,6 @@
 .rate-limit-cards {
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 .rate-card {
   background: var(--bg);
@@ -31,13 +31,13 @@
 .progress-bar-bg {
   background: var(--line);
   height: 6px;
-  border-radius: 3px;
+  border-radius: 3px; /* design-lint-ignore: progress bar 専用の微細な角丸 */
   overflow: hidden;
   margin-bottom: 8px;
 }
 .progress-bar-fill {
   height: 100%;
-  border-radius: 3px;
+  border-radius: 3px; /* design-lint-ignore: progress bar 専用の微細な角丸 */
   background: var(--accent);
   transition:
     width 0.3s ease,

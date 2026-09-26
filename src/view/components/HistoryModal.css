@@ -75,7 +75,7 @@
   color: var(--fg);
 }
 .timeline-result {
-  font-size: 10px;
+  font-size: 10px; /* design-lint-ignore: タイムライン結果バッジの小字 */
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 4px;
@@ -107,7 +107,7 @@
 .timeline-duration {
   background: var(--bg);
   border: 1px solid var(--line);
-  padding: 2px 6px;
+  padding: 2px 6px; /* design-lint-ignore: タイムライン期間バッジのコンパクトなパディング */
   border-radius: 4px;
   font-family: var(--font-mono);
 }

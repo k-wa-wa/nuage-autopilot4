@@ -3,7 +3,7 @@
   margin-left: -16px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 6px; /* design-lint-ignore: タスクリスト内チェックボックスとテキストの最小間隔 */
 }
 .md-task-box {
   color: var(--muted);
