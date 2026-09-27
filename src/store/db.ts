@@ -2,6 +2,9 @@ import { Database } from "bun:sqlite";
 import init0001 from "./migrations/0001_init.sql" with { type: "text" };
 import chat0002 from "./migrations/0002_chat.sql" with { type: "text" };
 import dropChatMessages0003 from "./migrations/0003_drop_chat_messages.sql" with { type: "text" };
+import dropRepoIssue0004 from "./migrations/0004_drop_repo_issue_from_chat.sql" with {
+  type: "text",
+};
 
 export type DB = Database;
 
@@ -9,6 +12,7 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
   { version: 1, sql: init0001 },
   { version: 2, sql: chat0002 },
   { version: 3, sql: dropChatMessages0003 },
+  { version: 4, sql: dropRepoIssue0004 },
 ];
 
 /**

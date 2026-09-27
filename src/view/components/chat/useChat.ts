@@ -96,12 +96,8 @@ function defaultPrompt(mode: ChatMode, card: Card | null): string {
   return "システム全体の状況を調査してください。";
 }
 
-async function fetchConversations(card: Card | null): Promise<ConversationSummary[]> {
-  const repo = card?.repo ?? "";
-  const issue = card?.issue_number ?? 0;
-  const res = await fetch(
-    `/api/chat/conversations?repo=${encodeURIComponent(repo)}&issue=${issue}`,
-  );
+async function fetchConversations(): Promise<ConversationSummary[]> {
+  const res = await fetch("/api/chat/conversations");
   if (!res.ok) return [];
   const data = (await res.json()) as { conversations?: ConversationSummary[] };
   return data.conversations ?? [];
@@ -166,6 +162,15 @@ export function useChat() {
     }
   }, []);
 
+  // 初回マウント時に直近の会話セッションがあれば復元する
+  const initialLoaded = useRef(false);
+  useEffect(() => {
+    if (!initialLoaded.current) {
+      initialLoaded.current = true;
+      void loadLatest();
+    }
+  }, []);
+
   const setMode = (next: ChatMode) => {
     localStorage.setItem(MODE_STORAGE_KEY, next);
     setModeState(next);
@@ -218,12 +223,14 @@ export function useChat() {
     return true;
   };
 
-  const loadLatest = async (target: Card | null) => {
+  const loadLatest = async () => {
     try {
-      const latest = (await fetchConversations(target))[0];
-      if (!latest || !(await restore(latest.id))) reset();
+      const latest = (await fetchConversations())[0];
+      if (latest) {
+        await restore(latest.id);
+      }
     } catch {
-      // 取得できなければ今の表示を維持する
+      // 取得できなければ何もしない
     }
   };
 
@@ -231,7 +238,6 @@ export function useChat() {
     setCard(target);
     if (target) setModeState("investigate");
     setOpen(true);
-    void loadLatest(target);
   };
 
   const updateAssistant = (id: number, f: (e: AssistantEntry) => AssistantEntry) => {
@@ -335,7 +341,7 @@ export function useChat() {
     entries,
     streaming,
     openWith,
-    toggle: () => (open ? setOpen(false) : openWith(card)),
+    toggle: () => setOpen((prev) => !prev),
     close: () => setOpen(false),
     clearCard: () => setCard(null),
     setMode,
@@ -343,7 +349,7 @@ export function useChat() {
     reset,
     restore,
     reloadLatest: () => (conversationId ? restore(conversationId) : undefined),
-    listConversations: () => fetchConversations(card),
+    listConversations: () => fetchConversations(),
     send,
   };
 }

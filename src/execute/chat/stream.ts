@@ -2,6 +2,7 @@ import type { Config } from "../../config.ts";
 import { buildChatInvocation } from "../adapters/index.ts";
 import { ensureChatWorkspace, type GitRunner } from "../workspace.ts";
 import { buildInvestigatePrompt } from "./prompt.ts";
+import { resolveWorkspaceFromSession } from "./session.ts";
 import type { AutopilotEnvironment, CardContext, ChatMode, EventCallback } from "./types.ts";
 
 /**
@@ -89,7 +90,12 @@ export async function streamClaudeResponse(
 ): Promise<void> {
   let cwd: string;
   try {
-    cwd = await prepareChatWorkspace(card?.repo, cfg, !conversationId, emit);
+    const existingCwd = conversationId ? resolveWorkspaceFromSession(conversationId, cfg) : null;
+    if (existingCwd) {
+      cwd = existingCwd;
+    } else {
+      cwd = await prepareChatWorkspace(card?.repo, cfg, !conversationId, emit);
+    }
   } catch (err) {
     await emit({
       event: "error",

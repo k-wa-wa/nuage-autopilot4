@@ -28,20 +28,9 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
     }
 
     const card = payload.card;
-    let repo = card?.repo ?? "";
-    let issueNumber = card?.issue_number ?? 0;
 
     // 会話 ID の初期決定（指定がなければ新規 UUID）
     let activeConversationId = payload.conversation_id || randomUUID();
-
-    // 既存会話の継続時、card がクリアされていても repo / issueNumber を引き継ぐ
-    if (payload.conversation_id && !repo) {
-      const existing = getConversation(db, payload.conversation_id);
-      if (existing) {
-        repo = existing.repo;
-        issueNumber = existing.issue_number;
-      }
-    }
 
     const mode = (payload.mode as "investigate" | "brainstorm") || "investigate";
     const engine = (payload.engine as "claude" | "agy") || "claude";
@@ -84,15 +73,13 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
               }
 
               const sessionFilePath =
-                resolveClaudeSessionPath(activeConversationId, repo, cfg) ?? "";
+                resolveClaudeSessionPath(activeConversationId, card?.repo, cfg) ?? "";
               const title =
                 userPrompt.slice(0, 50) ||
-                (card ? `${repo}#${issueNumber} の調査` : "Autopilot Chat");
+                (card ? `${card.repo}#${card.issue_number} の調査` : "Autopilot Chat");
 
               upsertConversation(db, {
                 id: activeConversationId,
-                repo,
-                issueNumber,
                 mode,
                 engine,
                 title,
@@ -118,12 +105,10 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
               }
 
               const sessionFilePath =
-                resolveClaudeSessionPath(activeConversationId, repo, cfg) ?? "";
+                resolveClaudeSessionPath(activeConversationId, card?.repo, cfg) ?? "";
 
               upsertConversation(db, {
                 id: activeConversationId,
-                repo,
-                issueNumber,
                 mode,
                 engine,
                 title: userPrompt.slice(0, 50) || "Autopilot Chat",
@@ -157,15 +142,11 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
 
 /**
  * Hono ハンドラ: GET /api/chat/conversations
- * 特定カード（または全体）の過去の会話一覧を取得する。
+ * 過去の会話一覧を取得する（更新日時降順、全体）。
  */
 export function createListConversationsHandler(db: DB) {
   return (c: Context) => {
-    const repo = c.req.query("repo") ?? "";
-    const issueStr = c.req.query("issue");
-    const issueNumber = issueStr ? Number.parseInt(issueStr, 10) || 0 : 0;
-
-    const list = listConversations(db, repo, issueNumber);
+    const list = listConversations(db);
     return c.json({ conversations: list });
   };
 }
@@ -187,14 +168,12 @@ export function createGetConversationHandler(db: DB, cfg?: Config) {
     }
 
     // セッションファイルパスを解決
-    const sessionFilePath = conv.session_file_path || resolveClaudeSessionPath(id, conv.repo, cfg);
+    const sessionFilePath = conv.session_file_path || resolveClaudeSessionPath(id, undefined, cfg);
 
     // 未登録だった場合は DB にセッションファイルパスを反映
     if (sessionFilePath && !conv.session_file_path) {
       upsertConversation(db, {
         id: conv.id,
-        repo: conv.repo,
-        issueNumber: conv.issue_number,
         mode: conv.mode,
         engine: conv.engine,
         title: conv.title,

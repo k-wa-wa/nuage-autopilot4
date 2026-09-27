@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import type { Config } from "../../config.ts";
 import { chatWorkspaceDir } from "../../config.ts";
 
@@ -121,6 +121,40 @@ export function resolveClaudeSessionPath(
     }
   } catch {
     // ディレクトリ走査エラー時は null
+  }
+
+  return null;
+}
+
+/**
+ * セッションIDおよび既存セッションファイルから、そのセッションが紐づいている
+ * ワークスペースディレクトリ（CWD）を逆引きする。
+ */
+export function resolveWorkspaceFromSession(sessionId: string, cfg?: Config): string | null {
+  const sessionPath = resolveClaudeSessionPath(sessionId, undefined, cfg);
+  if (!sessionPath) return null;
+  const projectSlug = basename(dirname(sessionPath));
+  if (!cfg) return null;
+
+  const base = join(cfg.home, "chat-workspaces");
+  if (!existsSync(base)) return null;
+
+  try {
+    const owners = readdirSync(base, { withFileTypes: true });
+    for (const owner of owners) {
+      if (!owner.isDirectory()) continue;
+      const ownerPath = join(base, owner.name);
+      const repos = readdirSync(ownerPath, { withFileTypes: true });
+      for (const repo of repos) {
+        if (!repo.isDirectory()) continue;
+        const repoPath = join(ownerPath, repo.name);
+        if (pathToProjectSlug(repoPath) === projectSlug) {
+          return repoPath;
+        }
+      }
+    }
+  } catch {
+    // 走査エラー時は null
   }
 
   return null;

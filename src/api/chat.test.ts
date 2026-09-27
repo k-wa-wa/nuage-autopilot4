@@ -56,12 +56,39 @@ describe("AI Debug Chat API (/api/chat)", () => {
     expect(accumulated).toContain("event: done");
 
     // DB に会話セッションが作成されていること
-    const convs = listConversations(db, "k-wa-wa/nuage-cluster", 101);
+    const convs = listConversations(db);
     expect(convs.length).toBe(1);
     const conv = convs[0]!;
-    expect(conv.repo).toBe("k-wa-wa/nuage-cluster");
-    expect(conv.issue_number).toBe(101);
     expect(conv.mode).toBe("investigate");
+    expect(conv.title).toBe("なぜ止まっていますか？");
+  });
+
+  it("GET /api/chat/conversations は全件の会話一覧を更新日時順に返す", async () => {
+    const db = openDb(":memory:");
+    const app = new Hono();
+    const { createListConversationsHandler } = await import("./chat.ts");
+    app.get("/api/chat/conversations", createListConversationsHandler(db));
+
+    upsertConversation(db, {
+      id: "conv-1",
+      mode: "investigate",
+      engine: "claude",
+      title: "会話1",
+    });
+    await Bun.sleep(10);
+    upsertConversation(db, {
+      id: "conv-2",
+      mode: "brainstorm",
+      engine: "claude",
+      title: "会話2",
+    });
+
+    const res = await app.request("/api/chat/conversations");
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { conversations: Array<{ id: string; title: string }> };
+    expect(data.conversations.length).toBe(2);
+    expect(data.conversations[0]?.id).toBe("conv-2");
+    expect(data.conversations[1]?.id).toBe("conv-1");
   });
 
   it("GET /api/chat/conversations/:id は Claude セッション JSONL からメッセージ履歴を復元する", async () => {
@@ -93,8 +120,6 @@ describe("AI Debug Chat API (/api/chat)", () => {
     // DB に session_file_path 付きで会話を登録
     upsertConversation(db, {
       id: "test-conv-1",
-      repo: "k-wa-wa/nuage-cluster",
-      issueNumber: 101,
       mode: "investigate",
       engine: "claude",
       title: "エラーログを確認して",
@@ -155,7 +180,7 @@ describe("AI Debug Chat API (/api/chat)", () => {
     const bodyText = await res.text();
     expect(bodyText).toContain("event: done");
 
-    const convs = listConversations(db, "k-wa-wa/nuage-autopilot4", 50);
+    const convs = listConversations(db);
     expect(convs.length).toBe(1);
     const convId = convs[0]!.id;
 
