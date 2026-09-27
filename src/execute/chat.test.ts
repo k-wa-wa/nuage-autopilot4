@@ -114,6 +114,19 @@ describe("Agent Investigation Logic Golden Tests (execute/chat.ts)", () => {
     expect(prompt).not.toContain("【関連コンテキスト (Issue/PR)】");
     expect(prompt).toContain("gh issue create -R <owner/repo>");
   });
+
+  it("investigate / brainstorm: コマンド同期実行・バックグラウンド禁止・待機上限のガイダンスが含まれる", () => {
+    const prompt = buildInvestigatePrompt({
+      userMessage: "テスト",
+      env: fixedEnv,
+    });
+
+    expect(prompt).toContain("【コマンド実行の同期・待機ルール】");
+    expect(prompt).toContain(
+      "バックグラウンド実行（ツールのバックグラウンド指定、シェルの `&`、`nohup` 等）は絶対に禁止する",
+    );
+    expect(prompt).toContain("ループでポーリング待機する場合は、必ず上限");
+  });
 });
 
 describe("Agent Investigation Utilities (execute/chat.ts)", () => {

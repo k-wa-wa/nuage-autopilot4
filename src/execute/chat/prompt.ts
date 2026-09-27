@@ -16,6 +16,24 @@ export function pushWorkspaceGuidance(parts: string[]): void {
   );
 }
 
+/** 非対話型ストリーミング実行でバックグラウンドタスクが放置されるのを防ぐための実行制約を追加する。 */
+export function pushCommandExecutionGuidance(parts: string[]): void {
+  parts.push("\n【コマンド実行の同期・待機ルール】");
+  parts.push("- すべてのコマンドはフォアグラウンド（同期）で実行し、その場で完了を待つこと。");
+  parts.push(
+    "- バックグラウンド実行（ツールのバックグラウンド指定、シェルの `&`、`nohup` 等）は絶対に禁止する。非対話実行のため放置され、誰も結果を回収できない。",
+  );
+  parts.push(
+    "- デーモン起動やログの垂れ流し（`tail -f` 等）は行わず、直近ログ取得（`tail -n 100` 等）や一度限りのステータス確認コマンドを使用すること。",
+  );
+  parts.push(
+    "- 処理の完了待ちや状態変化の確認が必要な場合は、タイムアウト付き同期コマンド（例: `kubectl wait --timeout=60s` 等）を優先すること。",
+  );
+  parts.push(
+    "- ループでポーリング待機する場合は、必ず上限（最大 30〜60 秒程度、または試行回数上限）を設けて `sleep` を挟み、同期的に完了を確認すること。待機上限を超えた場合はループを打ち切り、その時点の状況を回答に含めて報告すること。",
+  );
+}
+
 /**
  * 壁打ち・設計相談プロンプトの構築
  */
@@ -61,6 +79,7 @@ export function buildBrainstormPrompt(
   }
 
   pushWorkspaceGuidance(parts);
+  pushCommandExecutionGuidance(parts);
 
   parts.push("\n【GitHub Issue の起票】");
   parts.push(
@@ -141,6 +160,7 @@ export function buildInvestigatePrompt(
   }
 
   pushWorkspaceGuidance(parts);
+  pushCommandExecutionGuidance(parts);
 
   parts.push("\n【調査のガイドライン】");
   parts.push(
