@@ -4,13 +4,8 @@ import { streamSSE } from "hono/streaming";
 import type { Config } from "../config.ts";
 import type { CardContext, ChatPayload } from "../execute/chat/index.ts";
 import { streamChat } from "../execute/chat/index.ts";
-import {
-  addChatMessage,
-  getConversation,
-  listChatMessages,
-  listConversations,
-  upsertConversation,
-} from "../store/chat.ts";
+import { loadClaudeSession, resolveClaudeSessionPath } from "../execute/chat/session.ts";
+import { getConversation, listConversations, upsertConversation } from "../store/chat.ts";
 import type { DB } from "../store/db.ts";
 
 export type { CardContext, ChatPayload };
@@ -20,7 +15,8 @@ export type { CardContext, ChatPayload };
  *
  * 画面分割パネル（AI 調査・壁打ちアシスタント）からのリクエストを受け取り、
  * execute 層のエージェント実行ストリームを SSE に中継しながら、
- * 会話セッションおよびメッセージ履歴を SQLite DB に自動保存する。
+ * 会話セッションのメタデータ（および Claude セッションファイルパス）を SQLite DB に自動保存する。
+ * 会話メッセージ自体は Claude のセッション JSONL から直接参照される。
  */
 export function createChatStreamHandler(db: DB, cfg?: Config) {
   return async (c: Context) => {
@@ -32,129 +28,129 @@ export function createChatStreamHandler(db: DB, cfg?: Config) {
     }
 
     const card = payload.card;
-    const repo = card?.repo ?? "";
-    const issueNumber = card?.issue_number ?? 0;
-    const mode = (payload.mode as "investigate" | "brainstorm") || "investigate";
-    // 一旦 autopilot chat から利用できるエージェントは claude に絞る
-    const engine = (payload.engine as "claude" | "agy") || "claude";
-    const userPrompt = payload.message?.trim() || "";
+    let repo = card?.repo ?? "";
+    let issueNumber = card?.issue_number ?? 0;
 
     // 会話 ID の初期決定（指定がなければ新規 UUID）
     let activeConversationId = payload.conversation_id || randomUUID();
-    let isUserMessageSaved = false;
-    let accumulatedAssistantText = "";
+
+    // 既存会話の継続時、card がクリアされていても repo / issueNumber を引き継ぐ
+    if (payload.conversation_id && !repo) {
+      const existing = getConversation(db, payload.conversation_id);
+      if (existing) {
+        repo = existing.repo;
+        issueNumber = existing.issue_number;
+      }
+    }
+
+    const mode = (payload.mode as "investigate" | "brainstorm") || "investigate";
+    const engine = (payload.engine as "claude" | "agy") || "claude";
+    const userPrompt = payload.message?.trim() || "";
 
     return streamSSE(c, async (stream) => {
-      await streamChat(
-        {
-          card,
-          message: payload.message,
-          conversationId: payload.conversation_id,
-          engine,
-          mode,
-          cfg,
-        },
-        async (ev) => {
-          // 1. init イベント: エージェント CLI から確定 conversation_id を取得
-          if (ev.event === "init") {
-            const data = ev.data as { conversation_id?: string; engine?: string };
-            if (data?.conversation_id) {
-              activeConversationId = data.conversation_id;
-            }
+      // 中間プロキシ（Ingress / Cloudflare 等）やネットワーク切断を防ぐための定期ハートビート
+      let isStreamClosed = false;
+      const heartbeatTimer = setInterval(async () => {
+        if (isStreamClosed) return;
+        try {
+          await stream.writeSSE({ event: "ping", data: "{}" });
+        } catch {
+          isStreamClosed = true;
+          clearInterval(heartbeatTimer);
+        }
+      }, 5000);
 
-            // 会話レコードを DB に確保
-            const title =
-              userPrompt.slice(0, 50) ||
-              (card ? `${repo}#${issueNumber} の調査` : "Autopilot Chat");
-            upsertConversation(db, {
-              id: activeConversationId,
-              repo,
-              issueNumber,
-              mode,
-              engine,
-              title,
-            });
+      stream.onAbort(() => {
+        isStreamClosed = true;
+        clearInterval(heartbeatTimer);
+      });
 
-            // ユーザー発言を記録
-            if (!isUserMessageSaved && userPrompt) {
-              addChatMessage(db, {
-                conversationId: activeConversationId,
-                role: "user",
-                content: userPrompt,
+      try {
+        await streamChat(
+          {
+            card,
+            message: payload.message,
+            conversationId: payload.conversation_id,
+            engine,
+            mode,
+            cfg,
+          },
+          async (ev) => {
+            // 1. init イベント: エージェント CLI から確定 conversation_id を取得
+            if (ev.event === "init") {
+              const data = ev.data as { conversation_id?: string; engine?: string };
+              if (data?.conversation_id) {
+                activeConversationId = data.conversation_id;
+              }
+
+              const sessionFilePath =
+                resolveClaudeSessionPath(activeConversationId, repo, cfg) ?? "";
+              const title =
+                userPrompt.slice(0, 50) ||
+                (card ? `${repo}#${issueNumber} の調査` : "Autopilot Chat");
+
+              upsertConversation(db, {
+                id: activeConversationId,
+                repo,
+                issueNumber,
+                mode,
+                engine,
+                title,
+                sessionFilePath,
               });
-              isUserMessageSaved = true;
+
+              // クライアント側へ確定した conversation_id を伝える
+              await stream.writeSSE({
+                event: ev.event,
+                data: JSON.stringify({
+                  ...ev.data,
+                  conversation_id: activeConversationId,
+                }),
+              });
+              return;
             }
 
-            // クライアント側へ確定した conversation_id を伝える
+            // 2. done イベント: セッションパスを最終確定・更新
+            if (ev.event === "done") {
+              const data = ev.data as { conversation_id?: string };
+              if (data?.conversation_id) {
+                activeConversationId = data.conversation_id;
+              }
+
+              const sessionFilePath =
+                resolveClaudeSessionPath(activeConversationId, repo, cfg) ?? "";
+
+              upsertConversation(db, {
+                id: activeConversationId,
+                repo,
+                issueNumber,
+                mode,
+                engine,
+                title: userPrompt.slice(0, 50) || "Autopilot Chat",
+                sessionFilePath,
+              });
+
+              await stream.writeSSE({
+                event: ev.event,
+                data: JSON.stringify({
+                  ...ev.data,
+                  conversation_id: activeConversationId,
+                }),
+              });
+              return;
+            }
+
+            // その他のイベント（text, thought, tool_start 等）はそのままストリーミング
             await stream.writeSSE({
               event: ev.event,
-              data: JSON.stringify({
-                ...ev.data,
-                conversation_id: activeConversationId,
-              }),
+              data: JSON.stringify(ev.data),
             });
-            return;
-          }
-
-          // 2. text イベント: 回答テキストを蓄積
-          if (ev.event === "text") {
-            const data = ev.data as { delta?: string };
-            if (data?.delta) {
-              accumulatedAssistantText += data.delta;
-            }
-          }
-
-          // 3. done イベント: アシスタントの最終回答を保存
-          if (ev.event === "done") {
-            const data = ev.data as { conversation_id?: string };
-            if (data?.conversation_id) {
-              activeConversationId = data.conversation_id;
-            }
-
-            // 万一 init で保存されていなければここで確保
-            upsertConversation(db, {
-              id: activeConversationId,
-              repo,
-              issueNumber,
-              mode,
-              engine,
-              title: userPrompt.slice(0, 50) || "Autopilot Chat",
-            });
-
-            if (!isUserMessageSaved && userPrompt) {
-              addChatMessage(db, {
-                conversationId: activeConversationId,
-                role: "user",
-                content: userPrompt,
-              });
-              isUserMessageSaved = true;
-            }
-
-            if (accumulatedAssistantText) {
-              addChatMessage(db, {
-                conversationId: activeConversationId,
-                role: "assistant",
-                content: accumulatedAssistantText,
-              });
-            }
-
-            await stream.writeSSE({
-              event: ev.event,
-              data: JSON.stringify({
-                ...ev.data,
-                conversation_id: activeConversationId,
-              }),
-            });
-            return;
-          }
-
-          // その他のイベント（thought, tool_start 等）はそのままストリーミング
-          await stream.writeSSE({
-            event: ev.event,
-            data: JSON.stringify(ev.data),
-          });
-        },
-      );
+          },
+        );
+      } finally {
+        isStreamClosed = true;
+        clearInterval(heartbeatTimer);
+      }
     });
   };
 }
@@ -176,9 +172,9 @@ export function createListConversationsHandler(db: DB) {
 
 /**
  * Hono ハンドラ: GET /api/chat/conversations/:id
- * 会話メタデータおよびメッセージ履歴を取得する。
+ * 会話メタデータおよび Claude セッション JSONL から復元したメッセージ履歴を取得する。
  */
-export function createGetConversationHandler(db: DB) {
+export function createGetConversationHandler(db: DB, cfg?: Config) {
   return (c: Context) => {
     const id = c.req.param("id");
     if (!id) {
@@ -190,7 +186,23 @@ export function createGetConversationHandler(db: DB) {
       return c.json({ error: "conversation not found" }, 404);
     }
 
-    const messages = listChatMessages(db, id);
+    // セッションファイルパスを解決
+    const sessionFilePath = conv.session_file_path || resolveClaudeSessionPath(id, conv.repo, cfg);
+
+    // 未登録だった場合は DB にセッションファイルパスを反映
+    if (sessionFilePath && !conv.session_file_path) {
+      upsertConversation(db, {
+        id: conv.id,
+        repo: conv.repo,
+        issueNumber: conv.issue_number,
+        mode: conv.mode,
+        engine: conv.engine,
+        title: conv.title,
+        sessionFilePath,
+      });
+    }
+
+    const messages = sessionFilePath ? loadClaudeSession(sessionFilePath) : [];
     return c.json({ conversation: conv, messages });
   };
 }

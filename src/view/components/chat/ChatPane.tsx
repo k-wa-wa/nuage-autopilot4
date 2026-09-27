@@ -57,7 +57,7 @@ function placeholderFor(chat: ChatController): string {
     : "質問や指示を入力... (Enterで送信, Shift+Enterで改行)";
 }
 
-function EntryView({ entry }: { entry: ChatEntry }) {
+function EntryView({ entry, onReload }: { entry: ChatEntry; onReload?: () => void }) {
   if (entry.role === "user") {
     return (
       <div class="chat-msg user">
@@ -92,7 +92,21 @@ function EntryView({ entry }: { entry: ChatEntry }) {
       {(entry.text || entry.error) && (
         <div class="msg-bubble">
           {entry.text && <Markdown text={entry.text} />}
-          {entry.error && <div class="chat-error">⚠️ {entry.error}</div>}
+          {entry.error && (
+            <div class="chat-error">
+              <span>⚠️ {entry.error}</span>
+              {onReload && (
+                <button
+                  type="button"
+                  class="chat-retry-btn"
+                  onClick={onReload}
+                  title="サーバー側の最新ログから回答を再同期"
+                >
+                  🔄 最新状態を再取得
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -388,7 +402,13 @@ export function ChatPane({ chat }: { chat: ChatController }) {
               </div>
             </div>
           ) : (
-            chat.entries.map((e) => <EntryView key={e.id} entry={e} />)
+            chat.entries.map((e) => (
+              <EntryView
+                key={e.id}
+                entry={e}
+                onReload={chat.conversationId ? () => void chat.reloadLatest() : undefined}
+              />
+            ))
           )}
         </div>
 

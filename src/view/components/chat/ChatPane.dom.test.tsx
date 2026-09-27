@@ -24,6 +24,7 @@ function fakeChat(overrides: Partial<ChatController> = {}): ChatController {
     setEngine: (e) => calls.setEngine.push(e),
     reset: () => {},
     restore: async () => false,
+    reloadLatest: async () => false,
     listConversations: async () => [],
     send: async () => {},
     ...overrides,

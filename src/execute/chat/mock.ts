@@ -1,3 +1,6 @@
+import { appendFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { CardContext, ChatMode, EventCallback } from "./types.ts";
 
 /**
@@ -35,6 +38,25 @@ export async function streamMockResponse(
   const delay = (ms: number) => (isTest ? Bun.sleep(1) : Bun.sleep(ms));
   const convId = conversationId || `mock-${Date.now()}`;
   const isContinuation = Boolean(conversationId);
+
+  // モックセッション JSONL の初期化（ユーザー発言を先行書き込み）
+  try {
+    const mockSessionPath = join(tmpdir(), `mock-claude-session-${convId}.jsonl`);
+    const userLine = JSON.stringify({
+      type: "user",
+      message: {
+        role: "user",
+        content: `【指示・質問】\n${userMessage || "状況を調査してください"}`,
+      },
+    });
+    if (isContinuation) {
+      appendFileSync(mockSessionPath, `${userLine}\n`, "utf8");
+    } else {
+      writeFileSync(mockSessionPath, `${userLine}\n`, "utf8");
+    }
+  } catch {
+    // 許容
+  }
 
   const issueKey = card ? `${card.repo}#${card.issue_number}` : "対象アイテム";
   const hasError = Boolean(
@@ -153,14 +175,18 @@ export async function streamMockResponse(
 
   // 7. 回答本文のトークンストリーミング
   const wantsCreate = isBrainstorm && /起票/.test(userMessage ?? "");
+  let responseText = "";
+  let toolInput: Record<string, unknown> | undefined = { command: "git status -sb" };
+
   if (wantsCreate) {
     const mockIssueNumber = Math.floor(Math.random() * 900) + 100;
+    const command = `gh issue create -R ${targetRepo} --title "feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}" --body-file issue.md`;
     await emit({
       event: "tool_start",
       data: {
         id: "tool-3",
         name: "Bash",
-        args: { command: `gh issue create -R ${targetRepo} --title "..." --body-file issue.md` },
+        args: { command },
       },
     });
     await delay(500);
@@ -173,66 +199,96 @@ export async function streamMockResponse(
       },
     });
     await delay(200);
-    const text = `✅ Issue を起票しました: https://github.com/${targetRepo}/issues/${mockIssueNumber}\n\n次回のポーリングで Autopilot に取り込まれます。`;
-    await streamMockText(emit, text, delay);
-    await emit({ event: "done", data: { status: "SUCCESS", conversation_id: convId } });
-    return;
+    responseText = `✅ Issue を起票しました: https://github.com/${targetRepo}/issues/${mockIssueNumber}\n\n次回のポーリングで Autopilot に取り込まれます。`;
+    toolInput = { command };
+  } else {
+    const responseChunks = isBrainstorm
+      ? [
+          `### 💡 壁打ち提案: 設計方針と Issue 案\n\n`,
+          `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
+          "**設計上の検討ポイント**:\n",
+          "- **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
+          "- **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
+          "#### Issue 案\n",
+          `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
+          `**対象リポジトリ**: \`${targetRepo}\`\n\n`,
+          "#### 背景・目的\n",
+          `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
+          "#### 仕様・変更内容\n",
+          "- 対象モジュールの設計見直しとインターフェース拡張\n",
+          "- 既存の SQLite ストアへの状態記録およびエラーハンドリングの追加\n",
+          "- CI パイプラインでの自動検証ステップの追加\n\n",
+          "#### 受け入れ条件 (Acceptance Criteria)\n",
+          "- [ ] 主要ロジックの単体テストがパスすること\n",
+          "- [ ] 既存機能にリグレッションが発生しないこと\n",
+          "- [ ] `bun run check` をパスすること\n\n",
+          "この内容で起票してよければ「**起票して**」と返信してください。",
+        ]
+      : hasError
+        ? [
+            `### 🔍 調査結果: ${issueKey}\n\n`,
+            "**現象の要約**:\n",
+            "直近の実行において、以下のエラーが記録されています:\n",
+            `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
+            "**推定される原因**:\n",
+            "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
+            "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
+            "**原因の切り分け**:\n\n",
+            "| 観点 | 状況 | 対応 |\n",
+            "|---|---|---|\n",
+            "| リトライ回数 | 上限（3回）に到達 | 人間の判断が必要 |\n",
+            "| CI ログ | GitHub Actions で確認可能 | ログを確認し原因を特定 |\n",
+            "| 影響範囲 | 単一 PR のみ | 他タスクへの影響なし |\n\n",
+            "**推奨アクション**:\n",
+            "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
+            "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
+            "3. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
+          ]
+        : [
+            `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
+            `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
+            "**調査詳細**:\n",
+            "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
+            "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
+            userMessage
+              ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
+              : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
+          ];
+    responseText = responseChunks.join("");
   }
 
-  const responseChunks = isBrainstorm
-    ? [
-        `### 💡 壁打ち提案: 設計方針と Issue 案\n\n`,
-        `ご相談（「**${userMessage || "新機能の検討"}**」）について、\`${targetRepo}\` の設計方針を踏まえて仕様を整理しました。\n\n`,
-        "**設計上の検討ポイント**:\n",
-        "- **Autopilot 原則の遵守**: 独立したモジュールとして実装し、既存パイプラインの直列化・排他制御を壊さない構造にします。\n",
-        "- **自律完走の保証**: 受け入れ条件（Acceptance Criteria）を明記し、Worker Agent がテストを自動生成して完走できるようにします。\n\n",
-        "#### Issue 案\n",
-        `**タイトル**: feat: ${userMessage ? userMessage.slice(0, 30) : "新機能の実装"}\n`,
-        `**対象リポジトリ**: \`${targetRepo}\`\n\n`,
-        "#### 背景・目的\n",
-        `${userMessage ? userMessage : "新機能の追加により運用効率とユーザー体験を向上させる。"}\n\n`,
-        "#### 仕様・変更内容\n",
-        "- 対象モジュールの設計見直しとインターフェース拡張\n",
-        "- 既存の SQLite ストアへの状態記録およびエラーハンドリングの追加\n",
-        "- CI パイプラインでの自動検証ステップの追加\n\n",
-        "#### 受け入れ条件 (Acceptance Criteria)\n",
-        "- [ ] 主要ロジックの単体テストがパスすること\n",
-        "- [ ] 既存機能にリグレッションが発生しないこと\n",
-        "- [ ] `bun run check` をパスすること\n\n",
-        "この内容で起票してよければ「**起票して**」と返信してください。",
-      ]
-    : hasError
-      ? [
-          `### 🔍 調査結果: ${issueKey}\n\n`,
-          "**現象の要約**:\n",
-          "直近の実行において、以下のエラーが記録されています:\n",
-          `> **${card?.error_detail?.summary || "ジョブの実行時エラー"}**\n\n`,
-          "**推定される原因**:\n",
-          "- エージェント実行時のコミット生成、または依存リソースの競合によって処理が中断しています。\n",
-          "- リトライ回数が上限に達したか、人間の判断が必要な状態（`ActionRequired`）に遷移しています。\n\n",
-          "**原因の切り分け**:\n\n",
-          "| 観点 | 状況 | 対応 |\n",
-          "|---|---|---|\n",
-          "| リトライ回数 | 上限（3回）に到達 | 人間の判断が必要 |\n",
-          "| CI ログ | GitHub Actions で確認可能 | ログを確認し原因を特定 |\n",
-          "| 影響範囲 | 単一 PR のみ | 他タスクへの影響なし |\n\n",
-          "**推奨アクション**:\n",
-          "1. GitHub Issue 上で `@autopilot-bot retry` とコメントして再試行を促す\n",
-          "2. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
-          "3. または、対象 PR の CI ログ（GitHub Actions）でテスト失敗箇所の詳細を確認する\n",
-        ]
-      : [
-          `### ℹ️ 状況サマリー: ${issueKey}\n\n`,
-          `**現在のステータス**: \`${card?.display_hint || "正常稼働中"}\`（レーン: **${card?.state_lane || "Working"}**）\n\n`,
-          "**調査詳細**:\n",
-          "- 異常終了したエラー履歴は見当たらず、パイプラインの正常な待機またはバックグラウンド処理の途中です。\n",
-          "- ジョブキューおよびポーリング周期に従って次回イテレーションで評価されます。\n\n",
-          userMessage
-            ? `ご質問（「${userMessage}」）について: 追加の操作は不要です。必要に応じて GitHub 上でコメントすると優先度が上がります。\n`
-            : "**次のアクション**: 処理の完了（PR 作成またはレビュー結果）をお待ちください。\n",
-        ];
+  await streamMockText(emit, responseText, delay);
 
-  await streamMockText(emit, responseChunks.join(""), delay);
+  // モックセッション JSONL の保存（アシスタント返答を追記）
+  try {
+    const mockSessionPath = join(tmpdir(), `mock-claude-session-${convId}.jsonl`);
+    const assistantLine = JSON.stringify({
+      type: "assistant",
+      message: {
+        role: "assistant",
+        content: [
+          {
+            type: "thinking",
+            thinking: wantsCreate
+              ? "仕様が確定したため Issue を起票します..."
+              : isBrainstorm
+                ? "リポジトリ構成と既存設計を確認中..."
+                : "アイテム状態と直近エラー履歴を確認中...",
+          },
+          {
+            type: "tool_use",
+            id: `mock-t-${Date.now()}`,
+            name: "Bash",
+            input: toolInput,
+          },
+          { type: "text", text: responseText },
+        ],
+      },
+    });
+    appendFileSync(mockSessionPath, `${assistantLine}\n`, "utf8");
+  } catch {
+    // モックファイル書き込み失敗は許容
+  }
 
   // 8. 完了イベント
   await emit({

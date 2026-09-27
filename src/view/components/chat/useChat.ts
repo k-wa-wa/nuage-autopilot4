@@ -67,7 +67,12 @@ export interface ConversationSummary {
 
 interface ConversationDetail {
   conversation?: { id: string; engine?: string; mode?: string };
-  messages?: Array<{ role: string; content: string }>;
+  messages?: Array<{
+    role: string;
+    content: string;
+    thinking?: string;
+    tools?: ToolCall[];
+  }>;
 }
 
 const MODE_STORAGE_KEY = "autopilot_chat_mode";
@@ -189,9 +194,25 @@ export function useChat() {
     setEntries(
       messages.map((m): ChatEntry => {
         const id = nextId.current++;
-        return m.role === "assistant"
-          ? { id, role: "assistant", text: m.content, live: null, error: null }
-          : { id, role: "user", text: m.content, pin: null };
+        if (m.role === "assistant") {
+          const hasLive = Boolean(m.thinking || (m.tools && m.tools.length > 0));
+          return {
+            id,
+            role: "assistant",
+            text: m.content,
+            live: hasLive
+              ? {
+                  thinking: m.thinking || "",
+                  thinkingDone: true,
+                  tools: m.tools || [],
+                  streaming: false,
+                  pendingLabel: "",
+                }
+              : null,
+            error: null,
+          };
+        }
+        return { id, role: "user", text: m.content, pin: null };
       }),
     );
     return true;
@@ -246,6 +267,8 @@ export function useChat() {
       },
     ]);
 
+    let activeId = conversationId;
+
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -268,14 +291,32 @@ export function useChat() {
         if (done) break;
         for (const ev of parse(decoder.decode(value, { stream: true }))) {
           const convId = (ev.data as { conversation_id?: string } | null)?.conversation_id;
-          if ((ev.event === "init" || ev.event === "done") && convId) setConversationId(convId);
+          if ((ev.event === "init" || ev.event === "done") && convId) {
+            setConversationId(convId);
+            activeId = convId;
+          }
           updateAssistant(assistantId, (e) => applyEvent(e, ev));
         }
       }
     } catch (err) {
+      // ネットワーク切断時、Claude Code はサーバーのバックグラウンドで動いているため
+      // activeId があれば少し待って自動的に最新履歴（JSONL）の復元を試行する
+      if (activeId) {
+        updateAssistant(assistantId, (e) => ({
+          ...e,
+          error: "通信が一時的に切断されました。最新の回答を同期中...",
+        }));
+        await new Promise((r) => setTimeout(r, 2000));
+        try {
+          const restored = await restore(activeId);
+          if (restored) return;
+        } catch {
+          // 復元失敗時は通常のエラー表示へ
+        }
+      }
       updateAssistant(assistantId, (e) => ({
         ...e,
-        error: `調査中にエラーが発生しました: ${String(err)}`,
+        error: `通信エラーが発生しました: ${String(err)}`,
       }));
     } finally {
       updateAssistant(assistantId, (e) =>
@@ -301,6 +342,7 @@ export function useChat() {
     setEngine,
     reset,
     restore,
+    reloadLatest: () => (conversationId ? restore(conversationId) : undefined),
     listConversations: () => fetchConversations(card),
     send,
   };

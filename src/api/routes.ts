@@ -28,5 +28,5 @@ export function mountApiRoutes(app: Hono, db: DB, cfg?: Config): void {
   // AI 調査アシスタント (SSE ストリーミング & 永続化)
   app.post("/api/chat", createChatStreamHandler(db, cfg));
   app.get("/api/chat/conversations", createListConversationsHandler(db));
-  app.get("/api/chat/conversations/:id", createGetConversationHandler(db));
+  app.get("/api/chat/conversations/:id", createGetConversationHandler(db, cfg));
 }

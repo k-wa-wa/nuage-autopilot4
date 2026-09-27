@@ -972,4 +972,25 @@ button.chat-history-item:active {
 .chat-error {
   color: var(--warn);
   margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chat-retry-btn {
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+@media (hover: hover) {
+  .chat-retry-btn:hover {
+    background: var(--muted-subtle);
+  }
 }

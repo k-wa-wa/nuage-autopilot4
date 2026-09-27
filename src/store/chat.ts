@@ -7,16 +7,9 @@ export interface ChatConversation {
   mode: "investigate" | "brainstorm";
   engine: "claude" | "agy";
   title: string;
+  session_file_path: string;
   created_at: string;
   updated_at: string;
-}
-
-export interface ChatMessage {
-  id: number;
-  conversation_id: string;
-  role: "user" | "assistant";
-  content: string;
-  created_at: string;
 }
 
 export interface CreateConversationParams {
@@ -26,6 +19,7 @@ export interface CreateConversationParams {
   mode: "investigate" | "brainstorm";
   engine: "claude" | "agy";
   title?: string;
+  sessionFilePath?: string;
 }
 
 // チャットセッションは同秒内での連続やり取りがあるためミリ秒精度を使用する
@@ -41,16 +35,18 @@ export function upsertConversation(db: DB, params: CreateConversationParams): Ch
   const repo = params.repo ?? "";
   const issueNumber = params.issueNumber ?? 0;
   const title = params.title ?? "";
+  const sessionFilePath = params.sessionFilePath ?? "";
 
   db.query(
-    `INSERT INTO chat_conversations (id, repo, issue_number, mode, engine, title, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO chat_conversations (id, repo, issue_number, mode, engine, title, session_file_path, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        mode = excluded.mode,
        engine = excluded.engine,
        title = CASE WHEN excluded.title != '' THEN excluded.title ELSE chat_conversations.title END,
+       session_file_path = CASE WHEN excluded.session_file_path != '' THEN excluded.session_file_path ELSE chat_conversations.session_file_path END,
        updated_at = excluded.updated_at`,
-  ).run(params.id, repo, issueNumber, params.mode, params.engine, title, now, now);
+  ).run(params.id, repo, issueNumber, params.mode, params.engine, title, sessionFilePath, now, now);
 
   return getConversation(db, params.id)!;
 }
@@ -88,38 +84,4 @@ export function listConversations(
       "SELECT * FROM chat_conversations WHERE repo = ? AND issue_number = ? ORDER BY updated_at DESC, rowid DESC LIMIT ?",
     )
     .all(repo, issueNumber, limit) as ChatConversation[];
-}
-
-/**
- * 会話に新しいメッセージを追加する。
- */
-export function addChatMessage(
-  db: DB,
-  params: { conversationId: string; role: "user" | "assistant"; content: string },
-): ChatMessage {
-  const now = nowIsoMs();
-  const res = db
-    .query(
-      `INSERT INTO chat_messages (conversation_id, role, content, created_at)
-       VALUES (?, ?, ?, ?)
-       RETURNING id, conversation_id, role, content, created_at`,
-    )
-    .get(params.conversationId, params.role, params.content, now) as ChatMessage;
-
-  // 会話の更新日時を更新
-  db.query("UPDATE chat_conversations SET updated_at = ? WHERE id = ?").run(
-    now,
-    params.conversationId,
-  );
-
-  return res;
-}
-
-/**
- * 会話のメッセージ履歴を時系列昇順で取得する。
- */
-export function listChatMessages(db: DB, conversationId: string): ChatMessage[] {
-  return db
-    .query("SELECT * FROM chat_messages WHERE conversation_id = ? ORDER BY id ASC")
-    .all(conversationId) as ChatMessage[];
 }

@@ -136,6 +136,7 @@ export function startDevServer(
     port,
     hostname,
     fetch: app.fetch,
+    idleTimeout: 0,
   });
 
   const lanIp = getLanIp();

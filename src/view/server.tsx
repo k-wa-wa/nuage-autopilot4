@@ -46,6 +46,8 @@ export function startServer(db: DB, cfg: Config): { stop: () => void } {
     port: cfg.dashboard.port,
     hostname: cfg.dashboard.host,
     fetch: app.fetch,
+    // 長時間の AI 調査ストリーム（SSE）で 10 秒アイドル切断が発生するのを防止する
+    idleTimeout: 0,
   });
   return { stop: () => server.stop(true) };
 }
